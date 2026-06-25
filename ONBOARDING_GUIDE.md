@@ -631,3 +631,11 @@ Options:
 File location:
 - ONBOARDING_GUIDE.md (repository root)
 
+## 19) Document Signature
+
+Prepared by:
+- WALID BENHAMED
+
+Date:
+- 2026-06-25
+
