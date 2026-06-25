@@ -1,0 +1,54 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import {
+  CommitResult, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
+} from '../models/import.models';
+
+@Injectable({ providedIn: 'root' })
+export class ImportService {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${environment.apiUrl}/imports`;
+
+  getJobs(page = 1, pageSize = 20): Observable<PagedResult<ImportJob>> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<PagedResult<ImportJob>>(this.base, { params });
+  }
+
+  getJob(id: string): Observable<ImportJob> {
+    return this.http.get<ImportJob>(`${this.base}/${id}`);
+  }
+
+  getRows(jobId: string, page = 1, pageSize = 50, status?: RowStatus): Observable<PagedResult<StagingRow>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (status) params = params.set('status', status);
+    return this.http.get<PagedResult<StagingRow>>(`${this.base}/${jobId}/rows`, { params });
+  }
+
+  upload(file: File, entityType: EntityType): Observable<ImportJob> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ImportJob>(`${this.base}/upload?entityType=${entityType}`, form);
+  }
+
+  commit(jobId: string): Observable<CommitResult> {
+    return this.http.post<CommitResult>(`${this.base}/${jobId}/commit`, {});
+  }
+
+  reject(jobId: string, reason: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/reject`, { reason });
+  }
+
+  downloadOriginal(jobId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/${jobId}/download`, { responseType: 'blob' });
+  }
+
+  downloadErrorReport(jobId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/${jobId}/error-report`, { responseType: 'blob' });
+  }
+
+  downloadTemplate(entityType: EntityType): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/templates/${entityType}`, { responseType: 'blob' });
+  }
+}

@@ -1,0 +1,30 @@
+# Dependency directories
+**/node_modules/
+**/dist/
+
+# .NET build output
+**/bin/
+**/obj/
+
+# EF migrations (keep the Migrations folder but ignore generated output)
+*.Designer.cs
+
+# Secrets — never commit
+.env
+**/appsettings.Production.json
+**/appsettings.Secrets.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+*.swp
+
+# Docker
+.dockerignore

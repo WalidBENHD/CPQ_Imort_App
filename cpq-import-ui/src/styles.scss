@@ -1,0 +1,29 @@
+@use '@angular/material' as mat;
+
+// Initialize Material core
+@include mat.core();
+
+// Use Material's prebuilt theme
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: #f5f5f5;
+}
+
+// Status row colours used in the preview table
+.row-valid    { background: #e8f5e9; }
+.row-warning  { background: #fff8e1; }
+.row-error    { background: #ffebee; }
+
+// Chip overrides
+.status-chip-pending           { background: #e0e0e0; color: #424242; }
+.status-chip-processing        { background: #e3f2fd; color: #1565c0; }
+.status-chip-awaiting-approval { background: #fff8e1; color: #f57f17; }
+.status-chip-committed         { background: #e8f5e9; color: #2e7d32; }
+.status-chip-rejected          { background: #ffebee; color: #c62828; }
+.status-chip-failed            { background: #fce4ec; color: #880e4f; }

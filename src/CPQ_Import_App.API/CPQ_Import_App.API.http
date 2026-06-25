@@ -1,0 +1,6 @@
+@CPQ_Import_App.API_HostAddress = http://localhost:5294
+
+GET {{CPQ_Import_App.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

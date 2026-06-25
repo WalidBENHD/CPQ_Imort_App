@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+
+  # SQL Server (dev / local testing only)
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cpq_sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Your_password123"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Your_password123 -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ASP.NET Core API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cpq_api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ImportDatabase: "Server=sqlserver,1433;Database=CPQ_Import;User Id=sa;Password=Your_password123;TrustServerCertificate=True;"
+      ConnectionStrings__CpqDatabase: "Server=sqlserver,1433;Database=CPQ;User Id=sa;Password=Your_password123;TrustServerCertificate=True;"
+      Auth__Authority: "${AUTH_AUTHORITY}"
+      Auth__Audience: "${AUTH_AUDIENCE}"
+      Cors__AllowedOrigins__0: "http://localhost:4200"
+      Cors__AllowedOrigins__1: "http://frontend"
+    ports:
+      - "5000:80"
+
+  # Angular frontend (nginx)
+  frontend:
+    build:
+      context: ./cpq-import-ui
+      dockerfile: Dockerfile
+    container_name: cpq_frontend
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+
+volumes:
+  sqlserver_data:
