@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:5000/api',
+  apiUrl: 'http://localhost:5294/api',
   disableAuth: true,
   auth: {
     // Fill in once your OIDC provider is known.
