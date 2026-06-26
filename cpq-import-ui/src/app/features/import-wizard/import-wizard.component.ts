@@ -91,12 +91,33 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
 
               <mat-progress-bar *ngIf="uploading" mode="indeterminate" class="upload-progress"></mat-progress-bar>
 
+              <!-- Data Responsibility Notice -->
+              <div class="responsibility-notice">
+                <mat-icon class="notice-icon">warning</mat-icon>
+                <div class="notice-content">
+                  <h3>Your Data Responsibility</h3>
+                  <p>
+                    <strong>You are responsible for the correctness and completeness of this data.</strong>
+                    The quality of our CPQ system depends entirely on the quality of the data imported.
+                    Please verify all values are accurate before submission.
+                  </p>
+                  <p style="margin-bottom: 12px; font-size: 13px; color: rgba(0,0,0,0.65);">
+                    <em>Note: Administrators and approvers review the structural integrity of the data, not the correctness of individual values. 
+                    Data validation and accuracy is your responsibility as the data source owner.</em>
+                  </p>
+                  <label class="responsibility-checkbox">
+                    <input type="checkbox" [(ngModel)]="acknowledgedResponsibility" />
+                    <span>I acknowledge that I have verified this data and take full responsibility for its accuracy</span>
+                  </label>
+                </div>
+              </div>
+
               <div class="step-actions">
                 <button mat-stroked-button matStepperPrevious>
                   <mat-icon>chevron_left</mat-icon> Back
                 </button>
                 <button mat-raised-button color="primary"
-                  [disabled]="!selectedFile || uploading"
+                  [disabled]="!selectedFile || uploading || !acknowledgedResponsibility"
                   (click)="upload()" class="ml-8">
                   <mat-icon>upload</mat-icon>
                   {{ uploading ? 'Uploading...' : 'Upload & Preview' }}
@@ -152,6 +173,13 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
     .ml-8 { margin-left: 8px; }
     .center { text-align: center; padding: 40px; }
     .success-icon { font-size: 64px; height: 64px; width: 64px; }
+    .responsibility-notice { display: flex; gap: 12px; padding: 12px; background: #fff3e0; border-radius: 4px; border-left: 4px solid #f57f17; margin: 24px 0; }
+    .notice-icon { color: #f57f17; flex-shrink: 0; }
+    .notice-content { flex: 1; }
+    .notice-content h3 { margin: 0 0 8px 0; font-size: 14px; color: #e65100; font-weight: 600; }
+    .notice-content p { margin: 0 0 8px 0; font-size: 13px; color: rgba(0,0,0,0.75); line-height: 1.5; }
+    .responsibility-checkbox { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: rgba(0,0,0,0.75); }
+    .responsibility-checkbox input[type="checkbox"] { margin-top: 2px; cursor: pointer; }
   `]
 })
 export class ImportWizardComponent {
@@ -165,6 +193,7 @@ export class ImportWizardComponent {
   isDragOver = false;
   uploading = false;
   uploadedJobId: string | null = null;
+  acknowledgedResponsibility = false;
 
   entityIcon(type: EntityType): string {
     const icons: Record<EntityType, string> = {
@@ -193,7 +222,11 @@ export class ImportWizardComponent {
     if (f) this.validateAndSetFile(f);
   }
 
-  clearFile(e: Event) { e.stopPropagation(); this.selectedFile = null; }
+  clearFile(e: Event) { 
+    e.stopPropagation(); 
+    this.selectedFile = null;
+    this.acknowledgedResponsibility = false;
+  }
 
   private validateAndSetFile(f: File) {
     const ext = f.name.split('.').pop()?.toLowerCase();

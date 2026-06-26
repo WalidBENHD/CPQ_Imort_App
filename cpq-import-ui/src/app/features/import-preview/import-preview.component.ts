@@ -55,7 +55,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
       <!-- Job summary -->
       <mat-card class="summary-card">
         <mat-card-content>
-          <div class="summary-grid">
+          <div class="summary-grid-metadata">
             <div class="summary-item">
               <div class="label">Status</div>
               <app-status-badge [status]="job.statusLabel" />
@@ -72,6 +72,11 @@ import { AuthFacade } from '../../core/auth/auth.facade';
               <div class="label">Date</div>
               <div class="value">{{ job.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
             </div>
+          </div>
+
+          <mat-divider style="margin: 12px 0;"></mat-divider>
+
+          <div class="summary-grid-stats">
             <div class="summary-item">
               <div class="label">Total Rows</div>
               <div class="value">{{ job.totalRows }}</div>
@@ -227,12 +232,13 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .header-actions { display: flex; gap: 8px; margin-top: 24px; }
     .loading-container { display: flex; justify-content: center; padding: 60px; }
     .summary-card { margin-bottom: 16px; }
-    .summary-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 16px; }
-    .summary-item .label { font-size: 11px; color: rgba(0,0,0,0.54); text-transform: uppercase; margin-bottom: 4px; }
-    .summary-item .value { font-size: 18px; font-weight: 500; }
-    .valid-count { color: #2e7d32; }
-    .warning-count { color: #f57f17; }
-    .error-count { color: #c62828; }
+    .summary-grid-metadata, .summary-grid-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .summary-item { padding: 0; }
+    .summary-item .label { font-size: 11px; color: rgba(0,0,0,0.54); text-transform: uppercase; margin-bottom: 4px; font-weight: 600; }
+    .summary-item .value { font-size: 16px; font-weight: 600; color: rgba(0,0,0,0.65); }
+    .summary-item .valid-count { color: #2e7d32; }
+    .summary-item .warning-count { color: #f57f17; }
+    .summary-item .error-count { color: #c62828; }
     .rejection-box, .commit-box { display: flex; align-items: flex-start; gap: 12px; margin-top: 16px; padding: 12px; border-radius: 4px; background: #fff3e0; }
     .rejection-box { background: #ffebee; }
     .commit-box { background: #e8f5e9; }

@@ -16,18 +16,19 @@ type AnyStatus = ImportStatus | RowStatus | string;
   styles: [`
     .badge {
       display: inline-flex; align-items: center; padding: 4px 10px;
-      border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap;
+      border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap;
+      border: 1px solid transparent;
     }
     .badge.small { padding: 2px 6px; font-size: 11px; }
-    .badge-pending           { background: #e0e0e0; color: #424242; }
-    .badge-processing        { background: #e3f2fd; color: #1565c0; }
-    .badge-awaiting-approval { background: #fff8e1; color: #f57f17; }
-    .badge-committed         { background: #e8f5e9; color: #2e7d32; }
-    .badge-rejected          { background: #ffebee; color: #c62828; }
-    .badge-failed            { background: #fce4ec; color: #880e4f; }
-    .badge-valid             { background: #e8f5e9; color: #2e7d32; }
-    .badge-warning           { background: #fff8e1; color: #f57f17; }
-    .badge-error             { background: #ffebee; color: #c62828; }
+    .badge-pending           { background: #e0e0e0; color: #424242; border-color: #bdbdbd; }
+    .badge-processing        { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+    .badge-awaiting-approval { background: #fff8e1; color: #f57f17; border-color: #ffe082; font-weight: 700; }
+    .badge-committed         { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; font-weight: 700; }
+    .badge-rejected          { background: #ffebee; color: #c62828; border-color: #ef9a9a; font-weight: 700; }
+    .badge-failed            { background: #fce4ec; color: #880e4f; border-color: #f8bbd0; }
+    .badge-valid             { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+    .badge-warning           { background: #fff8e1; color: #f57f17; border-color: #ffe082; }
+    .badge-error             { background: #ffebee; color: #c62828; border-color: #ef9a9a; }
   `]
 })
 export class StatusBadgeComponent {
@@ -50,6 +51,17 @@ export class StatusBadgeComponent {
   }
 
   get badgeClass() {
-    return `badge-${this.status.toLowerCase().replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`;
+    const statusMap: Record<string, string> = {
+      Pending: 'badge-pending',
+      Processing: 'badge-processing',
+      AwaitingApproval: 'badge-awaiting-approval',
+      Committed: 'badge-committed',
+      Rejected: 'badge-rejected',
+      Failed: 'badge-failed',
+      Valid: 'badge-valid',
+      Warning: 'badge-warning',
+      Error: 'badge-error'
+    };
+    return statusMap[this.status as string] || `badge-${this.status.toLowerCase().replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()}`;
   }
 }

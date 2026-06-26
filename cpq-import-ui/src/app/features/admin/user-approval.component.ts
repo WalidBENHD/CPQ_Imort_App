@@ -446,16 +446,16 @@ interface RoleChangeDialogData {
         </div>
       </div>
 
-      <mat-dialog-content>
-        <p>
+      <mat-dialog-content class="dialog-content">
+        <p class="lead-text">
           You are about to delete <strong>{{ data.displayName }}</strong>
           (<span class="mono">{{ data.userName }}</span>).
         </p>
         <p class="impact-note">This user will immediately lose access to the application.</p>
       </mat-dialog-content>
 
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" (click)="close(false)">Cancel</button>
+      <mat-dialog-actions align="end" class="action-row">
+        <button mat-stroked-button type="button" (click)="close(false)">Cancel</button>
         <button mat-flat-button color="warn" type="button" (click)="close(true)">
           <mat-icon>delete_forever</mat-icon>
           Delete User
@@ -464,28 +464,33 @@ interface RoleChangeDialogData {
     </div>
   `,
   styles: [`
-    .dialog-shell { padding: 6px 2px 2px; overflow: hidden; }
-    .dialog-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .dialog-shell { padding: 18px 20px 16px; overflow: hidden; }
+    .dialog-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
     .dialog-icon-wrap {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       background: #fef2f2;
       color: #b91c1c;
       display: grid;
       place-items: center;
       flex-shrink: 0;
     }
-    h2[mat-dialog-title] { margin: 0; line-height: 1.2; font-size: 22px; }
-    .dialog-subtitle { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+    h2[mat-dialog-title] { margin: 0; line-height: 1.2; font-size: 24px; font-weight: 700; }
+    .dialog-subtitle { margin: 6px 0 0; color: #64748b; font-size: 14px; line-height: 1.35; }
     mat-dialog-content {
-      padding: 0 0 10px;
+      padding: 4px 0 10px;
       color: #1e293b;
       max-height: none !important;
       overflow: hidden !important;
     }
+    .dialog-content .lead-text {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.45;
+    }
     .impact-note {
-      margin: 10px 0 0;
+      margin: 12px 0 0;
       padding: 8px 10px;
       border-radius: 8px;
       border: 1px solid #fecaca;
@@ -494,6 +499,16 @@ interface RoleChangeDialogData {
       font-size: 13px;
     }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .action-row {
+      border-top: 1px solid #e2e8f0;
+      margin-top: 16px;
+      padding-top: 14px;
+      gap: 8px;
+    }
+    .action-row button[mat-stroked-button],
+    .action-row button[mat-flat-button] {
+      min-width: 132px;
+    }
   `]
 })
 export class DeleteUserDialogComponent {
