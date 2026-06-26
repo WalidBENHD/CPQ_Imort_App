@@ -1,6 +1,9 @@
 # Dependency directories
 **/node_modules/
 **/dist/
+cpq-import-ui/.angular/
+cpq-import-ui/.tsbuildinfo
+*.tsbuildinfo
 
 # .NET build output
 **/bin/
