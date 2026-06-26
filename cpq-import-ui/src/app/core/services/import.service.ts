@@ -1,14 +1,17 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
   CommitResult, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
 } from '../models/import.models';
+import { NotificationService } from './notification.service';
 
 @Injectable({ providedIn: 'root' })
 export class ImportService {
   private readonly http = inject(HttpClient);
+  private readonly notificationService = inject(NotificationService);
   private readonly base = `${environment.apiUrl}/imports`;
 
   getJobs(page = 1, pageSize = 20): Observable<PagedResult<ImportJob>> {
@@ -29,15 +32,21 @@ export class ImportService {
   upload(file: File, entityType: EntityType): Observable<ImportJob> {
     const form = new FormData();
     form.append('file', file);
-    return this.http.post<ImportJob>(`${this.base}/upload?entityType=${entityType}`, form);
+    return this.http.post<ImportJob>(`${this.base}/upload?entityType=${entityType}`, form).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
   }
 
   commit(jobId: string): Observable<CommitResult> {
-    return this.http.post<CommitResult>(`${this.base}/${jobId}/commit`, {});
+    return this.http.post<CommitResult>(`${this.base}/${jobId}/commit`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
   }
 
   reject(jobId: string, reason: string): Observable<ImportJob> {
-    return this.http.post<ImportJob>(`${this.base}/${jobId}/reject`, { reason });
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/reject`, { reason }).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
   }
 
   downloadOriginal(jobId: string): Observable<Blob> {

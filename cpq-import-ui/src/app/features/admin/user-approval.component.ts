@@ -118,6 +118,10 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
               <mat-icon>admin_panel_settings</mat-icon>
               Approve Admin
             </button>
+            <button mat-stroked-button color="warn" (click)="reject(user)">
+              <mat-icon>block</mat-icon>
+              Reject
+            </button>
           </div>
         </article>
       </mat-card>
@@ -276,6 +280,39 @@ export class UserApprovalComponent implements OnInit {
 
   approve(user: AuthUser, role: string, isAdmin: boolean): void {
     this.auth.approveUser(user.id, role, isAdmin).subscribe(() => this.reload());
+  }
+
+  reject(user: AuthUser): void {
+    const dialogRef = this.dialog.open(RejectUserDialogComponent, {
+      width: '420px',
+      maxWidth: '95vw',
+      disableClose: true,
+      data: {
+        displayName: user.displayName,
+        userName: user.userName
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.successMessage = '';
+      this.errorMessage = '';
+
+      this.auth.rejectUser(user.id).subscribe({
+        next: () => {
+          this.successMessage = 'User request rejected successfully.';
+          console.log('User rejected, reloading...', user.id);
+          this.reload();
+        },
+        error: (err) => {
+          this.errorMessage = err?.error?.error ?? 'Unable to reject user.';
+          console.error('Reject error:', err);
+        }
+      });
+    });
   }
 
   updateRole(user: AuthUser, role: string, isAdmin: boolean): void {
@@ -637,6 +674,117 @@ export class DeleteUserDialogComponent {
 export class RoleChangeDialogComponent {
   readonly data = inject<RoleChangeDialogData>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject(MatDialogRef<RoleChangeDialogComponent, boolean>);
+
+  close(result: boolean): void {
+    this.dialogRef.close(result);
+  }
+}
+
+interface RejectUserDialogData {
+  displayName: string;
+  userName: string;
+}
+
+@Component({
+  selector: 'app-reject-user-dialog',
+  standalone: true,
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatDialogModule],
+  template: `
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-icon-wrap reject-icon-wrap">
+          <mat-icon>block</mat-icon>
+        </div>
+        <div>
+          <h2 mat-dialog-title>Reject User Request</h2>
+          <p class="dialog-subtitle">Remove this pending approval request.</p>
+        </div>
+      </div>
+
+      <mat-dialog-content class="dialog-content">
+        <p class="lead-text">
+          Reject the account request for <strong>{{ data.displayName }}</strong>
+          (<span class="mono">{{ data.userName }}</span>)?
+        </p>
+        <p class="impact-note">
+          <mat-icon class="note-icon">info</mat-icon>
+          This will remove the request permanently. The user can register again if needed.
+        </p>
+      </mat-dialog-content>
+
+      <mat-dialog-actions align="end" class="action-row">
+        <button mat-stroked-button type="button" (click)="close(false)">Cancel</button>
+        <button mat-flat-button color="warn" type="button" (click)="close(true)">
+          <mat-icon>block</mat-icon>
+          Reject Request
+        </button>
+      </mat-dialog-actions>
+    </div>
+  `,
+  styles: [`
+    .dialog-shell { padding: 18px 20px 16px; overflow: hidden; }
+    .dialog-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .dialog-icon-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .reject-icon-wrap {
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+    h2[mat-dialog-title] { margin: 0; line-height: 1.2; font-size: 24px; font-weight: 700; }
+    .dialog-subtitle { margin: 6px 0 0; color: #64748b; font-size: 14px; line-height: 1.35; }
+    mat-dialog-content {
+      padding: 4px 0 10px;
+      color: #1e293b;
+      max-height: none !important;
+      overflow: hidden !important;
+    }
+    mat-dialog-actions { padding: 0; margin: 0; }
+    .dialog-content .lead-text {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    .impact-note {
+      margin: 12px 0 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+      color: #9f1239;
+      font-size: 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .note-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .action-row {
+      border-top: 1px solid #e2e8f0;
+      margin-top: 16px;
+      padding-top: 14px;
+      gap: 8px;
+    }
+    .action-row button[mat-stroked-button],
+    .action-row button[mat-flat-button] {
+      min-width: 132px;
+    }
+  `]
+})
+export class RejectUserDialogComponent {
+  readonly data = inject<RejectUserDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject(MatDialogRef<RejectUserDialogComponent, boolean>);
 
   close(result: boolean): void {
     this.dialogRef.close(result);

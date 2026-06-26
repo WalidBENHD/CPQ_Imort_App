@@ -25,3 +25,18 @@ public enum RowStatus
     Warning = 1,
     Error = 2
 }
+
+public enum NotificationType
+{
+    // Import notifications
+    ImportUploaded = 1,
+    ImportRejected = 2,
+    ImportApproved = 3,
+    ImportCommitted = 4,
+    ImportFailed = 5,
+    // User notifications
+    UserPendingApproval = 10,
+    UserApproved = 11,
+    UserRoleChanged = 12,
+    UserDeleted = 13
+}

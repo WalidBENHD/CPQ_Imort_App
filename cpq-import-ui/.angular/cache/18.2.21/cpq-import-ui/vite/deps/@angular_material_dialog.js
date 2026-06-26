@@ -4,7 +4,11 @@ import {
   OverlayContainer,
   OverlayModule,
   OverlayRef
-} from "./chunk-Q2YQCGUR.js";
+} from "./chunk-I7KGY7DF.js";
+import {
+  CdkScrollable
+} from "./chunk-GAY5QX3W.js";
+import "./chunk-XUPB2GYR.js";
 import {
   BasePortalOutlet,
   CdkPortalOutlet,
@@ -12,9 +16,6 @@ import {
   PortalModule,
   TemplatePortal
 } from "./chunk-RF7ZMVJA.js";
-import {
-  CdkScrollable
-} from "./chunk-I2OR4T56.js";
 import {
   animate,
   animateChild,

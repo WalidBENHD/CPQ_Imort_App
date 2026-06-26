@@ -2,14 +2,15 @@ import {
   Overlay,
   OverlayConfig,
   OverlayModule
-} from "./chunk-Q2YQCGUR.js";
+} from "./chunk-I7KGY7DF.js";
+import {
+  CdkScrollableModule
+} from "./chunk-GAY5QX3W.js";
+import "./chunk-XUPB2GYR.js";
 import {
   DomPortalOutlet,
   TemplatePortal
 } from "./chunk-RF7ZMVJA.js";
-import {
-  CdkScrollableModule
-} from "./chunk-I2OR4T56.js";
 import {
   animate,
   state,

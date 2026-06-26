@@ -27,3 +27,79 @@ html, body {
 .status-chip-committed         { background: #e8f5e9; color: #2e7d32; }
 .status-chip-rejected          { background: #ffebee; color: #c62828; }
 .status-chip-failed            { background: #fce4ec; color: #880e4f; }
+
+// Toast notification animations
+@keyframes slideInUp {
+  from {
+    transform: translateY(400px) translateX(0);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutDown {
+  from {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(400px) translateX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// Toast notifications
+.toast-success { 
+  background: #2e7d32 !important; 
+  color: #fff !important; 
+  animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.toast-error { 
+  background: #c62828 !important; 
+  color: #fff !important; 
+  animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.toast-warning { 
+  background: #f57f17 !important; 
+  color: #fff !important; 
+  animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.toast-info { 
+  background: #1565c0 !important; 
+  color: #fff !important; 
+  animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  animation-name: slideInUp, pulse !important;
+  animation-duration: 0.4s, 2s !important;
+  animation-delay: 0s, 0.4s !important;
+  animation-iteration-count: 1, infinite !important;
+}
+
+// Custom notification toast panel
+.notification-toast-panel {
+  background: #1565c0 !important;
+  color: #fff !important;
+  animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  border-radius: 4px !important;
+  padding: 0 !important;
+  
+  .mdc-snackbar__surface {
+    background: #1565c0 !important;
+    color: #fff !important;
+  }
+}

@@ -3,6 +3,7 @@ using CPQ_Import_App.API.DTOs;
 using CPQ_Import_App.API.Security;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Data;
+using CPQ_Import_App.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ namespace CPQ_Import_App.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory) : ControllerBase
+public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, INotificationService notificationService) : ControllerBase
 {
     private string CurrentUserName => User.FindFirstValue("preferred_username")
         ?? User.FindFirstValue(ClaimTypes.Name)
@@ -56,6 +57,22 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory) 
         });
 
         await db.SaveChangesAsync(ct);
+
+        // Notify all admins about the new pending user
+        var newUser = await db.TestUsers.FirstOrDefaultAsync(x => x.NormalizedUserName == normalized, ct);
+        if (newUser != null)
+        {
+            var adminIds = await db.TestUsers
+                .AsNoTracking()
+                .Where(x => x.IsAdmin && x.IsApproved)
+                .Select(x => x.Id)
+                .ToListAsync(ct);
+
+            if (adminIds.Any())
+            {
+                await notificationService.NotifyAdminsAboutPendingUserAsync(newUser, adminIds);
+            }
+        }
 
         return Ok(new
         {
@@ -196,7 +213,39 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory) 
         user.ApprovedByUserName = CurrentUserName;
 
         await db.SaveChangesAsync(ct);
+        
+        // Notify user that they were approved
+        await notificationService.NotifyUserApprovedAsync(user.Id, CurrentUserName);
+        
         return Ok(ToDto(user));
+    }
+
+    [HttpPost("users/{id:guid}/reject")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> RejectUser(Guid id, CancellationToken ct)
+    {
+        var currentUserIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        System.Diagnostics.Debug.WriteLine($"RejectUser called for id={id} by user={currentUserIdValue}");
+        
+        var user = await db.TestUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (user is null)
+        {
+            System.Diagnostics.Debug.WriteLine($"User not found: {id}");
+            return NotFound(new { error = "User not found." });
+        }
+
+        System.Diagnostics.Debug.WriteLine($"Found user: {user.UserName}, IsApproved={user.IsApproved}");
+
+        if (user.IsApproved)
+        {
+            System.Diagnostics.Debug.WriteLine($"User is already approved, cannot reject");
+            return Conflict(new { error = "Cannot reject an already approved user. Use delete if you want to remove them." });
+        }
+
+        db.TestUsers.Remove(user);
+        await db.SaveChangesAsync(ct);
+        System.Diagnostics.Debug.WriteLine($"User {user.UserName} rejected successfully");
+        return NoContent();
     }
 
     [HttpPost("users/{id:guid}/role")]
@@ -219,9 +268,14 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory) 
             return Conflict(new { error = "User must be approved first." });
         }
 
+        var oldRole = user.Role;
         user.Role = request.Role.Trim();
         user.IsAdmin = request.IsAdmin;
         await db.SaveChangesAsync(ct);
+        
+        // Notify user of role change
+        await notificationService.NotifyUserRoleChangedAsync(user.Id, oldRole, user.Role);
+        
         return Ok(ToDto(user));
     }
 

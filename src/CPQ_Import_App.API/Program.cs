@@ -20,9 +20,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("ImportDatabase"),
         sql => sql.MigrationsAssembly("CPQ_Import_App.Infrastructure")));
 
-// ── Repositories & Services ───────────────────────────────────────────────────
+// ── Repositories & Services ───────────────────────────────────────────────
 builder.Services.AddScoped<IImportRepository, ImportRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // ── File Parsers (one per entity type) ────────────────────────────────────────
 builder.Services.AddScoped<IFileParser, ArticleParser>();

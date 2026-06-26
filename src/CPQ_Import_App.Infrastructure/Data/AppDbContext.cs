@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
     public DbSet<TestUser> TestUsers => Set<TestUser>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +69,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Role).HasMaxLength(64);
             e.Property(x => x.ApprovedByUserName).HasMaxLength(120);
             e.HasIndex(x => x.NormalizedUserName).IsUnique();
+        });
+
+        modelBuilder.Entity<Notification>(e =>
+        {
+            e.ToTable("Notifications");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserId);
+            e.Property(x => x.NotificationType);
+            e.Property(x => x.Title).HasMaxLength(256);
+            e.Property(x => x.Message).HasColumnType("nvarchar(max)");
+            e.Property(x => x.RelatedUserId);
+            e.Property(x => x.RelatedImportId);
+            e.Property(x => x.IsRead);
+            e.Property(x => x.CreatedAt);
+            e.Property(x => x.ExpiresAt);
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => new { x.UserId, x.IsRead });
+            e.HasIndex(x => x.CreatedAt);
         });
     }
 }

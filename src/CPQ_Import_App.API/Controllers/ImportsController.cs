@@ -2,8 +2,11 @@ using CPQ_Import_App.API.DTOs;
 using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
+using CPQ_Import_App.Infrastructure.Data;
+using CPQ_Import_App.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CPQ_Import_App.API.Controllers;
@@ -11,7 +14,10 @@ namespace CPQ_Import_App.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ImportsController(IImportService importService) : ControllerBase
+public class ImportsController(
+    IImportService importService,
+    INotificationService notificationService,
+    AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
@@ -44,6 +50,19 @@ public class ImportsController(IImportService importService) : ControllerBase
         try
         {
             var job = await importService.UploadAsync(stream, file.FileName, et, UserId, UserDisplayName, ct);
+            
+            // Notify approvers about the new import
+            var approverIds = await db.TestUsers
+                .AsNoTracking()
+                .Where(x => x.IsAdmin && x.IsApproved)
+                .Select(x => x.Id)
+                .ToListAsync(ct);
+
+            if (approverIds.Any())
+            {
+                await notificationService.NotifyImportUploadedAsync(job, approverIds);
+            }
+            
             return CreatedAtAction(nameof(GetJob), new { id = job.Id }, job.ToDto());
         }
         catch (InvalidDataException ex)
@@ -101,6 +120,13 @@ public class ImportsController(IImportService importService) : ControllerBase
         try
         {
             var job = await importService.CommitAsync(id, UserId, UserDisplayName, ct);
+            
+            // Notify the uploader that their import was committed
+            if (Guid.TryParse(job.CreatedBy, out var uploaderId))
+            {
+                await notificationService.NotifyImportCommittedAsync(job, uploaderId);
+            }
+            
             return Ok(new CommitResultDto(job.Id, job.CommittedRows, $"Successfully committed {job.CommittedRows} rows."));
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
@@ -117,6 +143,13 @@ public class ImportsController(IImportService importService) : ControllerBase
         try
         {
             var job = await importService.RejectAsync(id, UserId, UserDisplayName, request.Reason, ct);
+            
+            // Notify the uploader that their import was rejected
+            if (Guid.TryParse(job.CreatedBy, out var uploaderId))
+            {
+                await notificationService.NotifyImportRejectedAsync(job, uploaderId);
+            }
+            
             return Ok(job.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }

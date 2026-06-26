@@ -9,12 +9,13 @@ import { OAuthService } from 'angular-oauth2-oidc';
 import { authConfig } from './core/auth/auth.config';
 import { AuthFacade } from './core/auth/auth.facade';
 import { environment } from '../environments/environment';
+import { NotificationCenterComponent } from './shared/notification-center/notification-center.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [NgIf, RouterOutlet, RouterLink, RouterLinkActive,
-    MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule],
+    MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, NotificationCenterComponent],
   template: `
     <mat-toolbar color="primary">
       <span class="brand">
@@ -31,6 +32,7 @@ import { environment } from '../environments/environment';
       <a mat-button *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
         <mat-icon>admin_panel_settings</mat-icon> Admin Panel
       </a>
+      <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
       <button mat-icon-button *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu">
         <mat-icon>account_circle</mat-icon>
       </button>
