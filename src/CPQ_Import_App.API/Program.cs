@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var disableAuth = builder.Configuration.GetValue<bool>("Auth:DisableAuth");
@@ -34,16 +35,35 @@ builder.Services.AddScoped<ICpqCommitStrategy, ArticleCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, PriceListCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, DescriptionCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, CurrencyRateCommitStrategy>();
+builder.Services.AddScoped<LocalJwtTokenFactory>();
 
 // ── Authentication (JWT Bearer / OIDC) ────────────────────────────────────────
 // Configure your OIDC provider in appsettings.json under "Auth".
 // In local development, Auth:DisableAuth=true enables a fake authenticated user.
 if (disableAuth)
 {
-    builder.Services.AddAuthentication(DevelopmentAuthHandler.SchemeName)
-        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, DevelopmentAuthHandler>(
-            DevelopmentAuthHandler.SchemeName,
-            _ => { });
+    var issuer = builder.Configuration["Auth:Local:Issuer"] ?? "CPQImportLocal";
+    var audience = builder.Configuration["Auth:Local:Audience"] ?? "CPQImportLocalClient";
+    var signingKey = builder.Configuration["Auth:Local:SigningKey"] ?? "ChangeThisLocalSigningKey_AtLeast32Characters!";
+
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = issuer,
+                ValidAudience = audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+                NameClaimType = "name",
+                RoleClaimType = "roles",
+                ClockSkew = TimeSpan.FromMinutes(1)
+            };
+        });
 }
 else
 {
@@ -52,11 +72,14 @@ else
         {
             options.Authority = builder.Configuration["Auth:Authority"];
             options.Audience = builder.Configuration["Auth:Audience"];
+            options.MapInboundClaims = false;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
                 ValidateLifetime = true,
+                NameClaimType = "name",
+                RoleClaimType = "roles",
                 ClockSkew = TimeSpan.FromMinutes(5)
             };
         });
@@ -72,7 +95,14 @@ builder.Services.AddAuthorization(options =>
             ctx.User.HasClaim(c =>
                 (c.Type == "roles" || c.Type == "role" ||
                  c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                && c.Value == "cpq-approver")));
+                && (c.Value == "cpq-approver" || c.Value == "cpq-admin"))));
+
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.HasClaim(c =>
+                (c.Type == "roles" || c.Type == "role" ||
+                 c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                && c.Value == "cpq-admin")));
 });
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -116,6 +146,11 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+
+    if (disableAuth)
+    {
+        await LocalAuthBootstrapper.EnsureSeedAdminAsync(db, app.Configuration);
+    }
 }
 
 app.UseHttpsRedirection();

@@ -9,6 +9,23 @@ public static class DtoMapper
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
+    private static string? ResolveActorDisplayName(ImportJob job, string? actor, string action)
+    {
+        var shouldResolve = string.IsNullOrWhiteSpace(actor) || Guid.TryParse(actor, out _);
+        if (!shouldResolve)
+        {
+            return actor;
+        }
+
+        var displayName = job.AuditLogs
+            .Where(a => a.Action.Equals(action, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(a => a.PerformedAt)
+            .Select(a => a.PerformedByDisplayName)
+            .FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(displayName) ? actor : displayName;
+    }
+
     public static ImportJobDto ToDto(this ImportJob job) => new(
         job.Id,
         job.OriginalFileName,
@@ -21,8 +38,8 @@ public static class DtoMapper
         job.CreatedAt,
         job.ProcessedAt,
         job.CommittedAt,
-        job.CommittedBy,
-        job.RejectedBy,
+        ResolveActorDisplayName(job, job.CommittedBy, "Committed"),
+        ResolveActorDisplayName(job, job.RejectedBy, "Rejected"),
         job.RejectedAt,
         job.RejectionReason,
         job.TotalRows,

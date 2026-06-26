@@ -16,7 +16,9 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     }
 
     public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
-        => db.ImportJobs.FirstOrDefaultAsync(j => j.Id == id, ct);
+        => db.ImportJobs
+            .Include(j => j.AuditLogs)
+            .FirstOrDefaultAsync(j => j.Id == id, ct);
 
     public async Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, CancellationToken ct = default)

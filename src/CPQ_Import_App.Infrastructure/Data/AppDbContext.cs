@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<StagingRow> StagingRows => Set<StagingRow>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
+    public DbSet<TestUser> TestUsers => Set<TestUser>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +54,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.JobId);
             e.Property(x => x.FileName).HasMaxLength(512);
             e.Property(x => x.Content).HasColumnType("varbinary(max)");
+        });
+
+        modelBuilder.Entity<TestUser>(e =>
+        {
+            e.ToTable("TestUsers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserName).HasMaxLength(120);
+            e.Property(x => x.NormalizedUserName).HasMaxLength(120);
+            e.Property(x => x.DisplayName).HasMaxLength(256);
+            e.Property(x => x.PasswordHash).HasMaxLength(512);
+            e.Property(x => x.PasswordSalt).HasMaxLength(256);
+            e.Property(x => x.Role).HasMaxLength(64);
+            e.Property(x => x.ApprovedByUserName).HasMaxLength(120);
+            e.HasIndex(x => x.NormalizedUserName).IsUnique();
         });
     }
 }

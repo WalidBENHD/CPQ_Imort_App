@@ -22,7 +22,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
   template: `
     <div class="page-header">
       <h1>Import Dashboard</h1>
-      <button mat-raised-button color="primary" routerLink="/import/new">
+      <button mat-raised-button color="primary" (click)="newImport()">
         <mat-icon>add</mat-icon> New Import
       </button>
     </div>
@@ -180,5 +180,9 @@ export class DashboardComponent implements OnInit {
 
   view(job: ImportJob) {
     this.router.navigate(['/import', job.id]);
+  }
+
+  newImport() {
+    this.router.navigate(['/import/new']);
   }
 }

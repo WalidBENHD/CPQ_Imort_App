@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { NgIf } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,7 +13,7 @@ import { environment } from '../environments/environment';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive,
+  imports: [NgIf, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule],
   template: `
     <mat-toolbar color="primary">
@@ -21,19 +22,29 @@ import { environment } from '../environments/environment';
         CPQ Data Import
       </span>
       <span class="spacer"></span>
-      <a mat-button routerLink="/dashboard" routerLinkActive="active-link">
+      <a mat-button *ngIf="auth.isAuthenticated" routerLink="/dashboard" routerLinkActive="active-link">
         <mat-icon>dashboard</mat-icon> Dashboard
       </a>
-      <a mat-button routerLink="/import/new" routerLinkActive="active-link">
+      <a mat-button *ngIf="auth.isAuthenticated" routerLink="/import/new" routerLinkActive="active-link">
         <mat-icon>add</mat-icon> New Import
       </a>
-      <button mat-icon-button [matMenuTriggerFor]="userMenu">
+      <a mat-button *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
+        <mat-icon>admin_panel_settings</mat-icon> Admin Panel
+      </a>
+      <button mat-icon-button *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu">
         <mat-icon>account_circle</mat-icon>
       </button>
+      <a mat-button *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
+        <mat-icon>login</mat-icon> Sign in
+      </a>
       <mat-menu #userMenu>
         <button mat-menu-item disabled>
           <mat-icon>person</mat-icon>
           <span>{{ auth.userName }}</span>
+        </button>
+        <button mat-menu-item disabled *ngIf="auth.isAdmin">
+          <mat-icon>verified_user</mat-icon>
+          <span>Administrator</span>
         </button>
         <button mat-menu-item (click)="auth.logout()">
           <mat-icon>logout</mat-icon>
@@ -231,6 +242,7 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     if (environment.disableAuth) {
+      this.auth.initializeLocalSession();
       return;
     }
 

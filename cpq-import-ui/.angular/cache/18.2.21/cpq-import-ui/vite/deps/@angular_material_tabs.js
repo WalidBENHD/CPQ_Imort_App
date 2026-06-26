@@ -1,22 +1,22 @@
 import {
-  CdkScrollable,
-  ViewportRuler
-} from "./chunk-JHYDD6C7.js";
+  SharedResizeObserver
+} from "./chunk-WDL5WI4A.js";
 import {
   CdkPortal,
   CdkPortalOutlet,
   TemplatePortal
-} from "./chunk-5VM7R7CG.js";
+} from "./chunk-RF7ZMVJA.js";
 import {
-  SharedResizeObserver
-} from "./chunk-2I53O75H.js";
+  CdkScrollable,
+  ViewportRuler
+} from "./chunk-I2OR4T56.js";
 import {
   animate,
   state,
   style,
   transition,
   trigger
-} from "./chunk-X4MTAX36.js";
+} from "./chunk-JYQKWHEH.js";
 import {
   CdkMonitorFocus,
   CdkObserveContent,
@@ -31,14 +31,13 @@ import {
   SPACE,
   hasModifierKey,
   normalizePassiveListenerOptions
-} from "./chunk-ERRXSWFA.js";
+} from "./chunk-7OR25NK5.js";
 import {
   DOCUMENT
-} from "./chunk-AK5XPYPB.js";
+} from "./chunk-W2BAPFRP.js";
 import {
   ANIMATION_MODULE_TYPE,
   Attribute,
-  BehaviorSubject,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
@@ -46,7 +45,6 @@ import {
   ContentChild,
   ContentChildren,
   Directive,
-  EMPTY,
   ElementRef,
   EventEmitter,
   Inject,
@@ -55,32 +53,19 @@ import {
   Input,
   NgModule,
   NgZone,
-  Observable,
   Optional,
   Output,
   QueryList,
-  Subject,
-  Subscription,
   TemplateRef,
   ViewChild,
   ViewContainerRef,
   ViewEncapsulation$1,
   afterNextRender,
   booleanAttribute,
-  debounceTime,
-  filter,
   forwardRef,
-  fromEvent,
   inject,
-  merge,
   numberAttribute,
-  of,
   setClassMetadata,
-  skip,
-  startWith,
-  switchMap,
-  takeUntil,
-  timer,
   ɵɵInheritDefinitionFeature,
   ɵɵInputTransformsFeature,
   ɵɵNgOnChangesFeature,
@@ -122,7 +107,27 @@ import {
   ɵɵtext,
   ɵɵtextInterpolate,
   ɵɵviewQuery
-} from "./chunk-YJF6LHCT.js";
+} from "./chunk-TL4DGONE.js";
+import {
+  fromEvent,
+  merge
+} from "./chunk-FFZIAYYX.js";
+import "./chunk-6Q4RANH6.js";
+import {
+  BehaviorSubject,
+  EMPTY,
+  Observable,
+  Subject,
+  Subscription,
+  debounceTime,
+  filter,
+  of,
+  skip,
+  startWith,
+  switchMap,
+  takeUntil,
+  timer
+} from "./chunk-CXCX2JKZ.js";
 
 // node_modules/@angular/material/fesm2022/tabs.mjs
 var _c0 = ["*"];

@@ -137,7 +137,7 @@ public class ImportService(
 
         job.Status = ImportStatus.Committed;
         job.CommittedAt = DateTime.UtcNow;
-        job.CommittedBy = userId;
+        job.CommittedBy = userDisplayName;
         job.CommittedRows = rowDicts.Count;
 
         await repository.UpdateJobAsync(job, ct);
@@ -164,7 +164,7 @@ public class ImportService(
 
         job.Status = ImportStatus.Rejected;
         job.RejectedAt = DateTime.UtcNow;
-        job.RejectedBy = userId;
+        job.RejectedBy = userDisplayName;
         job.RejectionReason = reason;
 
         await repository.UpdateJobAsync(job, ct);

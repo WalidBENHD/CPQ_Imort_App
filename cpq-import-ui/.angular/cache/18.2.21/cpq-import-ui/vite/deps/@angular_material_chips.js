@@ -2,16 +2,16 @@ import {
   MAT_FORM_FIELD,
   MatFormField,
   MatFormFieldControl
-} from "./chunk-7AXEWKL4.js";
-import "./chunk-2I53O75H.js";
-import "./chunk-X4MTAX36.js";
+} from "./chunk-DN7BXWOT.js";
+import "./chunk-WDL5WI4A.js";
+import "./chunk-JYQKWHEH.js";
 import {
   FormGroupDirective,
   NG_VALUE_ACCESSOR,
   NgControl,
   NgForm,
   Validators
-} from "./chunk-UTWDR4S2.js";
+} from "./chunk-GZCVTFTR.js";
 import {
   BACKSPACE,
   DELETE,
@@ -30,10 +30,10 @@ import {
   UP_ARROW,
   _ErrorStateTracker,
   hasModifierKey
-} from "./chunk-ERRXSWFA.js";
+} from "./chunk-7OR25NK5.js";
 import {
   DOCUMENT
-} from "./chunk-AK5XPYPB.js";
+} from "./chunk-W2BAPFRP.js";
 import {
   ANIMATION_MODULE_TYPE,
   Attribute,
@@ -55,19 +55,14 @@ import {
   Output,
   QueryList,
   Self,
-  Subject,
   ViewChild,
   ViewEncapsulation$1,
   afterNextRender,
   booleanAttribute,
   forwardRef,
   inject,
-  merge,
   numberAttribute,
   setClassMetadata,
-  startWith,
-  switchMap,
-  takeUntil,
   ɵɵInheritDefinitionFeature,
   ɵɵInputTransformsFeature,
   ɵɵNgOnChangesFeature,
@@ -102,7 +97,17 @@ import {
   ɵɵtext,
   ɵɵtextInterpolate,
   ɵɵviewQuery
-} from "./chunk-YJF6LHCT.js";
+} from "./chunk-TL4DGONE.js";
+import {
+  merge
+} from "./chunk-FFZIAYYX.js";
+import "./chunk-6Q4RANH6.js";
+import {
+  Subject,
+  startWith,
+  switchMap,
+  takeUntil
+} from "./chunk-CXCX2JKZ.js";
 
 // node_modules/@angular/material/fesm2022/chips.mjs
 var _c0 = ["*", [["mat-chip-avatar"], ["", "matChipAvatar", ""]], [["mat-chip-trailing-icon"], ["", "matChipRemove", ""], ["", "matChipTrailingIcon", ""]]];

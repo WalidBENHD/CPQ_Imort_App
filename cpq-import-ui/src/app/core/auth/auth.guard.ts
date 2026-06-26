@@ -1,15 +1,22 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { OAuthService } from 'angular-oauth2-oidc';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { mergeClaims, readAccessTokenClaims, readRoles, TokenClaims } from './token-claims';
+import { LocalAuthService } from './local-auth.service';
 
 export const authGuard: CanActivateFn = () => {
   if (environment.disableAuth) {
-    return true;
+    const localAuth = inject(LocalAuthService);
+    const router = inject(Router);
+
+    return localAuth.ensureUserLoaded().pipe(
+      map((user) => user ? true : router.parseUrl('/login'))
+    );
   }
 
   const oauthService = inject(OAuthService);
-  const router = inject(Router);
 
   if (oauthService.hasValidAccessToken()) {
     return true;
@@ -21,7 +28,16 @@ export const authGuard: CanActivateFn = () => {
 
 export const approverGuard: CanActivateFn = () => {
   if (environment.disableAuth) {
-    return true;
+    const localAuth = inject(LocalAuthService);
+    const router = inject(Router);
+
+    return localAuth.ensureUserLoaded().pipe(
+      map((user) => {
+        if (!user) return router.parseUrl('/login');
+        if (user.role === 'cpq-approver' || user.isAdmin) return true;
+        return router.parseUrl('/forbidden');
+      })
+    );
   }
 
   const oauthService = inject(OAuthService);
@@ -32,9 +48,43 @@ export const approverGuard: CanActivateFn = () => {
     return false;
   }
 
-  const claims = oauthService.getIdentityClaims() as Record<string, unknown>;
-  const roles: string[] = (claims?.['roles'] as string[]) ?? [];
+  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
+  const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
+  const claims = mergeClaims(identityClaims, accessTokenClaims);
+  const roles = readRoles(claims);
   if (roles.includes('cpq-approver')) return true;
+
+  router.navigate(['/forbidden']);
+  return false;
+};
+
+export const adminGuard: CanActivateFn = () => {
+  if (environment.disableAuth) {
+    const localAuth = inject(LocalAuthService);
+    const router = inject(Router);
+
+    return localAuth.ensureUserLoaded().pipe(
+      map((user) => {
+        if (!user) return router.parseUrl('/login');
+        if (user.isAdmin) return true;
+        return router.parseUrl('/forbidden');
+      })
+    );
+  }
+
+  const oauthService = inject(OAuthService);
+  const router = inject(Router);
+
+  if (!oauthService.hasValidAccessToken()) {
+    oauthService.initCodeFlow();
+    return false;
+  }
+
+  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
+  const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
+  const claims = mergeClaims(identityClaims, accessTokenClaims);
+  const roles = readRoles(claims);
+  if (roles.includes('cpq-admin')) return true;
 
   router.navigate(['/forbidden']);
   return false;

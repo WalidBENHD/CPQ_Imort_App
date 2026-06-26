@@ -1,7 +1,15 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
+import { adminGuard, authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
+  {
+    path: 'login',
+    loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
+  },
+  {
+    path: 'register',
+    loadComponent: () => import('./features/auth/register.component').then(m => m.RegisterComponent)
+  },
   {
     path: '',
     redirectTo: 'dashboard',
@@ -25,6 +33,11 @@ export const routes: Routes = [
   {
     path: 'forbidden',
     loadComponent: () => import('./features/forbidden/forbidden.component').then(m => m.ForbiddenComponent)
+  },
+  {
+    path: 'admin/users',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./features/admin/user-approval.component').then(m => m.UserApprovalComponent)
   },
   { path: '**', redirectTo: 'dashboard' }
 ];
