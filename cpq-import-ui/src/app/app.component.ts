@@ -23,22 +23,47 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
         CPQ Data Import
       </span>
       <span class="spacer"></span>
-      <a mat-button *ngIf="auth.isAuthenticated" routerLink="/dashboard" routerLinkActive="active-link">
+      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/dashboard" routerLinkActive="active-link">
         <mat-icon>dashboard</mat-icon> Dashboard
       </a>
-      <a mat-button *ngIf="auth.isAuthenticated" routerLink="/import/new" routerLinkActive="active-link">
+      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/import/new" routerLinkActive="active-link">
         <mat-icon>add</mat-icon> New Import
       </a>
-      <a mat-button *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
+      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
         <mat-icon>admin_panel_settings</mat-icon> Admin Panel
       </a>
       <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
+
+      <button mat-icon-button class="mobile-nav-trigger" *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="mobileNavMenu" aria-label="Open navigation">
+        <mat-icon>menu</mat-icon>
+      </button>
+
       <button mat-icon-button *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu">
         <mat-icon>account_circle</mat-icon>
       </button>
-      <a mat-button *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
+      <a mat-button class="desktop-link" *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
         <mat-icon>login</mat-icon> Sign in
       </a>
+
+      <button mat-icon-button class="mobile-nav-trigger" *ngIf="!auth.isAuthenticated" routerLink="/login" aria-label="Sign in">
+        <mat-icon>login</mat-icon>
+      </button>
+
+      <mat-menu #mobileNavMenu="matMenu">
+        <a mat-menu-item routerLink="/dashboard">
+          <mat-icon>dashboard</mat-icon>
+          <span>Dashboard</span>
+        </a>
+        <a mat-menu-item routerLink="/import/new">
+          <mat-icon>add</mat-icon>
+          <span>New Import</span>
+        </a>
+        <a mat-menu-item *ngIf="auth.isAdmin" routerLink="/admin/users">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span>Admin Panel</span>
+        </a>
+      </mat-menu>
+
       <mat-menu #userMenu>
         <button mat-menu-item disabled>
           <mat-icon>person</mat-icon>
@@ -88,6 +113,8 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
     mat-toolbar { position: sticky; top: 0; z-index: 100; }
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 18px; }
     .spacer { flex: 1; }
+    .desktop-link { display: inline-flex; }
+    .mobile-nav-trigger { display: none; }
     .page-content { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
     .active-link { background: rgba(255,255,255,0.15); border-radius: 4px; }
     .app-signature {
@@ -223,10 +250,14 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
       }
     }
     @media (max-width: 768px) {
+      mat-toolbar { padding: 0 8px; }
+      .brand { font-size: 15px; gap: 6px; }
+      .desktop-link { display: none; }
+      .mobile-nav-trigger { display: inline-flex; }
+      .page-content { margin: 16px auto 90px; padding: 0 10px; }
+
       .app-signature {
-        right: 10px;
-        padding: 12px 13px;
-        max-width: calc(100vw - 20px);
+        display: none;
       }
       .signature-name {
         font-size: 17px;

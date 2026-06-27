@@ -31,7 +31,7 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
 
     <mat-card>
       <mat-card-content>
-        <mat-stepper linear #stepper orientation="horizontal">
+        <mat-stepper linear #stepper [orientation]="isMobile ? 'vertical' : 'horizontal'">
 
           <!-- Step 1: Choose type -->
           <mat-step label="Select Data Type" [completed]="!!selectedType">
@@ -180,6 +180,21 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
     .notice-content p { margin: 0 0 8px 0; font-size: 13px; color: rgba(0,0,0,0.75); line-height: 1.5; }
     .responsibility-checkbox { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: rgba(0,0,0,0.75); }
     .responsibility-checkbox input[type="checkbox"] { margin-top: 2px; cursor: pointer; }
+
+    @media (max-width: 768px) {
+      .page-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
+      h1 { font-size: 22px; }
+      .step-content { padding: 12px 0; }
+      .entity-grid { grid-template-columns: 1fr; gap: 10px; }
+      .drop-zone { padding: 24px 12px; min-height: 130px; }
+      .drop-icon { font-size: 38px; height: 38px; width: 38px; }
+      .step-actions { flex-direction: column; align-items: stretch; gap: 8px; }
+      .ml-8 { margin-left: 0; }
+      .step-actions button { width: 100%; justify-content: center; }
+      .file-preview { width: 100%; justify-content: space-between; }
+      .center { padding: 20px 8px; }
+      .responsibility-notice { flex-direction: column; gap: 8px; }
+    }
   `]
 })
 export class ImportWizardComponent {
@@ -194,6 +209,10 @@ export class ImportWizardComponent {
   uploading = false;
   uploadedJobId: string | null = null;
   acknowledgedResponsibility = false;
+
+  get isMobile(): boolean {
+    return typeof window !== 'undefined' && window.innerWidth <= 768;
+  }
 
   entityIcon(type: EntityType): string {
     const icons: Record<EntityType, string> = {

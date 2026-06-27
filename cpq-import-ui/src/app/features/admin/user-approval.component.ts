@@ -251,6 +251,18 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .actions { width: 100%; justify-content: flex-start; }
       .create-form { grid-template-columns: 1fr; }
     }
+
+    @media (max-width: 600px) {
+      .admin-page { gap: 12px; }
+      .page-header h1 { font-size: 23px; }
+      .panel { padding: 14px; }
+      .panel-header h2 { font-size: 20px; }
+      .name { font-size: 16px; }
+      .actions { gap: 6px; }
+      .actions button { width: 100%; justify-content: flex-start; }
+      .form-actions button { width: 100%; }
+      .toggles { flex-direction: column; gap: 8px; }
+    }
   `]
 })
 export class UserApprovalComponent implements OnInit {

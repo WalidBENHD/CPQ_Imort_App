@@ -62,6 +62,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
         <mat-card-title>Recent Imports</mat-card-title>
       </mat-card-header>
       <mat-card-content>
+        <div class="table-scroll">
         <table mat-table [dataSource]="result.items" class="full-width-table">
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -117,6 +118,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row" (click)="view(row)"></tr>
         </table>
+        </div>
 
         <mat-paginator
           [length]="result.total"
@@ -140,12 +142,25 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     .summary-card.rejected mat-icon { color: #c62828; }
     .summary-card.total mat-icon { color: #1565c0; }
     .loading-container { display: flex; justify-content: center; padding: 60px; }
+    .table-scroll { overflow-x: auto; }
     .full-width-table { width: 100%; }
     .file-cell { display: flex; align-items: center; gap: 8px; }
     .file-icon { font-size: 18px; color: rgba(0,0,0,0.38); }
     .row-count { display: flex; align-items: center; gap: 4px; }
     .clickable-row { cursor: pointer; }
     .clickable-row:hover { background: #f5f5f5; }
+
+    @media (max-width: 900px) {
+      .summary-cards { grid-template-columns: repeat(2, 1fr); }
+      .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
+
+    @media (max-width: 600px) {
+      .summary-cards { grid-template-columns: 1fr; gap: 10px; }
+      h1 { font-size: 22px; }
+      .summary-card { padding: 12px; }
+      .full-width-table { min-width: 760px; }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {

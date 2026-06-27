@@ -261,6 +261,27 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .msg-error { color: #c62828; }
     .msg-warning { color: #f57f17; }
     .msg-info { color: #1565c0; }
+
+    @media (max-width: 900px) {
+      .page-header { flex-direction: column; gap: 10px; }
+      .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; }
+      .summary-grid-metadata, .summary-grid-stats { grid-template-columns: repeat(2, 1fr); }
+      .action-bar { flex-direction: column; align-items: flex-start; }
+      .action-buttons { width: 100%; flex-wrap: wrap; }
+      .action-buttons button { flex: 1; min-width: 180px; }
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 18px; }
+      .summary-grid-metadata, .summary-grid-stats { grid-template-columns: 1fr; }
+      .header-actions button,
+      .action-buttons button,
+      .reject-actions button { width: 100%; justify-content: center; }
+      .action-buttons,
+      .reject-actions { gap: 8px; display: flex; flex-direction: column; width: 100%; }
+      .ml-8 { margin-left: 0; }
+      table { min-width: 860px; }
+    }
   `]
 })
 export class ImportPreviewComponent implements OnInit {
