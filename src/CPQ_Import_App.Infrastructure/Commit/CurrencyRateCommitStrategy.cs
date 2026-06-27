@@ -13,7 +13,7 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
 
     public async Task CommitRowsAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct = default)
     {
-        if (UsePostgres())
+        if (CommitConnectionResolver.ShouldUsePostgres(config))
         {
             await CommitRowsPostgresAsync(rows, ct);
             return;
@@ -32,7 +32,7 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
                 VALUES (@FromCurrency, @ToCurrency, @Rate, @ValidFrom, GETUTCDATE(), GETUTCDATE());
             """;
 
-        await using var conn = new SqlConnection(GetCpqConnectionString());
+        await using var conn = new SqlConnection(CommitConnectionResolver.GetSqlServerConnectionString(config));
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
@@ -80,7 +80,7 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
                 "UpdatedAt" = NOW();
             """;
 
-        await using var conn = new NpgsqlConnection(GetCpqConnectionString());
+        await using var conn = new NpgsqlConnection(CommitConnectionResolver.GetPostgresConnectionString(config));
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
 
@@ -128,19 +128,4 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
         }
     }
 
-    private bool UsePostgres()
-        => string.Equals(config["Database:Provider"], "Postgres", StringComparison.OrdinalIgnoreCase);
-
-    private string GetCpqConnectionString()
-    {
-        if (UsePostgres())
-        {
-            return config.GetConnectionString("ImportDatabase")
-                ?? throw new InvalidOperationException("'ImportDatabase' connection string is required for Postgres commit mode.");
-        }
-
-        return config.GetConnectionString("CpqDatabase")
-            ?? config.GetConnectionString("ImportDatabase")
-            ?? throw new InvalidOperationException("Neither 'CpqDatabase' nor 'ImportDatabase' connection string is configured.");
-    }
 }
