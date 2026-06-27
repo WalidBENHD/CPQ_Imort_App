@@ -154,7 +154,15 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
         => string.Equals(config["Database:Provider"], "Postgres", StringComparison.OrdinalIgnoreCase);
 
     private string GetCpqConnectionString()
-        => config.GetConnectionString("CpqDatabase")
+    {
+        if (UsePostgres())
+        {
+            return config.GetConnectionString("ImportDatabase")
+                ?? throw new InvalidOperationException("'ImportDatabase' connection string is required for Postgres commit mode.");
+        }
+
+        return config.GetConnectionString("CpqDatabase")
             ?? config.GetConnectionString("ImportDatabase")
             ?? throw new InvalidOperationException("Neither 'CpqDatabase' nor 'ImportDatabase' connection string is configured.");
+    }
 }

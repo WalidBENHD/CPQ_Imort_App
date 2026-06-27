@@ -137,6 +137,11 @@ public class ImportsController(
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Commit failed: {ex.GetBaseException().Message}" });
+        }
     }
 
     /// <summary>Reject a job — role: cpq-approver required.</summary>
@@ -166,6 +171,11 @@ public class ImportsController(
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Reject failed: {ex.GetBaseException().Message}" });
+        }
     }
 
     /// <summary>Download the original uploaded file.</summary>
