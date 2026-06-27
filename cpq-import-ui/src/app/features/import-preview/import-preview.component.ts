@@ -321,7 +321,12 @@ export class ImportPreviewComponent implements OnInit {
         this.importService.getJob(this.job!.id).subscribe(j => { this.job = j; });
       },
       error: err => {
-        this.snackBar.open(err?.error?.error ?? 'Commit failed.', 'Close', { duration: 6000 });
+        const isForbidden = err?.status === 403;
+        const message = isForbidden
+          ? 'You are not authorized to commit yet. If your role was just updated, sign out and sign in again.'
+          : (err?.error?.error ?? 'Commit failed.');
+
+        this.snackBar.open(message, 'Close', { duration: 7000 });
         this.committing = false;
       }
     });

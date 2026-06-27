@@ -39,11 +39,7 @@ export class AuthFacade {
     if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);
       const tokenRoles = readRoles(tokenClaims);
-      const role = this.localAuth.currentUser?.role ?? '';
-      return role === 'cpq-approver'
-        || tokenRoles.includes('cpq-approver')
-        || this.localAuth.currentUser?.isAdmin === true
-        || tokenRoles.includes('cpq-admin');
+      return tokenRoles.includes('cpq-approver') || tokenRoles.includes('cpq-admin');
     }
 
     const roles = readRoles(this.mergedClaims);
@@ -54,7 +50,7 @@ export class AuthFacade {
     if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);
       const tokenRoles = readRoles(tokenClaims);
-      return this.localAuth.currentUser?.isAdmin === true || tokenRoles.includes('cpq-admin');
+      return tokenRoles.includes('cpq-admin');
     }
 
     const roles = readRoles(this.mergedClaims);

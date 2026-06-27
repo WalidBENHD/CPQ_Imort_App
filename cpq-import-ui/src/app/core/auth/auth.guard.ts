@@ -34,7 +34,9 @@ export const approverGuard: CanActivateFn = () => {
     return localAuth.ensureUserLoaded().pipe(
       map((user) => {
         if (!user) return router.parseUrl('/login');
-        if (user.role === 'cpq-approver' || user.isAdmin) return true;
+        const tokenClaims = readAccessTokenClaims(localAuth.token);
+        const roles = readRoles(tokenClaims);
+        if (roles.includes('cpq-approver') || roles.includes('cpq-admin')) return true;
         return router.parseUrl('/forbidden');
       })
     );
@@ -66,7 +68,9 @@ export const adminGuard: CanActivateFn = () => {
     return localAuth.ensureUserLoaded().pipe(
       map((user) => {
         if (!user) return router.parseUrl('/login');
-        if (user.isAdmin) return true;
+        const tokenClaims = readAccessTokenClaims(localAuth.token);
+        const roles = readRoles(tokenClaims);
+        if (roles.includes('cpq-admin')) return true;
         return router.parseUrl('/forbidden');
       })
     );
