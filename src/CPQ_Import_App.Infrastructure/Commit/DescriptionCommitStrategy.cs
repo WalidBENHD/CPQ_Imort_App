@@ -3,6 +3,7 @@ using CPQ_Import_App.Core.Interfaces;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 
 namespace CPQ_Import_App.Infrastructure.Commit;
 
@@ -12,6 +13,12 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
 
     public async Task CommitRowsAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct = default)
     {
+        if (UsePostgres())
+        {
+            await CommitRowsPostgresAsync(rows, ct);
+            return;
+        }
+
         const string sql = """
             MERGE [dbo].[CpqArticleDescriptions] AS target
             USING (SELECT @ArticleNumber AS ArticleNumber, @LanguageCode AS LanguageCode) AS source
@@ -33,7 +40,7 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
                 VALUES (@ArticleNumber, @ArticleNumber, NULL, NULL, GETUTCDATE(), GETUTCDATE());
             """;
 
-        await using var conn = new SqlConnection(config.GetConnectionString("CpqDatabase"));
+        await using var conn = new SqlConnection(GetCpqConnectionString());
         await conn.OpenAsync(ct);
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
@@ -61,4 +68,93 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
             throw;
         }
     }
+
+    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct)
+    {
+        const string ensureSql = """
+            CREATE SCHEMA IF NOT EXISTS dbo;
+            CREATE TABLE IF NOT EXISTS dbo."CpqArticles" (
+                "ArticleNumber" text PRIMARY KEY,
+                "Name" text,
+                "Category" text,
+                "Unit" text,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS dbo."CpqArticleDescriptions" (
+                "ArticleNumber" text NOT NULL,
+                "LanguageCode" text NOT NULL,
+                "ShortDescription" text,
+                "LongDescription" text,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                CONSTRAINT "PK_CpqArticleDescriptions" PRIMARY KEY ("ArticleNumber", "LanguageCode")
+            );
+            """;
+
+        const string ensureArticleSql = """
+            INSERT INTO dbo."CpqArticles" ("ArticleNumber", "Name", "Category", "Unit", "CreatedAt", "UpdatedAt")
+            VALUES (@ArticleNumber, @ArticleNumber, NULL, NULL, NOW(), NOW())
+            ON CONFLICT ("ArticleNumber") DO NOTHING;
+            """;
+
+        const string upsertSql = """
+            INSERT INTO dbo."CpqArticleDescriptions" ("ArticleNumber", "LanguageCode", "ShortDescription", "LongDescription", "CreatedAt", "UpdatedAt")
+            VALUES (@ArticleNumber, @LanguageCode, @ShortDescription, @LongDescription, NOW(), NOW())
+            ON CONFLICT ("ArticleNumber", "LanguageCode") DO UPDATE
+            SET "ShortDescription" = EXCLUDED."ShortDescription",
+                "LongDescription" = EXCLUDED."LongDescription",
+                "UpdatedAt" = NOW();
+            """;
+
+        await using var conn = new NpgsqlConnection(GetCpqConnectionString());
+        await conn.OpenAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+
+        try
+        {
+            await conn.ExecuteAsync(ensureSql, transaction: tx);
+
+            foreach (var row in rows)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var articleNumber = row.GetValueOrDefault("ArticleNumber");
+                var languageCode = row.GetValueOrDefault("LanguageCode");
+
+                if (string.IsNullOrWhiteSpace(articleNumber) || string.IsNullOrWhiteSpace(languageCode))
+                {
+                    continue;
+                }
+
+                await conn.ExecuteAsync(ensureArticleSql, new
+                {
+                    ArticleNumber = articleNumber
+                }, tx);
+
+                await conn.ExecuteAsync(upsertSql, new
+                {
+                    ArticleNumber = articleNumber,
+                    LanguageCode = languageCode,
+                    ShortDescription = row.GetValueOrDefault("ShortDescription"),
+                    LongDescription = row.GetValueOrDefault("LongDescription")
+                }, tx);
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
+    private bool UsePostgres()
+        => string.Equals(config["Database:Provider"], "Postgres", StringComparison.OrdinalIgnoreCase);
+
+    private string GetCpqConnectionString()
+        => config.GetConnectionString("CpqDatabase")
+            ?? config.GetConnectionString("ImportDatabase")
+            ?? throw new InvalidOperationException("Neither 'CpqDatabase' nor 'ImportDatabase' connection string is configured.");
 }
