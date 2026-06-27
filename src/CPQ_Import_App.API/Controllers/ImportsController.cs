@@ -51,10 +51,10 @@ public class ImportsController(
         {
             var job = await importService.UploadAsync(stream, file.FileName, et, UserId, UserDisplayName, ct);
             
-            // Notify approvers about the new import
+            // Notify approvers/admins about the new import
             var approverIds = await db.TestUsers
                 .AsNoTracking()
-                .Where(x => x.IsAdmin && x.IsApproved)
+                .Where(x => x.IsApproved && (x.IsAdmin || x.Role == "cpq-approver"))
                 .Select(x => x.Id)
                 .ToListAsync(ct);
 
@@ -114,9 +114,15 @@ public class ImportsController(
 
     /// <summary>Commit a job — role: cpq-approver required.</summary>
     [HttpPost("{id:guid}/commit")]
-    [Authorize(Policy = "ApproverOnly")]
+    [Authorize]
     public async Task<ActionResult<CommitResultDto>> Commit(Guid id, CancellationToken ct)
     {
+        var permissionError = await ValidateApproverPermissionAsync(ct);
+        if (permissionError is not null)
+        {
+            return permissionError;
+        }
+
         try
         {
             var job = await importService.CommitAsync(id, UserId, UserDisplayName, ct);
@@ -135,9 +141,15 @@ public class ImportsController(
 
     /// <summary>Reject a job — role: cpq-approver required.</summary>
     [HttpPost("{id:guid}/reject")]
-    [Authorize(Policy = "ApproverOnly")]
+    [Authorize]
     public async Task<ActionResult<ImportJobDto>> Reject(Guid id, [FromBody] RejectRequest request, CancellationToken ct)
     {
+        var permissionError = await ValidateApproverPermissionAsync(ct);
+        if (permissionError is not null)
+        {
+            return permissionError;
+        }
+
         if (string.IsNullOrWhiteSpace(request.Reason))
             return BadRequest("A rejection reason is required.");
         try
@@ -178,5 +190,29 @@ public class ImportsController(
                 $"errors_{id:N}.xlsx");
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+    }
+
+    private async Task<ActionResult?> ValidateApproverPermissionAsync(CancellationToken ct)
+    {
+        if (!Guid.TryParse(UserId, out var currentUserId))
+        {
+            return Unauthorized(new { error = "Invalid user identity." });
+        }
+
+        var currentUser = await db.TestUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == currentUserId, ct);
+
+        if (currentUser is null || !currentUser.IsApproved)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Your account is not approved to perform this action." });
+        }
+
+        if (!currentUser.IsAdmin && !string.Equals(currentUser.Role, "cpq-approver", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Approver role is required. Sign out and sign in again after role changes." });
+        }
+
+        return null;
     }
 }
