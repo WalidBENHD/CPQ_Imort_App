@@ -38,10 +38,10 @@ import { AuthFacade } from '../../core/auth/auth.facade';
         <h1 *ngIf="job">{{ job.originalFileName }}</h1>
       </div>
       <div class="header-actions" *ngIf="job">
-        <button mat-stroked-button (click)="downloadOriginal()" matTooltip="Download original file">
+        <button mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download original file">
           <mat-icon>download</mat-icon> Original
         </button>
-        <button mat-stroked-button *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
+        <button mat-stroked-button class="header-action-btn action-error" *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
           <mat-icon>error_outline</mat-icon> Error Report
         </button>
       </div>
@@ -127,10 +127,10 @@ import { AuthFacade } from '../../core/auth/auth.facade';
               </span>
             </div>
             <div class="action-buttons">
-              <button mat-raised-button color="primary" (click)="commit()" [disabled]="committing">
+              <button mat-raised-button color="primary" class="btn-commit" (click)="commit()" [disabled]="committing">
                 <mat-icon>check</mat-icon> {{ committing ? 'Committing...' : 'Approve & Commit' }}
               </button>
-              <button mat-stroked-button color="warn" (click)="showRejectPanel = true" class="ml-8">
+              <button mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
                 <mat-icon>close</mat-icon> Reject
               </button>
             </div>
@@ -155,8 +155,8 @@ import { AuthFacade } from '../../core/auth/auth.facade';
       </mat-card>
 
       <!-- Rows table -->
-      <mat-card>
-        <mat-card-header>
+      <mat-card class="rows-card">
+        <mat-card-header class="rows-header">
           <mat-card-title>Data Preview</mat-card-title>
           <div class="filter-chips">
             <button mat-stroked-button [class.active-filter]="!rowFilter" (click)="setFilter(null)">All ({{ job.totalRows }})</button>
@@ -177,7 +177,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
             <mat-spinner diameter="32"></mat-spinner>
           </div>
 
-          <div class="table-wrapper" *ngIf="rows && !rowsLoading">
+          <div class="table-wrapper desktop-rows" *ngIf="rows && !rowsLoading">
             <table mat-table [dataSource]="rows.items">
               <ng-container matColumnDef="rowNum">
                 <th mat-header-cell *matHeaderCellDef>#</th>
@@ -214,6 +214,49 @@ import { AuthFacade } from '../../core/auth/auth.facade';
             </table>
           </div>
 
+          <div class="mobile-rows" *ngIf="rows && !rowsLoading">
+            <article
+              class="mobile-row-card"
+              *ngFor="let row of rows.items"
+              [class.row-valid]="row.statusLabel === 'Valid'"
+              [class.row-warning]="row.statusLabel === 'Warning'"
+              [class.row-error]="row.statusLabel === 'Error'">
+
+              <button type="button" class="mobile-row-toggle" (click)="toggleRow(row.rowNumber)">
+                <div class="mobile-row-head">
+                  <div>
+                    <div class="mobile-row-index">Row #{{ row.rowNumber }}</div>
+                    <div class="mobile-primary" *ngIf="getPrimaryColumn(row) as primaryCol">
+                      {{ primaryCol }}: {{ row.fields[primaryCol] || '-' }}
+                    </div>
+                  </div>
+                  <div class="mobile-row-right">
+                    <app-status-badge [status]="row.statusLabel" [small]="true" />
+                    <mat-icon class="expand-icon" [class.expanded]="isRowExpanded(row.rowNumber)">expand_more</mat-icon>
+                  </div>
+                </div>
+              </button>
+
+              <div class="mobile-row-details" *ngIf="isRowExpanded(row.rowNumber)">
+                <div class="mobile-fields" *ngIf="getMobileColumns(row).length > 0">
+                  <div class="mobile-field" *ngFor="let col of getMobileColumns(row)">
+                    <span class="mobile-field-label">{{ col }}</span>
+                    <span class="mobile-field-value">{{ row.fields[col] || '-' }}</span>
+                  </div>
+                  <div class="mobile-more" *ngIf="remainingFieldCount(row) > 0">
+                    +{{ remainingFieldCount(row) }} more fields in desktop table
+                  </div>
+                </div>
+
+                <div class="mobile-validation" *ngIf="row.validationMessages?.length">
+                  <span *ngFor="let m of row.validationMessages" class="validation-msg" [class]="'msg-' + m.severity.toLowerCase()">
+                    {{ m.field }}: {{ m.message }}
+                  </span>
+                </div>
+              </div>
+            </article>
+          </div>
+
           <mat-paginator
             *ngIf="rows"
             [length]="rows.total"
@@ -229,13 +272,42 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
     .back-btn { margin-bottom: 4px; }
     h1 { margin: 0; font-size: 20px; font-weight: 400; }
-    .header-actions { display: flex; gap: 8px; margin-top: 24px; }
+    .header-actions { display: flex; gap: 8px; margin-top: 24px; align-items: center; }
+    .header-action-btn {
+      border-radius: 999px;
+      min-height: 36px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border-color: #cbd5e1 !important;
+      color: #334155 !important;
+      background: #f8fafc;
+    }
+    .header-action-btn mat-icon { margin-right: 4px; }
+    .header-action-btn:hover { background: #f1f5f9; }
+    .action-original {
+      border-color: #bfdbfe !important;
+      color: #1d4ed8 !important;
+      background: #eff6ff;
+    }
+    .action-original:hover { background: #dbeafe; }
+    .action-error {
+      border-color: #fecaca !important;
+      color: #b91c1c !important;
+      background: #fef2f2;
+    }
+    .action-error:hover { background: #fee2e2; }
     .loading-container { display: flex; justify-content: center; padding: 60px; }
-    .summary-card { margin-bottom: 16px; }
+    .summary-card { margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: none; }
     .summary-grid-metadata, .summary-grid-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .summary-item { padding: 0; }
-    .summary-item .label { font-size: 11px; color: rgba(0,0,0,0.54); text-transform: uppercase; margin-bottom: 4px; font-weight: 600; }
-    .summary-item .value { font-size: 16px; font-weight: 600; color: rgba(0,0,0,0.65); }
+    .summary-item {
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      min-width: 0;
+    }
+    .summary-item .label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-bottom: 5px; font-weight: 700; letter-spacing: 0.03em; }
+    .summary-item .value { font-size: 17px; font-weight: 700; color: #334155; word-break: break-word; }
     .summary-item .valid-count { color: #2e7d32; }
     .summary-item .warning-count { color: #f57f17; }
     .summary-item .error-count { color: #c62828; }
@@ -243,20 +315,107 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .rejection-box { background: #ffebee; }
     .commit-box { background: #e8f5e9; }
     .rejection-reason { color: rgba(0,0,0,0.7); margin-top: 4px; }
-    .action-card { margin-bottom: 16px; }
+    .action-card { margin-bottom: 16px; border: 1px solid #dbe4f0; box-shadow: none; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-    .action-info { display: flex; align-items: center; gap: 8px; color: rgba(0,0,0,0.7); }
+    .action-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 500;
+    }
     .action-buttons { display: flex; }
+    .btn-commit,
+    .btn-reject {
+      border-radius: 999px;
+      min-height: 38px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .btn-commit { box-shadow: 0 4px 10px rgba(63, 81, 181, 0.25); }
     .ml-8 { margin-left: 8px; }
     .reject-panel { margin-top: 16px; }
-    .reject-form { padding-top: 16px; }
+    .reject-form {
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 12px;
+    }
     .full-width { width: 100%; }
     .reject-actions { display: flex; align-items: center; }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .rows-card .mat-mdc-card-header {
+      padding: 14px 16px 0;
+    }
+    .rows-header.mat-mdc-card-header {
+      min-height: 0;
+      align-items: center;
+      gap: 8px;
+    }
+    .rows-header .mat-mdc-card-title {
+      margin: 0;
+      line-height: 1.25;
+    }
+    .rows-card .mat-mdc-card-content {
+      padding: 0 16px 12px !important;
+    }
+    .rows-header {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
     .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
     .active-filter { background: #e8eaf6 !important; border-color: #3f51b5 !important; color: #3f51b5; }
-    .table-wrapper { overflow-x: auto; }
-    table { min-width: 600px; }
+    .table-wrapper { overflow-x: auto; width: 100%; }
+    .desktop-rows { display: block; }
+    .mobile-rows { display: none; }
+    table { width: 100%; min-width: 900px; }
+    .desktop-rows th.mat-mdc-header-cell,
+    .desktop-rows td.mat-mdc-cell {
+      vertical-align: top;
+    }
+    .desktop-rows th.mat-mdc-header-cell {
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .desktop-rows td.mat-mdc-cell {
+      padding: 12px 14px;
+      word-break: break-word;
+    }
+    .desktop-rows .mat-mdc-row:hover { background: #f5f5f5; }
+    .mobile-row-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .mobile-row-toggle {
+      width: 100%;
+      border: 0;
+      margin: 0;
+      background: transparent;
+      text-align: left;
+      padding: 10px;
+      cursor: pointer;
+    }
+    .mobile-row-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .mobile-row-right { display: flex; align-items: center; gap: 6px; }
+    .mobile-row-index { font-size: 12px; color: #64748b; font-weight: 700; letter-spacing: 0.02em; }
+    .mobile-primary { font-size: 13px; color: #0f172a; margin-top: 3px; font-weight: 500; }
+    .expand-icon { color: #64748b; transition: transform 0.2s ease; }
+    .expand-icon.expanded { transform: rotate(180deg); }
+    .mobile-row-details { border-top: 1px solid #e2e8f0; padding: 8px 10px 10px; }
+    .mobile-fields { display: grid; gap: 6px; margin-bottom: 8px; }
+    .mobile-field { display: grid; gap: 2px; }
+    .mobile-field-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; }
+    .mobile-field-value { font-size: 14px; color: #0f172a; word-break: break-word; }
+    .mobile-more { font-size: 11px; color: #475569; }
+    .mobile-validation { border-top: 1px solid #e2e8f0; padding-top: 8px; }
     .validation-msg { display: block; font-size: 11px; margin-bottom: 2px; }
     .msg-error { color: #c62828; }
     .msg-warning { color: #f57f17; }
@@ -264,7 +423,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
 
     @media (max-width: 900px) {
       .page-header { flex-direction: column; gap: 10px; }
-      .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; }
+      .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .summary-grid-metadata, .summary-grid-stats { grid-template-columns: repeat(2, 1fr); }
       .action-bar { flex-direction: column; align-items: flex-start; }
       .action-buttons { width: 100%; flex-wrap: wrap; }
@@ -273,14 +432,45 @@ import { AuthFacade } from '../../core/auth/auth.facade';
 
     @media (max-width: 600px) {
       h1 { font-size: 18px; }
-      .summary-grid-metadata, .summary-grid-stats { grid-template-columns: 1fr; }
+      .rows-card .mat-mdc-card-header {
+        padding: 12px 12px 0;
+      }
+      .rows-card .mat-mdc-card-content {
+        padding: 0 12px 10px !important;
+      }
+      .summary-grid-metadata, .summary-grid-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .summary-item { padding: 8px; }
+      .summary-item .value { font-size: 15px; }
+      .rows-header {
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+      .filter-chips {
+        width: 100%;
+        padding-bottom: 0;
+      }
+      .header-actions { grid-template-columns: 1fr; gap: 6px; }
+      .header-action-btn { width: 100%; justify-content: center; min-height: 38px; border-radius: 10px; }
+      .action-info {
+        border-radius: 10px;
+        width: 100%;
+        align-items: flex-start;
+        padding: 8px 10px;
+      }
       .header-actions button,
       .action-buttons button,
       .reject-actions button { width: 100%; justify-content: center; }
       .action-buttons,
       .reject-actions { gap: 8px; display: flex; flex-direction: column; width: 100%; }
       .ml-8 { margin-left: 0; }
-      table { min-width: 860px; }
+      .btn-commit,
+      .btn-reject { min-height: 40px; }
+      .desktop-rows { display: none; }
+      .mobile-rows { display: block; }
+    }
+
+    @media (max-width: 390px) {
+      .summary-grid-metadata, .summary-grid-stats { grid-template-columns: 1fr; }
     }
   `]
 })
@@ -301,9 +491,37 @@ export class ImportPreviewComponent implements OnInit {
   rejecting = false;
   showRejectPanel = false;
   rejectionReason = '';
+  private readonly expandedRows = new Set<number>();
 
   dynamicColumns: string[] = [];
   get allColumns() { return ['rowNum', 'status', ...this.dynamicColumns, 'messages']; }
+
+  getMobileColumns(row: StagingRow): string[] {
+    return Object.keys(row.fields).slice(0, 3);
+  }
+
+  remainingFieldCount(row: StagingRow): number {
+    const total = Object.keys(row.fields).length;
+    return total > 3 ? total - 3 : 0;
+  }
+
+  getPrimaryColumn(row: StagingRow): string | null {
+    const cols = Object.keys(row.fields);
+    return cols.length ? cols[0] : null;
+  }
+
+  isRowExpanded(rowNumber: number): boolean {
+    return this.expandedRows.has(rowNumber);
+  }
+
+  toggleRow(rowNumber: number): void {
+    if (this.expandedRows.has(rowNumber)) {
+      this.expandedRows.delete(rowNumber);
+      return;
+    }
+
+    this.expandedRows.add(rowNumber);
+  }
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id')!;
@@ -320,6 +538,7 @@ export class ImportPreviewComponent implements OnInit {
     this.importService.getRows(this.job.id, this.rowPage, this.rowPageSize, this.rowFilter ?? undefined).subscribe({
       next: r => {
         this.rows = r;
+        this.expandedRows.clear();
         if (r.items.length > 0)
           this.dynamicColumns = Object.keys(r.items[0].fields);
         this.rowsLoading = false;
