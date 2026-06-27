@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   apiUrl: '/api',
-  disableAuth: false,
+  disableAuth: true,
   auth: {
     issuer: 'https://YOUR_ISSUER',
     clientId: 'YOUR_CLIENT_ID',

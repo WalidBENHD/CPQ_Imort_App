@@ -1,9 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { OAuthService } from 'angular-oauth2-oidc';
-import { environment } from '../../../environments/environment';
 import { mergeClaims, readAccessTokenClaims, readRoles, TokenClaims } from './token-claims';
 import { LocalAuthService } from './local-auth.service';
+import { isLocalAuthMode } from './auth-mode';
 
 @Injectable({ providedIn: 'root' })
 export class AuthFacade {
@@ -18,7 +18,7 @@ export class AuthFacade {
   }
 
   get userName(): string {
-    if (environment.disableAuth) {
+    if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);
       return this.localAuth.currentUser?.displayName
         ?? this.localAuth.currentUser?.userName
@@ -36,7 +36,7 @@ export class AuthFacade {
   }
 
   get isApprover(): boolean {
-    if (environment.disableAuth) {
+    if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);
       const tokenRoles = readRoles(tokenClaims);
       const role = this.localAuth.currentUser?.role ?? '';
@@ -51,7 +51,7 @@ export class AuthFacade {
   }
 
   get isAdmin(): boolean {
-    if (environment.disableAuth) {
+    if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);
       const tokenRoles = readRoles(tokenClaims);
       return this.localAuth.currentUser?.isAdmin === true || tokenRoles.includes('cpq-admin');
@@ -62,7 +62,7 @@ export class AuthFacade {
   }
 
   get isAuthenticated(): boolean {
-    if (environment.disableAuth) {
+    if (isLocalAuthMode()) {
       return this.localAuth.isAuthenticated();
     }
 
@@ -70,7 +70,7 @@ export class AuthFacade {
   }
 
   initializeLocalSession(): void {
-    if (!environment.disableAuth) {
+    if (!isLocalAuthMode()) {
       return;
     }
 
@@ -78,7 +78,7 @@ export class AuthFacade {
   }
 
   logout(): void {
-    if (environment.disableAuth) {
+    if (isLocalAuthMode()) {
       this.localAuth.logout();
       this.router.navigateByUrl('/login');
       return;

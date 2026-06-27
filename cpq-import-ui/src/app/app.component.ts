@@ -8,7 +8,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { authConfig } from './core/auth/auth.config';
 import { AuthFacade } from './core/auth/auth.facade';
-import { environment } from '../environments/environment';
+import { isLocalAuthMode } from './core/auth/auth-mode';
 import { NotificationCenterComponent } from './shared/notification-center/notification-center.component';
 
 @Component({
@@ -243,7 +243,7 @@ export class AppComponent implements OnInit {
   private readonly oauthService = inject(OAuthService);
 
   ngOnInit(): void {
-    if (environment.disableAuth) {
+    if (isLocalAuthMode()) {
       this.auth.initializeLocalSession();
       return;
     }

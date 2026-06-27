@@ -2,12 +2,12 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { map } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
 import { mergeClaims, readAccessTokenClaims, readRoles, TokenClaims } from './token-claims';
 import { LocalAuthService } from './local-auth.service';
+import { isLocalAuthMode } from './auth-mode';
 
 export const authGuard: CanActivateFn = () => {
-  if (environment.disableAuth) {
+  if (isLocalAuthMode()) {
     const localAuth = inject(LocalAuthService);
     const router = inject(Router);
 
@@ -27,7 +27,7 @@ export const authGuard: CanActivateFn = () => {
 };
 
 export const approverGuard: CanActivateFn = () => {
-  if (environment.disableAuth) {
+  if (isLocalAuthMode()) {
     const localAuth = inject(LocalAuthService);
     const router = inject(Router);
 
@@ -59,7 +59,7 @@ export const approverGuard: CanActivateFn = () => {
 };
 
 export const adminGuard: CanActivateFn = () => {
-  if (environment.disableAuth) {
+  if (isLocalAuthMode()) {
     const localAuth = inject(LocalAuthService);
     const router = inject(Router);
 
