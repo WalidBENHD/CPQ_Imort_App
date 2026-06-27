@@ -224,27 +224,19 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> RejectUser(Guid id, CancellationToken ct)
     {
-        var currentUserIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        System.Diagnostics.Debug.WriteLine($"RejectUser called for id={id} by user={currentUserIdValue}");
-        
         var user = await db.TestUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (user is null)
         {
-            System.Diagnostics.Debug.WriteLine($"User not found: {id}");
             return NotFound(new { error = "User not found." });
         }
 
-        System.Diagnostics.Debug.WriteLine($"Found user: {user.UserName}, IsApproved={user.IsApproved}");
-
         if (user.IsApproved)
         {
-            System.Diagnostics.Debug.WriteLine($"User is already approved, cannot reject");
             return Conflict(new { error = "Cannot reject an already approved user. Use delete if you want to remove them." });
         }
 
         db.TestUsers.Remove(user);
         await db.SaveChangesAsync(ct);
-        System.Diagnostics.Debug.WriteLine($"User {user.UserName} rejected successfully");
         return NoContent();
     }
 

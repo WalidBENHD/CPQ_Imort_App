@@ -6,6 +6,7 @@ using CPQ_Import_App.Infrastructure.Repositories;
 using CPQ_Import_App.Infrastructure.Services;
 using CPQ_Import_App.API.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -14,11 +15,27 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 var disableAuth = builder.Configuration.GetValue<bool>("Auth:DisableAuth");
 
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(renderPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{renderPort}");
+}
+
 // ── Database ──────────────────────────────────────────────────────────────────
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
+var importConnection = ResolveConnectionString(builder.Configuration.GetConnectionString("ImportDatabase"));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("ImportDatabase"),
-        sql => sql.MigrationsAssembly("CPQ_Import_App.Infrastructure")));
+{
+    if (string.Equals(databaseProvider, "Postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseNpgsql(importConnection);
+        return;
+    }
+
+    options.UseSqlServer(importConnection,
+        sql => sql.MigrationsAssembly("CPQ_Import_App.Infrastructure"));
+});
 
 // ── Repositories & Services ───────────────────────────────────────────────
 builder.Services.AddScoped<IImportRepository, ImportRepository>();
@@ -139,15 +156,31 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    // Auto-apply migrations in development
-    using var scope = app.Services.CreateScope();
+}
+
+using (var scope = app.Services.CreateScope())
+{
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+
+    // SQL Server uses migrations; Postgres test deployment can bootstrap with EnsureCreated.
+    if (db.Database.IsNpgsql())
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
+    else if (app.Environment.IsDevelopment())
+    {
+        await db.Database.MigrateAsync();
+    }
 
     if (disableAuth)
     {
@@ -155,11 +188,41 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseCors("Angular");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 app.Run();
+
+static string ResolveConnectionString(string? raw)
+{
+    if (string.IsNullOrWhiteSpace(raw))
+    {
+        throw new InvalidOperationException("Connection string 'ImportDatabase' is not configured.");
+    }
+
+    if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        || raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(raw);
+        var userInfo = uri.UserInfo.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
+        var user = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+        var database = uri.AbsolutePath.Trim('/');
+        var port = uri.IsDefaultPort ? 5432 : uri.Port;
+
+        return $"Host={uri.Host};Port={port};Database={database};Username={user};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+    }
+
+    return raw;
+}
 

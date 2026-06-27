@@ -8,8 +8,20 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     public AppDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        var connectionString = "Server=.;Database=CPQImportDb;Trusted_Connection=true;TrustServerCertificate=true;";
-        optionsBuilder.UseSqlServer(connectionString);
+
+        var provider = Environment.GetEnvironmentVariable("Database__Provider") ?? "SqlServer";
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__ImportDatabase")
+            ?? "Server=.;Database=CPQImportDb;Trusted_Connection=true;TrustServerCertificate=true;";
+
+        if (string.Equals(provider, "Postgres", StringComparison.OrdinalIgnoreCase))
+        {
+            optionsBuilder.UseNpgsql(connectionString);
+        }
+        else
+        {
+            optionsBuilder.UseSqlServer(connectionString);
+        }
+
         return new AppDbContext(optionsBuilder.Options);
     }
 }

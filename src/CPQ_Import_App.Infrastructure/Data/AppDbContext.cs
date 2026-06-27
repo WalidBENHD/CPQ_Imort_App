@@ -14,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var isNpgsql = Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true;
+
         modelBuilder.HasDefaultSchema("import");
 
         modelBuilder.Entity<ImportJob>(e =>
@@ -35,8 +37,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.ToTable("StagingRows");
             e.HasKey(x => x.Id);
-            e.Property(x => x.RawData).HasColumnType("nvarchar(max)");
-            e.Property(x => x.ValidationMessages).HasColumnType("nvarchar(max)");
+            e.Property(x => x.RawData).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
+            e.Property(x => x.ValidationMessages).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
         });
 
         modelBuilder.Entity<AuditLog>(e =>
@@ -46,7 +48,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Action).HasMaxLength(128);
             e.Property(x => x.PerformedBy).HasMaxLength(256);
             e.Property(x => x.PerformedByDisplayName).HasMaxLength(512);
-            e.Property(x => x.Details).HasColumnType("nvarchar(max)");
+            e.Property(x => x.Details).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
         });
 
         modelBuilder.Entity<UploadedFile>(e =>
@@ -54,7 +56,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable("UploadedFiles");
             e.HasKey(x => x.JobId);
             e.Property(x => x.FileName).HasMaxLength(512);
-            e.Property(x => x.Content).HasColumnType("varbinary(max)");
+            e.Property(x => x.Content).HasColumnType(isNpgsql ? "bytea" : "varbinary(max)");
         });
 
         modelBuilder.Entity<TestUser>(e =>
@@ -78,7 +80,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.UserId);
             e.Property(x => x.NotificationType);
             e.Property(x => x.Title).HasMaxLength(256);
-            e.Property(x => x.Message).HasColumnType("nvarchar(max)");
+            e.Property(x => x.Message).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
             e.Property(x => x.RelatedUserId);
             e.Property(x => x.RelatedImportId);
             e.Property(x => x.IsRead);

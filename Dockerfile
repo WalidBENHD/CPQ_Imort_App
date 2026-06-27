@@ -1,7 +1,9 @@
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-WORKDIR /app
-EXPOSE 80
-EXPOSE 443
+FROM node:20-alpine AS ui-build
+WORKDIR /ui
+COPY cpq-import-ui/package*.json ./
+RUN npm ci
+COPY cpq-import-ui/ ./
+RUN npm run build:prod
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
@@ -10,13 +12,14 @@ COPY ["src/CPQ_Import_App.Core/CPQ_Import_App.Core.csproj", "src/CPQ_Import_App.
 COPY ["src/CPQ_Import_App.Infrastructure/CPQ_Import_App.Infrastructure.csproj", "src/CPQ_Import_App.Infrastructure/"]
 RUN dotnet restore "src/CPQ_Import_App.API/CPQ_Import_App.API.csproj"
 COPY . .
-WORKDIR "/src/src/CPQ_Import_App.API"
-RUN dotnet build "CPQ_Import_App.API.csproj" -c Release -o /app/build
 
-FROM build AS publish
+COPY --from=ui-build /ui/dist/cpq-import-ui/browser/ ./src/CPQ_Import_App.API/wwwroot/
+
+WORKDIR "/src/src/CPQ_Import_App.API"
 RUN dotnet publish "CPQ_Import_App.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+EXPOSE 8080
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "CPQ_Import_App.API.dll"]

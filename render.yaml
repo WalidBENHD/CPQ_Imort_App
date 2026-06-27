@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: cpq-import-app
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Database__Provider
+        value: Postgres
+      - key: ConnectionStrings__ImportDatabase
+        fromDatabase:
+          name: cpq-import-db
+          property: connectionString
+      - key: Auth__DisableAuth
+        value: "true"
+      - key: Auth__Local__SigningKey
+        generateValue: true
+      - key: Auth__Local__Issuer
+        value: CPQImportLocal
+      - key: Auth__Local__Audience
+        value: CPQImportLocalClient
+      - key: Auth__Local__TokenExpirationMinutes
+        value: "180"
+      - key: Auth__Local__SeedAdmin__UserName
+        sync: false
+      - key: Auth__Local__SeedAdmin__DisplayName
+        sync: false
+      - key: Auth__Local__SeedAdmin__Password
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        value: https://cpq-import-app.onrender.com
+
+databases:
+  - name: cpq-import-db
+    plan: free
+    databaseName: cpq_import
