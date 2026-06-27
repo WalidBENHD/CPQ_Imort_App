@@ -34,6 +34,40 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
         <p>Approve accounts and manage permissions for local test mode.</p>
       </header>
 
+      <div class="summary-cards">
+        <mat-card class="summary-card pending">
+          <div class="summary-main">
+            <mat-icon>hourglass_top</mat-icon>
+            <div class="value">{{ pending.length }}</div>
+          </div>
+          <div class="label">Pending Approvals</div>
+        </mat-card>
+
+        <mat-card class="summary-card approved">
+          <div class="summary-main">
+            <mat-icon>verified</mat-icon>
+            <div class="value">{{ approvedCount }}</div>
+          </div>
+          <div class="label">Approved Users</div>
+        </mat-card>
+
+        <mat-card class="summary-card admins">
+          <div class="summary-main">
+            <mat-icon>admin_panel_settings</mat-icon>
+            <div class="value">{{ adminCount }}</div>
+          </div>
+          <div class="label">Admins</div>
+        </mat-card>
+
+        <mat-card class="summary-card total">
+          <div class="summary-main">
+            <mat-icon>group</mat-icon>
+            <div class="value">{{ users.length }}</div>
+          </div>
+          <div class="label">Total Users</div>
+        </mat-card>
+      </div>
+
       <mat-card class="panel">
         <div class="panel-header">
           <div>
@@ -130,12 +164,53 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
         <div class="panel-header">
           <div>
             <h2>Users & Roles</h2>
-            <p class="muted">Change role assignments at any time for approved users.</p>
+            <p class="muted">Search, filter, and update role assignments for approved users.</p>
           </div>
-          <span class="count-pill">{{ users.length }} users</span>
+          <span class="count-pill">{{ filteredUsers.length }} of {{ users.length }} users</span>
         </div>
 
-        <article class="user-row" *ngFor="let user of users">
+        <form class="filter-toolbar" [formGroup]="filterForm">
+          <mat-form-field appearance="outline" class="filter-search">
+            <mat-label>Search users</mat-label>
+            <input matInput formControlName="query" placeholder="Name or username" autocomplete="off" />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Role</mat-label>
+            <mat-select formControlName="role">
+              <mat-option value="all">All roles</mat-option>
+              <mat-option value="cpq-user">cpq-user</mat-option>
+              <mat-option value="cpq-approver">cpq-approver</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status">
+              <mat-option value="all">All statuses</mat-option>
+              <mat-option value="approved">Approved only</mat-option>
+              <mat-option value="pending">Pending only</mat-option>
+              <mat-option value="admin">Admins only</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <button mat-stroked-button type="button" (click)="clearFilters()">
+            <mat-icon>filter_alt_off</mat-icon>
+            Clear
+          </button>
+          <button mat-stroked-button type="button" (click)="refreshUsers()">
+            <mat-icon>refresh</mat-icon>
+            Refresh
+          </button>
+        </form>
+
+        <div *ngIf="filteredUsers.length === 0" class="empty">
+          <mat-icon>person_search</mat-icon>
+          <span>No users match your current filters.</span>
+        </div>
+
+        <article class="user-row" *ngFor="let user of filteredUsers">
           <div class="identity">
             <div class="name">{{ user.displayName }}</div>
             <div class="meta">{{ user.userName }}</div>
@@ -162,6 +237,21 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .admin-page { max-width: 1000px; margin: 0 auto; display: grid; gap: 16px; }
     .page-header h1 { margin: 0; font-size: 28px; line-height: 1.1; }
     .page-header p { margin: 6px 0 0; color: #64748b; }
+
+    .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .summary-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-top: 3px solid transparent; box-shadow: none; }
+    .summary-main { display: flex; align-items: center; gap: 10px; }
+    .summary-card mat-icon { font-size: 22px; width: 22px; height: 22px; }
+    .summary-card .value { font-size: 24px; line-height: 1; font-weight: 600; }
+    .summary-card .label { font-size: 12px; color: #475569; }
+    .summary-card.pending { border-top-color: #f59e0b; }
+    .summary-card.pending mat-icon { color: #d97706; }
+    .summary-card.approved { border-top-color: #16a34a; }
+    .summary-card.approved mat-icon { color: #15803d; }
+    .summary-card.admins { border-top-color: #2563eb; }
+    .summary-card.admins mat-icon { color: #1d4ed8; }
+    .summary-card.total { border-top-color: #64748b; }
+    .summary-card.total mat-icon { color: #475569; }
 
     .panel { padding: 18px 20px; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
     .panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
@@ -195,10 +285,13 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       justify-content: space-between;
       align-items: center;
       gap: 14px;
-      padding: 14px 0;
-      border-bottom: 1px solid #e2e8f0;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      margin-bottom: 10px;
     }
-    .user-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .user-row:last-child { margin-bottom: 0; }
 
     .identity { min-width: 0; }
     .name { font-size: 18px; font-weight: 700; color: #0f172a; }
@@ -218,6 +311,20 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .badge.pending { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
 
     .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .actions button[mat-stroked-button],
+    .actions button[mat-button] {
+      border-radius: 999px;
+    }
+
+    .filter-toolbar {
+      display: grid;
+      grid-template-columns: 2fr repeat(2, minmax(150px, 1fr)) auto auto;
+      gap: 10px;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+    .filter-search { min-width: 220px; }
+    .filter-toolbar button { height: 40px; border-radius: 999px; }
 
     .create-form {
       display: grid;
@@ -245,23 +352,39 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .status.error { color: #b91c1c; }
 
     @media (max-width: 900px) {
+      .summary-cards { grid-template-columns: repeat(2, 1fr); }
       .panel-header { flex-direction: column; align-items: flex-start; }
       .count-pill { align-self: flex-start; }
       .user-row { flex-direction: column; align-items: flex-start; }
       .actions { width: 100%; justify-content: flex-start; }
       .create-form { grid-template-columns: 1fr; }
+      .filter-toolbar { grid-template-columns: 1fr 1fr; }
+      .filter-search { grid-column: 1 / -1; }
     }
 
     @media (max-width: 600px) {
       .admin-page { gap: 12px; }
       .page-header h1 { font-size: 23px; }
+      .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .summary-card { padding: 10px; }
+      .summary-main { gap: 8px; }
+      .summary-card .value { font-size: 21px; }
+      .summary-card .label { font-size: 11px; }
       .panel { padding: 14px; }
       .panel-header h2 { font-size: 20px; }
       .name { font-size: 16px; }
       .actions { gap: 6px; }
-      .actions button { width: 100%; justify-content: flex-start; }
+      .actions button { width: calc(50% - 3px); justify-content: center; margin: 0; }
+      .actions button[mat-button] { min-height: 34px; }
       .form-actions button { width: 100%; }
       .toggles { flex-direction: column; gap: 8px; }
+      .filter-toolbar { grid-template-columns: 1fr; }
+      .filter-toolbar button { width: 100%; }
+    }
+
+    @media (max-width: 420px) {
+      .summary-cards { grid-template-columns: 1fr; }
+      .actions button { width: 100%; justify-content: flex-start; }
     }
   `]
 })
@@ -277,6 +400,14 @@ export class UserApprovalComponent implements OnInit {
   successMessage = '';
   errorMessage = '';
 
+  get approvedCount(): number {
+    return this.users.filter((u) => u.isApproved).length;
+  }
+
+  get adminCount(): number {
+    return this.users.filter((u) => u.isAdmin).length;
+  }
+
   readonly createForm = this.fb.nonNullable.group({
     displayName: ['', Validators.required],
     userName: ['', Validators.required],
@@ -285,6 +416,31 @@ export class UserApprovalComponent implements OnInit {
     isApproved: [true],
     isAdmin: [false]
   });
+
+  readonly filterForm = this.fb.nonNullable.group({
+    query: [''],
+    role: ['all'],
+    status: ['all']
+  });
+
+  get filteredUsers(): AuthUser[] {
+    const query = this.filterForm.controls.query.value.trim().toLowerCase();
+    const role = this.filterForm.controls.role.value;
+    const status = this.filterForm.controls.status.value;
+
+    return this.users.filter((u) => {
+      const matchesQuery = !query || u.displayName.toLowerCase().includes(query) || u.userName.toLowerCase().includes(query);
+      const matchesRole = role === 'all' || u.role === role;
+
+      const matchesStatus =
+        status === 'all' ||
+        (status === 'approved' && u.isApproved) ||
+        (status === 'pending' && !u.isApproved) ||
+        (status === 'admin' && u.isAdmin);
+
+      return matchesQuery && matchesRole && matchesStatus;
+    });
+  }
 
   ngOnInit(): void {
     this.reload();
@@ -370,6 +526,14 @@ export class UserApprovalComponent implements OnInit {
     this.showCreateForm = !this.showCreateForm;
     this.successMessage = '';
     this.errorMessage = '';
+  }
+
+  clearFilters(): void {
+    this.filterForm.reset({ query: '', role: 'all', status: 'all' });
+  }
+
+  refreshUsers(): void {
+    this.reload();
   }
 
   createUser(): void {

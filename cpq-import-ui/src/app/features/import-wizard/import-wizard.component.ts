@@ -29,7 +29,7 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
       </a>
     </div>
 
-    <mat-card>
+    <mat-card class="wizard-shell">
       <mat-card-content>
         <mat-stepper linear #stepper [orientation]="isMobile ? 'vertical' : 'horizontal'">
 
@@ -145,35 +145,39 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     h1 { margin: 0; font-size: 24px; font-weight: 400; }
+
+    .wizard-shell { border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
     .step-content { padding: 24px 0; }
-    .step-subtitle { color: rgba(0,0,0,0.54); margin-bottom: 24px; }
+    .step-subtitle { color: #64748b; margin-bottom: 20px; }
     .entity-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; max-width: 640px; }
     .entity-card {
-      border: 2px solid #e0e0e0; border-radius: 8px; padding: 16px; cursor: pointer;
+      border: 1px solid #dbe3ee; border-radius: 12px; padding: 16px; cursor: pointer;
       transition: all 0.2s; display: flex; flex-direction: column; gap: 4px;
     }
-    .entity-card:hover { border-color: #3f51b5; background: #f8f9ff; }
-    .entity-card.selected { border-color: #3f51b5; background: #e8eaf6; }
+    .entity-card:hover { border-color: #5b6bd4; background: #f8f9ff; transform: translateY(-1px); }
+    .entity-card.selected { border-color: #3f51b5; background: #eef2ff; }
     .entity-card mat-icon { font-size: 28px; height: 28px; color: #3f51b5; }
     .entity-label { font-weight: 500; }
     .entity-desc { font-size: 12px; color: rgba(0,0,0,0.54); }
     .drop-zone {
-      border: 2px dashed #bdbdbd; border-radius: 8px; padding: 40px; text-align: center;
+      border: 2px dashed #bfcae6; border-radius: 12px; padding: 40px; text-align: center;
       cursor: pointer; transition: all 0.2s; min-height: 160px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     }
     .drop-zone:hover, .drop-zone.drag-over { border-color: #3f51b5; background: #f8f9ff; }
     .drop-icon { font-size: 48px; height: 48px; width: 48px; color: #bdbdbd; }
     .hint { font-size: 12px; color: rgba(0,0,0,0.38); margin: 0; }
-    .file-preview { display: flex; align-items: center; gap: 12px; background: #f5f5f5; border-radius: 4px; padding: 8px 12px; }
+    .file-preview { display: flex; align-items: center; gap: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; padding: 8px 12px; }
     .file-name { font-weight: 500; }
     .file-size { font-size: 12px; color: rgba(0,0,0,0.54); }
     .upload-progress { margin-top: 16px; }
     .step-actions { display: flex; align-items: center; margin-top: 24px; }
+    .step-actions button[mat-raised-button],
+    .step-actions button[mat-stroked-button] { border-radius: 999px; }
     .ml-8 { margin-left: 8px; }
     .center { text-align: center; padding: 40px; }
     .success-icon { font-size: 64px; height: 64px; width: 64px; }
-    .responsibility-notice { display: flex; gap: 12px; padding: 12px; background: #fff3e0; border-radius: 4px; border-left: 4px solid #f57f17; margin: 24px 0; }
+    .responsibility-notice { display: flex; gap: 12px; padding: 12px; background: #fff7ed; border-radius: 10px; border-left: 4px solid #f59e0b; margin: 24px 0; }
     .notice-icon { color: #f57f17; flex-shrink: 0; }
     .notice-content { flex: 1; }
     .notice-content h3 { margin: 0 0 8px 0; font-size: 14px; color: #e65100; font-weight: 600; }

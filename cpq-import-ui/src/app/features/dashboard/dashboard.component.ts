@@ -30,23 +30,31 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     <!-- Summary cards -->
     <div class="summary-cards" *ngIf="result">
       <mat-card class="summary-card awaiting">
-        <mat-icon>pending_actions</mat-icon>
-        <div class="value">{{ awaitingCount }}</div>
+        <div class="summary-main">
+          <mat-icon>pending_actions</mat-icon>
+          <div class="value">{{ awaitingCount }}</div>
+        </div>
         <div class="label">Awaiting Approval</div>
       </mat-card>
       <mat-card class="summary-card committed">
-        <mat-icon>check_circle</mat-icon>
-        <div class="value">{{ committedCount }}</div>
+        <div class="summary-main">
+          <mat-icon>check_circle</mat-icon>
+          <div class="value">{{ committedCount }}</div>
+        </div>
         <div class="label">Committed Today</div>
       </mat-card>
       <mat-card class="summary-card rejected">
-        <mat-icon>cancel</mat-icon>
-        <div class="value">{{ rejectedCount }}</div>
+        <div class="summary-main">
+          <mat-icon>cancel</mat-icon>
+          <div class="value">{{ rejectedCount }}</div>
+        </div>
         <div class="label">Rejected</div>
       </mat-card>
       <mat-card class="summary-card total">
-        <mat-icon>list</mat-icon>
-        <div class="value">{{ result.total }}</div>
+        <div class="summary-main">
+          <mat-icon>list</mat-icon>
+          <div class="value">{{ result.total }}</div>
+        </div>
         <div class="label">Total Imports</div>
       </mat-card>
     </div>
@@ -62,7 +70,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
         <mat-card-title>Recent Imports</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <div class="table-scroll">
+        <div class="table-scroll desktop-table-wrap">
         <table mat-table [dataSource]="result.items" class="full-width-table">
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -120,6 +128,28 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
         </table>
         </div>
 
+        <div class="mobile-list" aria-label="Recent imports mobile list">
+          <button type="button" class="mobile-job-card" *ngFor="let job of result.items" (click)="view(job)">
+            <div class="mobile-card-top">
+              <app-status-badge [status]="job.statusLabel" />
+              <span class="mobile-date">{{ job.createdAt | date:'dd/MM HH:mm' }}</span>
+            </div>
+
+            <div class="mobile-file">
+              <mat-icon class="file-icon">description</mat-icon>
+              <span>{{ job.originalFileName }}</span>
+            </div>
+
+            <div class="mobile-meta">
+              <span class="meta-pill">{{ job.entityTypeLabel }}</span>
+              <span class="meta-pill">{{ job.totalRows }} rows</span>
+              <span class="meta-pill warn" *ngIf="job.errorRows > 0">{{ job.errorRows }} errors</span>
+            </div>
+
+            <div class="mobile-byline">Uploaded by {{ job.createdByDisplayName }}</div>
+          </button>
+        </div>
+
         <mat-paginator
           [length]="result.total"
           [pageSize]="pageSize"
@@ -133,17 +163,43 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
     h1 { margin: 0; font-size: 24px; font-weight: 400; }
     .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .summary-card { display: flex; flex-direction: column; align-items: center; padding: 16px; }
-    .summary-card mat-icon { font-size: 36px; height: 36px; width: 36px; }
-    .summary-card .value { font-size: 28px; font-weight: 500; margin-top: 8px; }
-    .summary-card .label { font-size: 12px; color: rgba(0,0,0,0.54); margin-top: 4px; }
+    .summary-card { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 12px 14px; border-top: 3px solid transparent; }
+    .summary-main { display: flex; align-items: center; gap: 10px; }
+    .summary-card mat-icon { font-size: 26px; height: 26px; width: 26px; }
+    .summary-card .value { font-size: 30px; font-weight: 600; line-height: 1; }
+    .summary-card .label { font-size: 12px; color: rgba(0,0,0,0.62); }
+    .summary-card.awaiting { border-top-color: #f57f17; }
+    .summary-card.committed { border-top-color: #2e7d32; }
+    .summary-card.rejected { border-top-color: #c62828; }
+    .summary-card.total { border-top-color: #1565c0; }
     .summary-card.awaiting mat-icon { color: #f57f17; }
     .summary-card.committed mat-icon { color: #2e7d32; }
     .summary-card.rejected mat-icon { color: #c62828; }
     .summary-card.total mat-icon { color: #1565c0; }
     .loading-container { display: flex; justify-content: center; padding: 60px; }
     .table-scroll { overflow-x: auto; }
+    .desktop-table-wrap { display: block; }
     .full-width-table { width: 100%; }
+    .mobile-list { display: none; }
+    .mobile-job-card {
+      width: 100%; text-align: left; border: 1px solid #e5e7eb; background: #fff; border-radius: 12px;
+      padding: 10px; margin-bottom: 10px; cursor: pointer;
+    }
+    .mobile-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .mobile-date { font-size: 12px; color: rgba(0,0,0,0.54); white-space: nowrap; }
+    .mobile-file { display: flex; align-items: center; gap: 6px; font-weight: 500; margin-bottom: 8px; }
+    .mobile-file span {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .mobile-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .meta-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #f3f4f6; color: #334155; }
+    .meta-pill.warn { background: #fff1f2; color: #b91c1c; }
+    .mobile-byline { font-size: 12px; color: rgba(0,0,0,0.65); }
     .file-cell { display: flex; align-items: center; gap: 8px; }
     .file-icon { font-size: 18px; color: rgba(0,0,0,0.38); }
     .row-count { display: flex; align-items: center; gap: 4px; }
@@ -153,13 +209,23 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     @media (max-width: 900px) {
       .summary-cards { grid-template-columns: repeat(2, 1fr); }
       .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .desktop-table-wrap { display: none; }
+      .mobile-list { display: block; }
     }
 
     @media (max-width: 600px) {
-      .summary-cards { grid-template-columns: 1fr; gap: 10px; }
+      .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
       h1 { font-size: 22px; }
-      .summary-card { padding: 12px; }
-      .full-width-table { min-width: 760px; }
+      .summary-card { padding: 10px; gap: 4px; }
+      .summary-main { gap: 8px; }
+      .summary-card mat-icon { font-size: 22px; height: 22px; width: 22px; }
+      .summary-card .value { font-size: 24px; }
+      .summary-card .label { font-size: 11px; line-height: 1.2; }
+      .mobile-job-card { padding: 9px; margin-bottom: 8px; }
+    }
+
+    @media (max-width: 380px) {
+      .summary-cards { grid-template-columns: 1fr; }
     }
   `]
 })

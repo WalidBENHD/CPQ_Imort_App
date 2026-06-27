@@ -86,7 +86,7 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
 
     <footer class="app-signature" aria-label="Application signature">
       <span class="signature-main">
-        <span class="signature-label">Crafted by</span>
+        <span class="signature-label">Created by</span>
         <span class="signature-name">BENHAMED Walid</span>
       </span>
       <span class="signature-hint">
@@ -254,17 +254,40 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
       .brand { font-size: 15px; gap: 6px; }
       .desktop-link { display: none; }
       .mobile-nav-trigger { display: inline-flex; }
-      .page-content { margin: 16px auto 90px; padding: 0 10px; }
+      .page-content { margin: 16px auto 78px; padding: 0 10px; }
 
       .app-signature {
-        display: none;
+        right: 8px;
+        bottom: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        max-width: calc(100vw - 16px);
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+        backdrop-filter: blur(4px);
+      }
+      .app-signature:hover {
+        transform: none;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+      }
+      .signature-main {
+        gap: 6px;
+      }
+      .signature-label {
+        display: inline;
+        font-size: 10px;
+        letter-spacing: 0.4px;
       }
       .signature-name {
-        font-size: 17px;
+        font-size: 13px;
+        letter-spacing: 0;
       }
       .signature-hint {
-        max-width: calc(100vw - 20px);
-        text-wrap: balance;
+        display: none;
+      }
+
+      .app-signature:focus-within {
+        border-color: rgba(100, 116, 139, 0.6);
       }
     }
   `]
