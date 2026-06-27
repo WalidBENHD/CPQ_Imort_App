@@ -8,21 +8,21 @@ public static class LocalAuthBootstrapper
 {
     public static async Task EnsureSeedAdminAsync(AppDbContext db, IConfiguration configuration, CancellationToken ct = default)
     {
-        var hasAdmin = await db.TestUsers.AnyAsync(x => x.IsAdmin && x.IsApproved, ct);
-        if (hasAdmin)
-        {
-            return;
-        }
-
         var userName = configuration["Auth:Local:SeedAdmin:UserName"] ?? "admin";
         var displayName = configuration["Auth:Local:SeedAdmin:DisplayName"] ?? "Local Admin";
         var password = configuration["Auth:Local:SeedAdmin:Password"] ?? "Admin123!";
 
         var normalized = userName.Trim().ToUpperInvariant();
+        var hasAdmin = await db.TestUsers.AnyAsync(x => x.IsAdmin && x.IsApproved, ct);
         var existing = await db.TestUsers.FirstOrDefaultAsync(x => x.NormalizedUserName == normalized, ct);
 
         if (existing is null)
         {
+            if (hasAdmin)
+            {
+                return;
+            }
+
             var (hash, salt) = PasswordHasher.HashPassword(password);
             db.TestUsers.Add(new TestUser
             {
@@ -41,9 +41,13 @@ public static class LocalAuthBootstrapper
             return;
         }
 
+        var (updatedHash, updatedSalt) = PasswordHasher.HashPassword(password);
+        existing.PasswordHash = updatedHash;
+        existing.PasswordSalt = updatedSalt;
         existing.IsApproved = true;
         existing.IsAdmin = true;
         existing.Role = string.IsNullOrWhiteSpace(existing.Role) ? "cpq-approver" : existing.Role;
+        existing.DisplayName = displayName.Trim();
         existing.ApprovedAt ??= DateTime.UtcNow;
         existing.ApprovedByUserName ??= "bootstrap";
         await db.SaveChangesAsync(ct);
