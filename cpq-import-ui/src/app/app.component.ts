@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { NgIf } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,7 +17,7 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
   imports: [NgIf, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, NotificationCenterComponent],
   template: `
-    <mat-toolbar color="primary">
+    <mat-toolbar color="primary" *ngIf="showAppChrome">
       <span class="brand">
         <mat-icon>cloud_upload</mat-icon>
         CPQ Data Import
@@ -80,11 +80,11 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
       </mat-menu>
     </mat-toolbar>
 
-    <main class="page-content">
+    <main class="page-content" [class.page-content--landing]="!showAppChrome">
       <router-outlet />
     </main>
 
-    <footer class="app-signature" aria-label="Application signature">
+    <footer class="app-signature" *ngIf="showAppChrome" aria-label="Application signature">
       <span class="signature-main">
         <span class="signature-label">Created by</span>
         <span class="signature-name">BENHAMED Walid</span>
@@ -116,6 +116,13 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
     .desktop-link { display: inline-flex; }
     .mobile-nav-trigger { display: none; }
     .page-content { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+    .page-content--landing {
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
     .active-link { background: rgba(255,255,255,0.15); border-radius: 4px; }
     .app-signature {
       position: fixed;
@@ -294,7 +301,12 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
 })
 export class AppComponent implements OnInit {
   readonly auth = inject(AuthFacade);
+  private readonly router = inject(Router);
   private readonly oauthService = inject(OAuthService);
+
+  get showAppChrome(): boolean {
+    return !this.router.url.startsWith('/login') && !this.router.url.startsWith('/register');
+  }
 
   ngOnInit(): void {
     if (isLocalAuthMode()) {
