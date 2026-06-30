@@ -607,6 +607,22 @@ export class ImportPreviewComponent implements OnInit {
       a.href = URL.createObjectURL(blob);
       a.download = `errors_${this.job!.id}.xlsx`;
       a.click();
+      URL.revokeObjectURL(a.href);
+    }, async (err) => {
+      let message = 'Failed to download the error report.';
+
+      if (err?.error instanceof Blob) {
+        try {
+          const text = await err.error.text();
+          message = text || message;
+        } catch {
+          // Keep the generic message if the blob cannot be read.
+        }
+      } else if (err?.error?.error) {
+        message = err.error.error;
+      }
+
+      this.snackBar.open(message, 'Close', { duration: 7000 });
     });
   }
 }

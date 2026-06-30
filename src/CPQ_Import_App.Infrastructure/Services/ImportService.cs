@@ -201,6 +201,11 @@ public class ImportService(
             page++;
         }
 
+        if (errorRows.Count == 0)
+        {
+            throw new InvalidOperationException("This import has no error rows to export.");
+        }
+
         ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
         using var package = new ExcelPackage();
         var ws = package.Workbook.Worksheets.Add("Errors");
@@ -242,11 +247,18 @@ public class ImportService(
                 string.Join(" | ", msgs.Select(m => $"[{m.Severity}] {m.Field}: {m.Message}"));
 
             if (row.Status == RowStatus.Error)
-                ws.Cells[rowNum, 1, rowNum, headers.Count].Style.Fill.BackgroundColor
-                    .SetColor(Color.FromArgb(0xFF, 0xE0, 0xE0));
+            {
+                var rowRange = ws.Cells[rowNum, 1, rowNum, headers.Count];
+                rowRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                rowRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(0xFF, 0xE0, 0xE0));
+            }
         }
 
-        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        if (ws.Dimension is not null)
+        {
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        }
+
         return package.GetAsByteArray();
     }
 }

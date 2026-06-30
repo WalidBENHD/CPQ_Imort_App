@@ -25,9 +25,14 @@ import { takeUntil } from 'rxjs/operators';
       [matMenuTriggerFor]="notificationMenu"
       matTooltip="Notifications"
       class="notification-button">
-      <mat-icon [matBadge]="unreadCount$ | async" matBadgeColor="warn" [matBadgeHidden]="(unreadCount$ | async) === 0">
-        notifications
-      </mat-icon>
+      <span
+        class="notification-anchor"
+        [matBadge]="unreadCount$ | async"
+        matBadgeColor="warn"
+        [matBadgeHidden]="(unreadCount$ | async) === 0"
+        aria-hidden="false">
+        <mat-icon>notifications</mat-icon>
+      </span>
     </button>
 
     <mat-menu #notificationMenu="matMenu" class="notification-menu">
@@ -74,6 +79,14 @@ import { takeUntil } from 'rxjs/operators';
   `,
   styles: [`
     .notification-button { position: relative; }
+    .notification-anchor {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      line-height: 1;
+    }
     .notification-menu { min-width: 360px !important; max-width: 360px !important; }
     .notification-header { 
       display: flex; justify-content: space-between; align-items: center; 

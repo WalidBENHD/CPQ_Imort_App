@@ -200,6 +200,7 @@ public class ImportsController(
                 $"errors_{id:N}.xlsx");
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
     private async Task<ActionResult?> ValidateApproverPermissionAsync(CancellationToken ct)

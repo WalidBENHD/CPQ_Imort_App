@@ -222,12 +222,12 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
 
           <div class="actions" *ngIf="user.isApproved">
-            <button mat-button color="primary" (click)="updateRole(user, 'cpq-user', user.isAdmin)">Set User</button>
-            <button mat-button color="primary" (click)="updateRole(user, 'cpq-approver', user.isAdmin)">Set Approver</button>
-            <button mat-button (click)="updateRole(user, user.role, !user.isAdmin)">
+            <button mat-button class="role-action" color="primary" (click)="updateRole(user, 'cpq-user', user.isAdmin)">Set User</button>
+            <button mat-button class="role-action" color="primary" (click)="updateRole(user, 'cpq-approver', user.isAdmin)">Set Approver</button>
+            <button mat-button class="role-action" (click)="updateRole(user, user.role, !user.isAdmin)">
               {{ user.isAdmin ? 'Revoke Admin' : 'Grant Admin' }}
             </button>
-            <button mat-button color="warn" (click)="deleteUser(user)">Delete</button>
+            <button mat-button class="role-action delete-action" color="warn" (click)="deleteUser(user)">Delete</button>
           </div>
         </article>
       </mat-card>
@@ -315,6 +315,19 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .actions button[mat-button] {
       border-radius: 999px;
     }
+    .role-action {
+      min-width: 112px;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid #dbe4f0;
+      background: #ffffff;
+      color: #334155;
+      font-weight: 600;
+    }
+    .delete-action {
+      border-color: #fecaca;
+      color: #dc2626;
+    }
 
     .filter-toolbar {
       display: grid;
@@ -373,9 +386,20 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .panel { padding: 14px; }
       .panel-header h2 { font-size: 20px; }
       .name { font-size: 16px; }
-      .actions { gap: 6px; }
-      .actions button { width: calc(50% - 3px); justify-content: center; margin: 0; }
-      .actions button[mat-button] { min-height: 34px; }
+      .actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .actions button { width: 100%; justify-content: center; margin: 0; }
+      .actions button[mat-button] {
+        min-height: 40px;
+        border-radius: 10px;
+      }
+      .role-action {
+        min-width: 0;
+        padding: 0 10px;
+      }
       .form-actions button { width: 100%; }
       .toggles { flex-direction: column; gap: 8px; }
       .filter-toolbar { grid-template-columns: 1fr; }
@@ -384,7 +408,8 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
 
     @media (max-width: 420px) {
       .summary-cards { grid-template-columns: 1fr; }
-      .actions button { width: 100%; justify-content: flex-start; }
+      .actions { grid-template-columns: 1fr; }
+      .actions button { justify-content: flex-start; }
     }
   `]
 })
