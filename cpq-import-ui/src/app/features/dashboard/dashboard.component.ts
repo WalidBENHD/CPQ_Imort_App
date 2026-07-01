@@ -89,7 +89,12 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
           <mat-card-content>
             <div class="recent-list">
               <button type="button" class="recent-item" *ngFor="let job of overview.recentSubmissions" (click)="view(job)">
-                <app-status-badge [status]="job.statusLabel" />
+                <app-status-badge class="recent-status desktop-status" [status]="job.statusLabel" [small]="true" />
+                <mat-icon class="open-icon desktop-icon">chevron_right</mat-icon>
+                <div class="recent-item-top">
+                  <app-status-badge [status]="job.statusLabel" [small]="true" />
+                  <mat-icon class="open-icon">chevron_right</mat-icon>
+                </div>
                 <div class="recent-main">
                   <div class="recent-name">{{ job.originalFileName }}</div>
                   <div class="recent-meta">
@@ -98,7 +103,6 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
                     <span>{{ job.createdAt | date:'dd/MM HH:mm' }}</span>
                   </div>
                 </div>
-                <mat-icon class="open-icon">chevron_right</mat-icon>
               </button>
             </div>
           </mat-card-content>
@@ -143,9 +147,35 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     .panel-header { display: flex; justify-content: space-between; align-items: center; }
     .panel-header button { border-radius: 999px; }
     .recent-list { display: flex; flex-direction: column; gap: 10px; }
-    .recent-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid #e2e8f0; background: #fff; border-radius: 14px; padding: 12px; cursor: pointer; }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      text-align: left;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+    }
     .recent-item:hover { border-color: #c7d2fe; box-shadow: 0 8px 16px rgba(15, 23, 42, 0.05); }
-    .recent-main { flex: 1; min-width: 0; }
+    .desktop-status {
+      order: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 136px;
+      width: 136px;
+    }
+    .desktop-status .badge {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .recent-main { order: 1; flex: 1; min-width: 0; }
+    .desktop-icon { order: 2; margin-left: auto; flex: 0 0 auto; }
+    .recent-item-top { display: none; }
     .recent-name { font-weight: 800; color: #0f172a; word-break: break-word; }
     .recent-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; color: #64748b; font-size: 12px; }
     .open-icon { color: #94a3b8; }
@@ -165,6 +195,25 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       .summary-value { font-size: 26px; }
       .panel-header { flex-direction: column; align-items: flex-start; }
       .panel-header button { width: 100%; }
+      .recent-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 12px;
+      }
+      .desktop-status,
+      .desktop-icon {
+        display: none;
+      }
+      .recent-item-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .recent-main { min-width: 0; }
+      .recent-name { font-size: 14px; line-height: 1.25; word-break: break-word; }
+      .recent-meta { gap: 8px; margin-top: 3px; }
     }
     @media (max-width: 380px) {
       .summary-cards { grid-template-columns: 1fr; }
