@@ -164,13 +164,13 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       order: 0;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       flex: 0 0 136px;
       width: 136px;
     }
     .desktop-status .badge {
-      width: 100%;
-      justify-content: center;
+      width: auto;
+      justify-content: flex-start;
       box-sizing: border-box;
     }
     .recent-main { order: 1; flex: 1; min-width: 0; }
