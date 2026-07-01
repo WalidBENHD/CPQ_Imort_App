@@ -2,6 +2,7 @@ using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Core.Metadata;
 using CPQ_Import_App.API.DTOs;
+using CPQ_Import_App.Infrastructure.Services;
 using System.Text.Json;
 
 namespace CPQ_Import_App.API.Mapping;
@@ -63,5 +64,34 @@ public static class DtoMapper
                 ?.Select(m => new ValidationMessageDto(m.Field, m.Message, m.Severity.ToString()))
                 .ToList() ?? []
             : []
+    );
+
+    public static ActivityEventDto ToDto(this ActivityEvent activity) => new(
+        activity.Id,
+        activity.OccurredAtUtc,
+        activity.Category,
+        activity.Category.ToString(),
+        activity.Action,
+        activity.Description,
+        activity.UserId,
+        activity.UserDisplayName,
+        activity.UserRole,
+        activity.TargetType,
+        activity.TargetId,
+        activity.Route,
+        activity.HttpMethod,
+        activity.StatusCode,
+        activity.IpAddress,
+        activity.UserAgent,
+        activity.Country,
+        activity.City,
+        activity.MetadataJson
+    );
+
+    public static ActivityOverviewDto ToDto(this ActivityOverview overview) => new(
+        overview.TotalLast24h,
+        overview.AuthEventsLast24h,
+        overview.ImportEventsLast24h,
+        overview.FailuresLast24h
     );
 }

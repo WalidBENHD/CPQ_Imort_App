@@ -4,6 +4,8 @@ using CPQ_Import_App.Infrastructure.Data;
 using CPQ_Import_App.Infrastructure.Parsers;
 using CPQ_Import_App.Infrastructure.Repositories;
 using CPQ_Import_App.Infrastructure.Services;
+using CPQ_Import_App.API.Middleware;
+using CPQ_Import_App.API.Monitoring;
 using CPQ_Import_App.API.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -14,6 +16,8 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var disableAuth = builder.Configuration.GetValue<bool>("Auth:DisableAuth");
+
+builder.Services.Configure<AppActivityTrackingOptions>(builder.Configuration.GetSection("ActivityTracking"));
 
 var renderPort = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(renderPort))
@@ -40,8 +44,26 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // ── Repositories & Services ───────────────────────────────────────────────
 builder.Services.AddScoped<IImportRepository, ImportRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IActivityRepository, ActivityRepository>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IActivityService, ActivityService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHostedService<ActivityRetentionHostedService>();
+
+var enableGeoLookup = builder.Configuration.GetValue<bool>("ActivityTracking:EnableGeoLookup");
+if (enableGeoLookup)
+{
+    builder.Services.AddHttpClient<IGeoLookupService, GeoLookupHttpService>(client =>
+    {
+        client.BaseAddress = new Uri("http://ip-api.com/");
+        client.Timeout = TimeSpan.FromSeconds(2);
+    });
+}
+else
+{
+    builder.Services.AddSingleton<IGeoLookupService, NoopGeoLookupService>();
+}
 
 // ── File Parsers (one per entity type) ────────────────────────────────────────
 builder.Services.AddScoped<IFileParser, ArticleParser>();
@@ -196,6 +218,7 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseCors("Angular");
+app.UseMiddleware<ActivityTrackingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

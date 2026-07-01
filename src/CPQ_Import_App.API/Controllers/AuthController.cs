@@ -4,6 +4,7 @@ using CPQ_Import_App.API.Security;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Data;
 using CPQ_Import_App.Infrastructure.Services;
+using CPQ_Import_App.Core.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,11 @@ namespace CPQ_Import_App.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, INotificationService notificationService) : ControllerBase
+public class AuthController(
+    AppDbContext db,
+    LocalJwtTokenFactory tokenFactory,
+    INotificationService notificationService,
+    IActivityService activityService) : ControllerBase
 {
     private string CurrentUserName => User.FindFirstValue("preferred_username")
         ?? User.FindFirstValue(ClaimTypes.Name)
@@ -24,11 +29,23 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
     {
         if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
         {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "RegisterFailed",
+                "Registration failed: missing username or password.",
+                Metadata: new { request.UserName }),
+                ct);
             return BadRequest(new { error = "Username and password are required." });
         }
 
         if (request.Password.Length < 8)
         {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "RegisterFailed",
+                "Registration failed: password too short.",
+                Metadata: new { request.UserName }),
+                ct);
             return BadRequest(new { error = "Password must be at least 8 characters long." });
         }
 
@@ -36,6 +53,12 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
         var exists = await db.TestUsers.AnyAsync(x => x.NormalizedUserName == normalized, ct);
         if (exists)
         {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "RegisterFailed",
+                "Registration failed: username already exists.",
+                Metadata: new { request.UserName }),
+                ct);
             return Conflict(new { error = "Username already exists." });
         }
 
@@ -57,6 +80,16 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
         });
 
         await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Authentication,
+            "Register",
+            $"New user registered: {displayName}.",
+            TargetType: "User",
+            TargetId: normalized,
+            StatusCode: StatusCodes.Status200OK,
+            Metadata: new { request.UserName, displayName }),
+            ct);
 
         // Notify all admins about the new pending user
         var newUser = await db.TestUsers.FirstOrDefaultAsync(x => x.NormalizedUserName == normalized, ct);
@@ -86,6 +119,12 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
     {
         if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
         {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "LoginFailed",
+                "Login failed: missing username or password.",
+                Metadata: new { request.UserName }),
+                ct);
             return BadRequest(new { error = "Username and password are required." });
         }
 
@@ -93,11 +132,27 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
         var user = await db.TestUsers.FirstOrDefaultAsync(x => x.NormalizedUserName == normalized, ct);
         if (user is null || !PasswordHasher.VerifyPassword(request.Password, user.PasswordHash, user.PasswordSalt))
         {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "LoginFailed",
+                "Login failed: invalid credentials.",
+                Metadata: new { request.UserName }),
+                ct);
             return Unauthorized(new { error = "Invalid username or password." });
         }
 
         if (!user.IsApproved)
         {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "LoginFailed",
+                "Login failed: account pending approval.",
+                TargetType: "User",
+                TargetId: user.Id.ToString(),
+                ExplicitUserId: user.Id.ToString(),
+                ExplicitUserName: user.DisplayName,
+                Metadata: new { user.UserName }),
+                ct);
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
                 error = "Your account is pending admin approval."
@@ -106,6 +161,18 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
 
         user.LastLoginAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Authentication,
+            "Login",
+            "User signed in.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status200OK,
+            ExplicitUserId: user.Id.ToString(),
+            ExplicitUserName: user.DisplayName,
+            ExplicitUserRole: user.Role),
+            ct);
 
         var (token, expiresAtUtc) = tokenFactory.CreateToken(user);
         return Ok(new AuthTokenResponse(token, expiresAtUtc, ToDto(user)));
@@ -193,6 +260,16 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
 
         db.TestUsers.Add(user);
         await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "AdminCreateUser",
+            $"Admin created user {user.DisplayName}.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status200OK,
+            Metadata: new { user.UserName, user.Role, user.IsAdmin, user.IsApproved }),
+            ct);
         return Ok(ToDto(user));
     }
 
@@ -216,6 +293,16 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
         
         // Notify user that they were approved
         await notificationService.NotifyUserApprovedAsync(user.Id, CurrentUserName);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "ApproveUser",
+            $"Admin approved user {user.DisplayName}.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status200OK,
+            Metadata: new { user.UserName, user.Role, user.IsAdmin }),
+            ct);
         
         return Ok(ToDto(user));
     }
@@ -237,6 +324,16 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
 
         db.TestUsers.Remove(user);
         await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "RejectUser",
+            $"Admin rejected user {user.DisplayName}.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status204NoContent,
+            Metadata: new { user.UserName }),
+            ct);
         return NoContent();
     }
 
@@ -267,6 +364,16 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
         
         // Notify user of role change
         await notificationService.NotifyUserRoleChangedAsync(user.Id, oldRole, user.Role);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "UpdateUserRole",
+            $"Admin updated role for {user.DisplayName} from {oldRole} to {user.Role}.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status200OK,
+            Metadata: new { oldRole, newRole = user.Role, user.IsAdmin }),
+            ct);
         
         return Ok(ToDto(user));
     }
@@ -289,6 +396,16 @@ public class AuthController(AppDbContext db, LocalJwtTokenFactory tokenFactory, 
 
         db.TestUsers.Remove(user);
         await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "DeleteUser",
+            $"Admin deleted user {user.DisplayName}.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status204NoContent,
+            Metadata: new { user.UserName }),
+            ct);
         return NoContent();
     }
 

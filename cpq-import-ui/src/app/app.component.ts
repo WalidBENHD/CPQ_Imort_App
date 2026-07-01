@@ -1,15 +1,17 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { NgIf } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { OAuthService } from 'angular-oauth2-oidc';
+import { Subscription, filter } from 'rxjs';
 import { authConfig } from './core/auth/auth.config';
 import { AuthFacade } from './core/auth/auth.facade';
 import { isLocalAuthMode } from './core/auth/auth-mode';
 import { NotificationCenterComponent } from './shared/notification-center/notification-center.component';
+import { ActivityMonitorService } from './core/services/activity-monitor.service';
 
 @Component({
   selector: 'app-root',
@@ -34,6 +36,9 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
       </a>
       <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
         <mat-icon>admin_panel_settings</mat-icon> Admin Panel
+      </a>
+      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/activity" routerLinkActive="active-link">
+        <mat-icon>monitoring</mat-icon> Activity
       </a>
       <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
 
@@ -68,6 +73,10 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
         <a mat-menu-item *ngIf="auth.isAdmin" routerLink="/admin/users">
           <mat-icon>admin_panel_settings</mat-icon>
           <span>Admin Panel</span>
+        </a>
+        <a mat-menu-item *ngIf="auth.isAdmin" routerLink="/admin/activity">
+          <mat-icon>monitoring</mat-icon>
+          <span>Activity Monitor</span>
         </a>
       </mat-menu>
 
@@ -306,10 +315,12 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
     }
   `]
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthFacade);
   private readonly router = inject(Router);
   private readonly oauthService = inject(OAuthService);
+  private readonly activityMonitorService = inject(ActivityMonitorService);
+  private routeSub: Subscription | null = null;
 
   get showAppChrome(): boolean {
     return !this.router.url.startsWith('/login') && !this.router.url.startsWith('/register');
@@ -318,11 +329,31 @@ export class AppComponent implements OnInit {
   ngOnInit(): void {
     if (isLocalAuthMode()) {
       this.auth.initializeLocalSession();
-      return;
+    }
+    else
+    {
+      this.oauthService.configure(authConfig);
+      this.oauthService.loadDiscoveryDocumentAndTryLogin();
+      this.oauthService.setupAutomaticSilentRefresh();
     }
 
-    this.oauthService.configure(authConfig);
-    this.oauthService.loadDiscoveryDocumentAndTryLogin();
-    this.oauthService.setupAutomaticSilentRefresh();
+    this.routeSub = this.router.events
+      .pipe(filter((event) => event instanceof NavigationEnd))
+      .subscribe((event) => {
+        if (!this.auth.isAuthenticated) {
+          return;
+        }
+
+        const nav = event as NavigationEnd;
+        this.activityMonitorService.trackView(nav.urlAfterRedirects).subscribe({
+          error: () => {
+            // Tracking failures should not affect user navigation.
+          }
+        });
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.routeSub?.unsubscribe();
   }
 }

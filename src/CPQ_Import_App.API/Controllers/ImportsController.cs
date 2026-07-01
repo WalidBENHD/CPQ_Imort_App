@@ -18,6 +18,7 @@ namespace CPQ_Import_App.API.Controllers;
 public class ImportsController(
     IImportService importService,
     INotificationService notificationService,
+    IActivityService activityService,
     AppDbContext db) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -70,6 +71,16 @@ public class ImportsController(
             {
                 await notificationService.NotifyImportNeedsCorrectionAsync(job, uploaderId);
             }
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "UploadImport",
+                $"Uploaded {job.OriginalFileName} for {job.EntityType}.",
+                TargetType: "ImportJob",
+                TargetId: job.Id.ToString(),
+                StatusCode: StatusCodes.Status201Created,
+                Metadata: new { job.EntityType, job.TotalRows, job.ValidRows, job.WarningRows, job.ErrorRows }),
+                ct);
 
             return CreatedAtAction(nameof(GetJob), new { id = job.Id }, job.ToDto());
         }
@@ -157,6 +168,17 @@ public class ImportsController(
         {
             await importService.UpdateStagingRowAsync(jobId, rowId, request.Fields, UserId, UserDisplayName, ct);
             var updated = await importService.GetJobAsync(jobId, ct);
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "UpdateRow",
+                $"Updated row {rowId} for import {jobId}.",
+                TargetType: "ImportJob",
+                TargetId: jobId.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { RowId = rowId, FieldCount = request.Fields.Count }),
+                ct);
+
             return Ok(updated!.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
@@ -184,6 +206,16 @@ public class ImportsController(
         try
         {
             var cancelled = await importService.CancelAsync(id, UserId, UserDisplayName, ct);
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "CancelImport",
+                $"Cancelled import {id}.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK),
+                ct);
+
             return Ok(cancelled.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
@@ -214,6 +246,16 @@ public class ImportsController(
             {
                 await notificationService.NotifyImportCommittedAsync(job, uploaderId);
             }
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "CommitImport",
+                $"Committed import {id} with {job.CommittedRows} rows.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { job.CommittedRows }),
+                ct);
             
             return Ok(new CommitResultDto(job.Id, job.CommittedRows, $"Successfully committed {job.CommittedRows} rows."));
         }
@@ -248,6 +290,16 @@ public class ImportsController(
             {
                 await notificationService.NotifyImportRejectedAsync(job, uploaderId);
             }
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "RejectImport",
+                $"Rejected import {id}.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { request.Reason }),
+                ct);
             
             return Ok(job.ToDto());
         }

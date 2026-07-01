@@ -43,3 +43,12 @@ public enum NotificationType
     UserRoleChanged = 12,
     UserDeleted = 13
 }
+
+public enum ActivityCategory
+{
+    Authentication = 1,
+    Import = 2,
+    Admin = 3,
+    Navigation = 4,
+    System = 5
+}

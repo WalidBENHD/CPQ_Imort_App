@@ -49,5 +49,10 @@ export const routes: Routes = [
     canActivate: [adminGuard],
     loadComponent: () => import('./features/admin/user-approval.component').then(m => m.UserApprovalComponent)
   },
+  {
+    path: 'admin/activity',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./features/admin/activity-monitor.component').then(m => m.ActivityMonitorComponent)
+  },
   { path: '**', redirectTo: 'dashboard' }
 ];

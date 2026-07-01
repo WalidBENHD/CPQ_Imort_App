@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
     public DbSet<TestUser> TestUsers => Set<TestUser>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ActivityEvent> ActivityEvents => Set<ActivityEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -89,6 +90,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => new { x.UserId, x.IsRead });
             e.HasIndex(x => x.CreatedAt);
+        });
+
+        modelBuilder.Entity<ActivityEvent>(e =>
+        {
+            e.ToTable("ActivityEvents");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Action).HasMaxLength(128);
+            e.Property(x => x.Description).HasMaxLength(2000);
+            e.Property(x => x.UserId).HasMaxLength(128);
+            e.Property(x => x.UserDisplayName).HasMaxLength(256);
+            e.Property(x => x.UserRole).HasMaxLength(64);
+            e.Property(x => x.TargetType).HasMaxLength(128);
+            e.Property(x => x.TargetId).HasMaxLength(128);
+            e.Property(x => x.Route).HasMaxLength(1024);
+            e.Property(x => x.HttpMethod).HasMaxLength(16);
+            e.Property(x => x.IpAddress).HasMaxLength(64);
+            e.Property(x => x.UserAgent).HasMaxLength(1024);
+            e.Property(x => x.Country).HasMaxLength(128);
+            e.Property(x => x.City).HasMaxLength(128);
+            e.Property(x => x.MetadataJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
+
+            e.HasIndex(x => x.OccurredAtUtc);
+            e.HasIndex(x => x.Category);
+            e.HasIndex(x => x.Action);
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => new { x.OccurredAtUtc, x.Category });
         });
     }
 }
