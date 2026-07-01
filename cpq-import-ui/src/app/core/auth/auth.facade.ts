@@ -35,6 +35,21 @@ export class AuthFacade {
       || 'User';
   }
 
+  get userId(): string {
+    if (isLocalAuthMode()) {
+      return this.localAuth.currentUser?.id
+        ?? (readAccessTokenClaims(this.localAuth.token)['sub'] as string)
+        ?? (readAccessTokenClaims(this.localAuth.token)['nameid'] as string)
+        ?? '';
+    }
+
+    const claims = this.mergedClaims;
+    return (claims['sub'] as string)
+      || (claims['nameid'] as string)
+      || (claims['oid'] as string)
+      || '';
+  }
+
   get isApprover(): boolean {
     if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);

@@ -17,6 +17,9 @@ public class DescriptionParser : IFileParser
     public bool CanParse(string fileName, EntityType entityType) =>
         entityType == EntityType.Description;
 
+    public List<ValidationMessage> ValidateRow(Dictionary<string, string?> fields)
+        => Validate(fields);
+
     public async Task<IReadOnlyList<ParsedRow>> ParseAsync(Stream fileStream, string fileName,
         CancellationToken ct = default)
     {
@@ -32,17 +35,22 @@ public class DescriptionParser : IFileParser
         for (int i = 0; i < rawRows.Count; i++)
         {
             var fields = rawRows[i];
-            var msgs = new List<ValidationMessage>();
-
-            RowValidator.RequireField(fields, "ArticleNumber", msgs);
-            RowValidator.RequireField(fields, "LanguageCode", msgs);
-            RowValidator.RequireField(fields, "ShortDescription", msgs);
-            RowValidator.MaxLength(fields, "LanguageCode", 10, msgs);
-            RowValidator.MaxLength(fields, "ShortDescription", 255, msgs);
-            RowValidator.MaxLength(fields, "LongDescription", 4000, msgs);
+            var msgs = Validate(fields);
 
             results.Add(new ParsedRow(i + 2, fields, msgs, RowValidator.DeriveStatus(msgs)));
         }
         return results;
+    }
+
+    private static List<ValidationMessage> Validate(Dictionary<string, string?> fields)
+    {
+        var msgs = new List<ValidationMessage>();
+        RowValidator.RequireField(fields, "ArticleNumber", msgs);
+        RowValidator.RequireField(fields, "LanguageCode", msgs);
+        RowValidator.RequireField(fields, "ShortDescription", msgs);
+        RowValidator.MaxLength(fields, "LanguageCode", 10, msgs);
+        RowValidator.MaxLength(fields, "ShortDescription", 255, msgs);
+        RowValidator.MaxLength(fields, "LongDescription", 4000, msgs);
+        return msgs;
     }
 }

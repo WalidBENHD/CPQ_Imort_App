@@ -72,6 +72,15 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return (items, total);
     }
 
+    public Task<StagingRow?> GetStagingRowAsync(Guid jobId, Guid rowId, CancellationToken ct = default)
+        => db.StagingRows.FirstOrDefaultAsync(r => r.ImportJobId == jobId && r.Id == rowId, ct);
+
+    public async Task UpdateStagingRowAsync(StagingRow row, CancellationToken ct = default)
+    {
+        db.StagingRows.Update(row);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task AddAuditLogAsync(AuditLog entry, CancellationToken ct = default)
     {
         db.AuditLogs.Add(entry);

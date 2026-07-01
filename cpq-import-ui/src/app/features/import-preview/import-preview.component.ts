@@ -20,6 +20,7 @@ import { ImportService } from '../../core/services/import.service';
 import { ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
+import { EditRowDialogComponent } from './edit-row-dialog.component';
 
 @Component({
   selector: 'app-import-preview',
@@ -43,6 +44,14 @@ import { AuthFacade } from '../../core/auth/auth.facade';
         </button>
         <button mat-stroked-button class="header-action-btn action-error" *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
           <mat-icon>error_outline</mat-icon> Error Report
+        </button>
+        <button
+          mat-stroked-button
+          class="header-action-btn action-cancel"
+          *ngIf="canCancelJob()"
+          (click)="cancelImport()"
+          matTooltip="Cancel this request and upload a corrected file">
+          <mat-icon>block</mat-icon> Cancel request
         </button>
       </div>
     </div>
@@ -113,6 +122,29 @@ import { AuthFacade } from '../../core/auth/auth.facade';
             </div>
           </div>
         </mat-card-content>
+      </mat-card>
+
+      <mat-card class="correction-card" *ngIf="job.statusLabel === 'NeedsCorrection' || (job.statusLabel === 'AwaitingApproval' && job.errorRows > 0)">
+        <div class="correction-copy">
+          <mat-icon>error_outline</mat-icon>
+          <div>
+            <strong>Errors detected in this file</strong>
+            <div>{{ job.errorRows }} blocking rows need correction. Fix them here, or cancel this request and upload a corrected file again.</div>
+          </div>
+        </div>
+        <button mat-raised-button color="primary" (click)="showErrorRows()">
+          Review errors
+        </button>
+      </mat-card>
+
+      <mat-card class="cancelled-card" *ngIf="job.statusLabel === 'Cancelled'">
+        <div class="cancelled-copy">
+          <mat-icon>block</mat-icon>
+          <div>
+            <strong>Import request cancelled</strong>
+            <div>This submission has been withdrawn. Fix the source file and upload a fresh request when ready.</div>
+          </div>
+        </div>
       </mat-card>
 
       <!-- Approval actions (approvers only, when AwaitingApproval) -->
@@ -205,6 +237,20 @@ import { AuthFacade } from '../../core/auth/auth.facade';
                 </td>
               </ng-container>
 
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let row">
+                  <button
+                    mat-icon-button
+                    color="primary"
+                    *ngIf="canEditRow(row)"
+                    (click)="editRow(row); $event.stopPropagation()"
+                    matTooltip="Correct row">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
               <tr mat-header-row *matHeaderRowDef="allColumns; sticky: true"></tr>
               <tr mat-row *matRowDef="let row; columns: allColumns"
                 [class.row-valid]="row.statusLabel === 'Valid'"
@@ -253,6 +299,13 @@ import { AuthFacade } from '../../core/auth/auth.facade';
                     {{ m.field }}: {{ m.message }}
                   </span>
                 </div>
+
+                <div class="mobile-actions" *ngIf="canEditRow(row)">
+                  <button mat-stroked-button color="primary" (click)="editRow(row); $event.stopPropagation()">
+                    <mat-icon>edit</mat-icon>
+                    Correct row
+                  </button>
+                </div>
               </div>
             </article>
           </div>
@@ -296,6 +349,12 @@ import { AuthFacade } from '../../core/auth/auth.facade';
       background: #fef2f2;
     }
     .action-error:hover { background: #fee2e2; }
+    .action-cancel {
+      border-color: #fed7aa !important;
+      color: #c2410c !important;
+      background: #fff7ed;
+    }
+    .action-cancel:hover { background: #ffedd5; }
     .loading-container { display: flex; justify-content: center; padding: 60px; }
     .summary-card { margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: none; }
     .summary-grid-metadata, .summary-grid-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -315,6 +374,28 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .rejection-box { background: #ffebee; }
     .commit-box { background: #e8f5e9; }
     .rejection-reason { color: rgba(0,0,0,0.7); margin-top: 4px; }
+    .correction-card {
+      margin-bottom: 16px;
+      border: 1px solid #fed7aa;
+      box-shadow: none;
+      background: #fffaf0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+    }
+    .correction-copy { display: flex; align-items: center; gap: 12px; color: #7c2d12; }
+    .correction-copy mat-icon { color: #ea580c; }
+    .cancelled-card {
+      margin-bottom: 16px;
+      border: 1px solid #e5e7eb;
+      box-shadow: none;
+      background: #f8fafc;
+      padding: 14px 16px;
+    }
+    .cancelled-copy { display: flex; align-items: center; gap: 12px; color: #334155; }
+    .cancelled-copy mat-icon { color: #64748b; }
     .action-card { margin-bottom: 16px; border: 1px solid #dbe4f0; box-shadow: none; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
     .action-info {
@@ -416,6 +497,8 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .mobile-field-value { font-size: 14px; color: #0f172a; word-break: break-word; }
     .mobile-more { font-size: 11px; color: #475569; }
     .mobile-validation { border-top: 1px solid #e2e8f0; padding-top: 8px; }
+    .mobile-actions { margin-top: 10px; display: flex; }
+    .mobile-actions button { width: 100%; justify-content: center; }
     .validation-msg { display: block; font-size: 11px; margin-bottom: 2px; }
     .msg-error { color: #c62828; }
     .msg-warning { color: #f57f17; }
@@ -465,6 +548,14 @@ import { AuthFacade } from '../../core/auth/auth.facade';
       .ml-8 { margin-left: 0; }
       .btn-commit,
       .btn-reject { min-height: 40px; }
+      .correction-card {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .correction-card button { width: 100%; }
+      .cancelled-card {
+        padding: 12px;
+      }
       .desktop-rows { display: none; }
       .mobile-rows { display: block; }
     }
@@ -477,6 +568,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
 export class ImportPreviewComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly importService = inject(ImportService);
+  private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   readonly auth = inject(AuthFacade);
 
@@ -494,7 +586,7 @@ export class ImportPreviewComponent implements OnInit {
   private readonly expandedRows = new Set<number>();
 
   dynamicColumns: string[] = [];
-  get allColumns() { return ['rowNum', 'status', ...this.dynamicColumns, 'messages']; }
+  get allColumns() { return ['rowNum', 'status', ...this.dynamicColumns, 'messages', 'actions']; }
 
   getMobileColumns(row: StagingRow): string[] {
     return Object.keys(row.fields).slice(0, 3);
@@ -521,6 +613,27 @@ export class ImportPreviewComponent implements OnInit {
     }
 
     this.expandedRows.add(rowNumber);
+  }
+
+  canEditRow(row: StagingRow): boolean {
+    return this.job?.statusLabel !== 'Committed'
+      && this.job?.statusLabel !== 'Rejected'
+      && this.job?.statusLabel !== 'Failed'
+      && this.job?.statusLabel !== 'Cancelled'
+      && row.statusLabel === 'Error';
+  }
+
+  showErrorRows(): void {
+    this.setFilter('Error');
+  }
+
+  canCancelJob(): boolean {
+    if (!this.job) {
+      return false;
+    }
+
+    const canCancelStatus = this.job.statusLabel === 'AwaitingApproval' || this.job.statusLabel === 'NeedsCorrection';
+    return canCancelStatus && this.auth.userId !== '' && this.job.createdBy === this.auth.userId;
   }
 
   ngOnInit() {
@@ -590,6 +703,37 @@ export class ImportPreviewComponent implements OnInit {
     });
   }
 
+  cancelImport(): void {
+    if (!this.job || !this.canCancelJob()) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Cancel this import request? You can upload a corrected file afterwards.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.loading = true;
+    this.importService.cancel(this.job.id).subscribe({
+      next: updatedJob => {
+        this.job = updatedJob;
+        this.loading = false;
+        this.snackBar.open(
+          'Import request cancelled. Fix the source file and submit a fresh upload.',
+          'Close',
+          { duration: 6000 }
+        );
+      },
+      error: err => {
+        this.loading = false;
+        this.snackBar.open(err?.error?.error ?? 'Cancellation failed.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
   downloadOriginal() {
     if (!this.job) return;
     this.importService.downloadOriginal(this.job.id).subscribe(blob => {
@@ -623,6 +767,46 @@ export class ImportPreviewComponent implements OnInit {
       }
 
       this.snackBar.open(message, 'Close', { duration: 7000 });
+    });
+  }
+
+  editRow(row: StagingRow): void {
+    if (!this.job) return;
+
+    const errorFields = Array.from(new Set(
+      row.validationMessages
+        .filter(m => m.severity === 'Error')
+        .map(m => m.field)
+    ));
+
+    const dialogRef = this.dialog.open(EditRowDialogComponent, {
+      width: '760px',
+      maxWidth: '96vw',
+      disableClose: true,
+      data: {
+        rowNumber: row.rowNumber,
+        fields: row.fields,
+        errorFields
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((fields: Record<string, string | null> | null) => {
+      if (!fields) {
+        return;
+      }
+
+      this.rowsLoading = true;
+      this.importService.updateRow(this.job!.id, row.id, fields).subscribe({
+        next: updatedJob => {
+          this.job = updatedJob;
+          this.snackBar.open(`Row #${row.rowNumber} updated and revalidated.`, 'Close', { duration: 5000 });
+          this.loadRows();
+        },
+        error: err => {
+          this.rowsLoading = false;
+          this.snackBar.open(err?.error?.error ?? 'Unable to update row.', 'Close', { duration: 7000 });
+        }
+      });
     });
   }
 }

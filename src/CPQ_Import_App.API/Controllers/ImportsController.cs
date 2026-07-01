@@ -52,18 +52,25 @@ public class ImportsController(
         {
             var job = await importService.UploadAsync(stream, file.FileName, et, UserId, UserDisplayName, ct);
             
-            // Notify approvers/admins about the new import
-            var approverIds = await db.TestUsers
-                .AsNoTracking()
-                .Where(x => x.IsApproved && (x.IsAdmin || x.Role == "cpq-approver"))
-                .Select(x => x.Id)
-                .ToListAsync(ct);
-
-            if (approverIds.Any())
+            if (job.Status == ImportStatus.AwaitingApproval)
             {
-                await notificationService.NotifyImportUploadedAsync(job, approverIds);
+                // Notify approvers/admins about the new import
+                var approverIds = await db.TestUsers
+                    .AsNoTracking()
+                    .Where(x => x.IsApproved && (x.IsAdmin || x.Role == "cpq-approver"))
+                    .Select(x => x.Id)
+                    .ToListAsync(ct);
+
+                if (approverIds.Any())
+                {
+                    await notificationService.NotifyImportUploadedAsync(job, approverIds);
+                }
             }
-            
+            else if (job.Status == ImportStatus.NeedsCorrection && Guid.TryParse(job.CreatedBy, out var uploaderId))
+            {
+                await notificationService.NotifyImportNeedsCorrectionAsync(job, uploaderId);
+            }
+
             return CreatedAtAction(nameof(GetJob), new { id = job.Id }, job.ToDto());
         }
         catch (InvalidDataException ex)
@@ -126,6 +133,68 @@ public class ImportsController(
     }
 
     /// <summary>Commit a job — role: cpq-approver required.</summary>
+    /// <summary>Update a staging row during correction mode.</summary>
+    [HttpPut("{jobId:guid}/rows/{rowId:guid}")]
+    public async Task<ActionResult<ImportJobDto>> UpdateRow(
+        Guid jobId,
+        Guid rowId,
+        [FromBody] UpdateRowRequest request,
+        CancellationToken ct)
+    {
+        if (request.Fields is null || request.Fields.Count == 0)
+            return BadRequest("At least one field must be provided.");
+
+        var job = await importService.GetJobAsync(jobId, ct);
+        if (job is null)
+            return NotFound(new { error = $"Import job '{jobId}' not found." });
+
+        if (!string.Equals(job.CreatedBy, UserId, StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only the original uploader can correct this import." });
+        }
+
+        try
+        {
+            await importService.UpdateStagingRowAsync(jobId, rowId, request.Fields, UserId, UserDisplayName, ct);
+            var updated = await importService.GetJobAsync(jobId, ct);
+            return Ok(updated!.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Row update failed: {ex.GetBaseException().Message}" });
+        }
+    }
+
+    /// <summary>Cancel a submission so the uploader can correct the source file and re-upload.</summary>
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult<ImportJobDto>> Cancel(Guid id, CancellationToken ct)
+    {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null)
+            return NotFound(new { error = $"Import job '{id}' not found." });
+
+        if (!string.Equals(job.CreatedBy, UserId, StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only the original uploader can cancel this import." });
+        }
+
+        try
+        {
+            var cancelled = await importService.CancelAsync(id, UserId, UserDisplayName, ct);
+            return Ok(cancelled.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Cancellation failed: {ex.GetBaseException().Message}" });
+        }
+    }
+
     [HttpPost("{id:guid}/commit")]
     [Authorize]
     public async Task<ActionResult<CommitResultDto>> Commit(Guid id, CancellationToken ct)

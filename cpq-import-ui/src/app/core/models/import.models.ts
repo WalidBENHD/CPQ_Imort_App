@@ -1,5 +1,5 @@
 export type EntityType = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
-export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'Committed' | 'Rejected' | 'Failed';
+export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'NeedsCorrection' | 'Committed' | 'Rejected' | 'Failed' | 'Cancelled';
 export type RowStatus = 'Valid' | 'Warning' | 'Error';
 
 export interface DatasetDefinition {

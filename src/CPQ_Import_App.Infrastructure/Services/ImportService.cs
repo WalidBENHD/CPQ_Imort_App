@@ -3,6 +3,7 @@ using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Metadata;
 using CPQ_Import_App.Core.Models;
+using CPQ_Import_App.Infrastructure.Parsers;
 using CPQ_Import_App.Infrastructure.Templates;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -82,7 +83,7 @@ public class ImportService(
         job.ValidRows = stagingRows.Count(r => r.Status == RowStatus.Valid);
         job.WarningRows = stagingRows.Count(r => r.Status == RowStatus.Warning);
         job.ErrorRows = stagingRows.Count(r => r.Status == RowStatus.Error);
-        job.Status = ImportStatus.AwaitingApproval;
+        job.Status = job.ErrorRows > 0 ? ImportStatus.NeedsCorrection : ImportStatus.AwaitingApproval;
         job.ProcessedAt = DateTime.UtcNow;
 
         await repository.UpdateJobAsync(job, ct);
@@ -92,7 +93,9 @@ public class ImportService(
             Action = "Uploaded",
             PerformedBy = userId,
             PerformedByDisplayName = userDisplayName,
-            Details = $"Parsed {job.TotalRows} rows. Valid: {job.ValidRows}, Warnings: {job.WarningRows}, Errors: {job.ErrorRows}."
+            Details = job.Status == ImportStatus.NeedsCorrection
+                ? $"Parsed {job.TotalRows} rows. Valid: {job.ValidRows}, Warnings: {job.WarningRows}, Errors: {job.ErrorRows}. User correction required."
+                : $"Parsed {job.TotalRows} rows. Valid: {job.ValidRows}, Warnings: {job.WarningRows}, Errors: {job.ErrorRows}."
         }, ct);
 
         return job;
@@ -109,6 +112,42 @@ public class ImportService(
         Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default)
         => repository.GetStagingRowsPagedAsync(jobId, page, pageSize, filterStatus, ct);
 
+    public async Task<StagingRow> UpdateStagingRowAsync(
+        Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be edited.");
+
+        var row = await repository.GetStagingRowAsync(jobId, rowId, ct)
+            ?? throw new KeyNotFoundException($"Row '{rowId}' not found for import job '{jobId}'.");
+
+        var parser = parsers.FirstOrDefault(p => p.SupportedEntityType == job.EntityType)
+            ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
+
+        var messages = parser.ValidateRow(fields);
+        row.RawData = JsonSerializer.Serialize(fields, JsonOpts);
+        row.ValidationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null;
+        row.Status = RowValidator.DeriveStatus(messages);
+
+        await repository.UpdateStagingRowAsync(row, ct);
+
+        await RecalculateJobAsync(job, ct);
+
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Corrected",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Row {row.RowNumber} updated and revalidated. Status: {row.Status}."
+        }, ct);
+
+        return row;
+    }
+
     public async Task<ImportJob> CommitAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
     {
         var job = await repository.GetJobAsync(jobId, ct)
@@ -116,6 +155,9 @@ public class ImportService(
 
         if (job.Status != ImportStatus.AwaitingApproval)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be committed.");
+
+        if (job.ErrorRows > 0)
+            throw new InvalidOperationException("Blocking errors must be corrected before commit.");
 
         var strategy = commitStrategies.FirstOrDefault(s => s.EntityType == job.EntityType)
             ?? throw new InvalidOperationException($"No commit strategy for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
@@ -150,6 +192,31 @@ public class ImportService(
             PerformedBy = userId,
             PerformedByDisplayName = userDisplayName,
             Details = $"Committed {job.CommittedRows} rows."
+        }, ct);
+
+        return job;
+    }
+
+    public async Task<ImportJob> CancelAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be cancelled.");
+
+        if (job.Status is not ImportStatus.AwaitingApproval and not ImportStatus.NeedsCorrection and not ImportStatus.Processing)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be cancelled.");
+
+        job.Status = ImportStatus.Cancelled;
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Cancelled",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = "Import request cancelled by uploader. A corrected file can be submitted as a new import."
         }, ct);
 
         return job;
@@ -262,5 +329,28 @@ public class ImportService(
         }
 
         return package.GetAsByteArray();
+    }
+
+    private async Task RecalculateJobAsync(ImportJob job, CancellationToken ct)
+    {
+        var allRows = new List<StagingRow>();
+        int page = 1;
+        while (true)
+        {
+            var (items, total) = await repository.GetStagingRowsPagedAsync(job.Id, page, 500, null, ct);
+            allRows.AddRange(items);
+            if (allRows.Count >= total || items.Count == 0)
+                break;
+            page++;
+        }
+
+        job.TotalRows = allRows.Count;
+        job.ValidRows = allRows.Count(r => r.Status == RowStatus.Valid);
+        job.WarningRows = allRows.Count(r => r.Status == RowStatus.Warning);
+        job.ErrorRows = allRows.Count(r => r.Status == RowStatus.Error);
+        job.Status = job.ErrorRows > 0 ? ImportStatus.NeedsCorrection : ImportStatus.AwaitingApproval;
+        job.ProcessedAt = DateTime.UtcNow;
+
+        await repository.UpdateJobAsync(job, ct);
     }
 }

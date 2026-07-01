@@ -17,6 +17,9 @@ public class PriceListParser : IFileParser
     public bool CanParse(string fileName, EntityType entityType) =>
         entityType == EntityType.PriceList;
 
+    public List<ValidationMessage> ValidateRow(Dictionary<string, string?> fields)
+        => Validate(fields);
+
     public async Task<IReadOnlyList<ParsedRow>> ParseAsync(Stream fileStream, string fileName,
         CancellationToken ct = default)
     {
@@ -32,31 +35,36 @@ public class PriceListParser : IFileParser
         for (int i = 0; i < rawRows.Count; i++)
         {
             var fields = rawRows[i];
-            var msgs = new List<ValidationMessage>();
-
-            RowValidator.RequireField(fields, "ArticleNumber", msgs);
-            RowValidator.RequireField(fields, "Price", msgs);
-            RowValidator.RequireField(fields, "Currency", msgs);
-            RowValidator.RequireField(fields, "ValidFrom", msgs);
-            RowValidator.RequireDecimal(fields, "Price", msgs);
-            RowValidator.RequireDate(fields, "ValidFrom", msgs);
-            RowValidator.RequireDate(fields, "ValidTo", msgs);
-            RowValidator.MaxLength(fields, "Currency", 3, msgs);
-
-            // Currency must be ISO 4217 (3 uppercase letters)
-            if (fields.TryGetValue("Currency", out var cur) && !string.IsNullOrWhiteSpace(cur)
-                && (cur.Length != 3 || !cur.All(char.IsLetter)))
-            {
-                msgs.Add(new ValidationMessage
-                {
-                    Field = "Currency",
-                    Message = $"Currency must be a 3-letter ISO 4217 code (got '{cur}').",
-                    Severity = ValidationSeverity.Error
-                });
-            }
+            var msgs = Validate(fields);
 
             results.Add(new ParsedRow(i + 2, fields, msgs, RowValidator.DeriveStatus(msgs)));
         }
         return results;
+    }
+
+    private static List<ValidationMessage> Validate(Dictionary<string, string?> fields)
+    {
+        var msgs = new List<ValidationMessage>();
+        RowValidator.RequireField(fields, "ArticleNumber", msgs);
+        RowValidator.RequireField(fields, "Price", msgs);
+        RowValidator.RequireField(fields, "Currency", msgs);
+        RowValidator.RequireField(fields, "ValidFrom", msgs);
+        RowValidator.RequireDecimal(fields, "Price", msgs);
+        RowValidator.RequireDate(fields, "ValidFrom", msgs);
+        RowValidator.RequireDate(fields, "ValidTo", msgs);
+        RowValidator.MaxLength(fields, "Currency", 3, msgs);
+
+        if (fields.TryGetValue("Currency", out var cur) && !string.IsNullOrWhiteSpace(cur)
+            && (cur.Length != 3 || !cur.All(char.IsLetter)))
+        {
+            msgs.Add(new ValidationMessage
+            {
+                Field = "Currency",
+                Message = $"Currency must be a 3-letter ISO 4217 code (got '{cur}').",
+                Severity = ValidationSeverity.Error
+            });
+        }
+
+        return msgs;
     }
 }

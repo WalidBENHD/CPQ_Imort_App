@@ -74,13 +74,15 @@ public class DashboardController(
 
         var recentSubmissions = await importService.GetJobsPagedAsync(1, 5, ct: ct);
 
+        var openQueue = jobs.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection);
+
         var summary = new DashboardSummaryDto(
-            jobs.Count(j => j.Status == ImportStatus.AwaitingApproval),
+            openQueue,
             jobs.Count(j => j.Status == ImportStatus.Committed && j.CommittedAt.HasValue && j.CommittedAt.Value >= today && j.CommittedAt.Value < tomorrow),
             jobs.Count(j => j.Status == ImportStatus.Rejected),
             jobs.Count,
-            jobs.Count(j => j.Status == ImportStatus.AwaitingApproval && j.ErrorRows > 0),
-            jobs.Count(j => j.Status == ImportStatus.AwaitingApproval && (j.ProcessedAt ?? j.CreatedAt) < agingCutoff));
+            jobs.Count(j => j.Status == ImportStatus.NeedsCorrection || (j.Status == ImportStatus.AwaitingApproval && j.ErrorRows > 0)),
+            jobs.Count(j => (j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection) && (j.ProcessedAt ?? j.CreatedAt) < agingCutoff));
 
         var attentionItems = BuildAttentionItems(jobs);
         var datasetHealth = BuildDatasetHealth(jobs);
@@ -99,7 +101,7 @@ public class DashboardController(
         var items = new List<DashboardAttentionDto>();
 
         var oldestPending = jobs
-            .Where(j => j.Status == ImportStatus.AwaitingApproval)
+            .Where(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection)
             .OrderBy(j => j.ProcessedAt ?? j.CreatedAt)
             .FirstOrDefault();
 
@@ -110,14 +112,14 @@ public class DashboardController(
                 oldestPending.Id,
                 "Oldest approval pending",
                 DatasetCatalog.Get(oldestPending.EntityType).DisplayName,
-                $"Waiting {FormatAge(age)} for review. {(oldestPending.ErrorRows > 0 ? $"{oldestPending.ErrorRows} error rows need attention." : "Ready for approver action.")}",
+                $"Waiting {FormatAge(age)} for action. {(oldestPending.Status == ImportStatus.NeedsCorrection || oldestPending.ErrorRows > 0 ? $"{oldestPending.ErrorRows} error rows need attention." : "Ready for approver action.")}",
                 age >= TimeSpan.FromHours(24) ? "High" : "Medium",
                 "Review",
                 oldestPending.ProcessedAt ?? oldestPending.CreatedAt));
         }
 
         var largestExceptionBatch = jobs
-            .Where(j => j.Status == ImportStatus.AwaitingApproval && j.ErrorRows > 0)
+            .Where(j => (j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection) && j.ErrorRows > 0)
             .OrderByDescending(j => j.ErrorRows)
             .ThenByDescending(j => j.CreatedAt)
             .FirstOrDefault();
@@ -126,7 +128,7 @@ public class DashboardController(
         {
             items.Add(new DashboardAttentionDto(
                 largestExceptionBatch.Id,
-                "Largest exception batch",
+                largestExceptionBatch.Status == ImportStatus.NeedsCorrection ? "Correction required" : "Largest exception batch",
                 DatasetCatalog.Get(largestExceptionBatch.EntityType).DisplayName,
                 $"{largestExceptionBatch.ErrorRows} error rows and {largestExceptionBatch.WarningRows} warnings are blocking the release.",
                 "High",
@@ -194,7 +196,7 @@ public class DashboardController(
                 var subset = jobs.Where(j => j.EntityType == dataset.EntityType).ToList();
                 var totalRows = subset.Sum(j => j.TotalRows);
                 var errorRows = subset.Sum(j => j.ErrorRows);
-                var openItems = subset.Count(j => j.Status == ImportStatus.AwaitingApproval);
+                var openItems = subset.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection);
                 var lastActivity = subset
                     .Select(j => j.CommittedAt ?? j.RejectedAt ?? j.ProcessedAt ?? j.CreatedAt)
                     .OrderByDescending(x => x)

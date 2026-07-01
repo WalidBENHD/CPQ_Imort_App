@@ -42,6 +42,18 @@ export class ImportService {
     return this.http.get<PagedResult<StagingRow>>(`${this.base}/${jobId}/rows`, { params });
   }
 
+  updateRow(jobId: string, rowId: string, fields: Record<string, string | null>): Observable<ImportJob> {
+    return this.http.put<ImportJob>(`${this.base}/${jobId}/rows/${rowId}`, { fields }).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
+  cancel(jobId: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/cancel`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
   upload(file: File, entityType: EntityType): Observable<ImportJob> {
     const form = new FormData();
     form.append('file', file);

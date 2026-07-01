@@ -529,9 +529,11 @@ export class UploadsComponent implements OnInit {
     { value: 'Pending', label: 'Pending' },
     { value: 'Processing', label: 'Processing' },
     { value: 'AwaitingApproval', label: 'Awaiting approval' },
+    { value: 'NeedsCorrection', label: 'Needs correction' },
     { value: 'Committed', label: 'Committed' },
     { value: 'Rejected', label: 'Rejected' },
-    { value: 'Failed', label: 'Failed' }
+    { value: 'Failed', label: 'Failed' },
+    { value: 'Cancelled', label: 'Cancelled' }
   ];
 
   readonly filtersForm = this.fb.nonNullable.group({

@@ -12,7 +12,10 @@ public interface IImportService
         int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
     Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
         Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default);
+    Task<StagingRow> UpdateStagingRowAsync(
+        Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CommitAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> CancelAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> RejectAsync(Guid jobId, string userId, string userDisplayName,
         string reason, CancellationToken ct = default);
     Task<byte[]?> GetOriginalFileAsync(Guid jobId, CancellationToken ct = default);

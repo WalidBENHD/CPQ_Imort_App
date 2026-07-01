@@ -10,6 +10,7 @@ public interface INotificationService
     Task NotifyUserApprovedAsync(Guid userId, string approverName);
     Task NotifyUserRoleChangedAsync(Guid userId, string oldRole, string newRole);
     Task NotifyImportUploadedAsync(ImportJob job, List<Guid> approverIds);
+    Task NotifyImportNeedsCorrectionAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportRejectedAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportApprovedAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportCommittedAsync(ImportJob job, Guid uploaderId);
@@ -78,6 +79,20 @@ public class NotificationService(
             };
             await _notificationRepository.CreateAsync(notification);
         }
+    }
+
+    public async Task NotifyImportNeedsCorrectionAsync(ImportJob job, Guid uploaderId)
+    {
+        var notification = new Notification
+        {
+            UserId = uploaderId,
+            NotificationType = NotificationType.ImportNeedsCorrection,
+            Title = "Import Needs Correction",
+            Message = $"Errors were detected in '{job.OriginalFileName}'. Open the submission to correct the highlighted rows.",
+            RelatedImportId = job.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+        await _notificationRepository.CreateAsync(notification);
     }
 
     public async Task NotifyImportRejectedAsync(ImportJob job, Guid uploaderId)

@@ -14,9 +14,11 @@ public enum ImportStatus
     Pending = 0,
     Processing = 1,
     AwaitingApproval = 2,
-    Committed = 3,
-    Rejected = 4,
-    Failed = 5
+    NeedsCorrection = 3,
+    Committed = 4,
+    Rejected = 5,
+    Failed = 6,
+    Cancelled = 7
 }
 
 public enum RowStatus
@@ -34,6 +36,7 @@ public enum NotificationType
     ImportApproved = 3,
     ImportCommitted = 4,
     ImportFailed = 5,
+    ImportNeedsCorrection = 6,
     // User notifications
     UserPendingApproval = 10,
     UserApproved = 11,

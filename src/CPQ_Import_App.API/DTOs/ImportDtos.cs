@@ -42,6 +42,8 @@ public record UploadRequest(string EntityType);
 
 public record RejectRequest(string Reason);
 
+public record UpdateRowRequest(Dictionary<string, string?> Fields);
+
 public record CommitResultDto(Guid JobId, int CommittedRows, string Message);
 
 public record DashboardSummaryDto(

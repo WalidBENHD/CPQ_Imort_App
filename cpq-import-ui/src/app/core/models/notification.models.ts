@@ -5,6 +5,7 @@ export enum NotificationType {
   ImportApproved = 3,
   ImportCommitted = 4,
   ImportFailed = 5,
+  ImportNeedsCorrection = 6,
   // User notifications
   UserPendingApproval = 10,
   UserApproved = 11,

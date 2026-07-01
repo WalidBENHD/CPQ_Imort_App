@@ -38,11 +38,13 @@ export class StatusBadgeComponent {
   get label() {
     const labels: Record<string, string> = {
       AwaitingApproval: 'Awaiting Approval',
+      NeedsCorrection: 'Needs Correction',
       Pending: 'Pending',
       Processing: 'Processing',
       Committed: 'Committed',
       Rejected: 'Rejected',
       Failed: 'Failed',
+      Cancelled: 'Cancelled',
       Valid: 'Valid',
       Warning: 'Warning',
       Error: 'Error'
@@ -55,9 +57,11 @@ export class StatusBadgeComponent {
       Pending: 'badge-pending',
       Processing: 'badge-processing',
       AwaitingApproval: 'badge-awaiting-approval',
+      NeedsCorrection: 'badge-warning',
       Committed: 'badge-committed',
       Rejected: 'badge-rejected',
       Failed: 'badge-failed',
+      Cancelled: 'badge-pending',
       Valid: 'badge-valid',
       Warning: 'badge-warning',
       Error: 'badge-error'
