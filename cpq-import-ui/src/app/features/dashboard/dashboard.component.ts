@@ -160,10 +160,14 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     }
     @media (max-width: 640px) {
       h1 { font-size: 24px; }
-      .summary-cards { grid-template-columns: 1fr; }
+      .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .summary-card { padding: 12px; }
       .summary-value { font-size: 26px; }
       .panel-header { flex-direction: column; align-items: flex-start; }
       .panel-header button { width: 100%; }
+    }
+    @media (max-width: 380px) {
+      .summary-cards { grid-template-columns: 1fr; }
     }
   `]
 })
