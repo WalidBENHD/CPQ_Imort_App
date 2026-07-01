@@ -197,7 +197,8 @@ using (var scope = app.Services.CreateScope())
 
     if (db.Database.IsNpgsql())
     {
-        await db.Database.MigrateAsync();
+        await db.Database.EnsureCreatedAsync();
+        await EnsurePostgresActivityEventsTableAsync(db);
     }
     else if (app.Environment.IsDevelopment())
     {
@@ -247,5 +248,51 @@ static string ResolveConnectionString(string? raw)
     }
 
     return raw;
+}
+
+static async Task EnsurePostgresActivityEventsTableAsync(AppDbContext db)
+{
+    var createSql = """
+        CREATE TABLE IF NOT EXISTS import."ActivityEvents" (
+            "Id" uuid NOT NULL,
+            "OccurredAtUtc" timestamp with time zone NOT NULL,
+            "Category" integer NOT NULL,
+            "Action" character varying(128) NOT NULL,
+            "Description" character varying(2000) NULL,
+            "UserId" character varying(128) NULL,
+            "UserDisplayName" character varying(256) NULL,
+            "UserRole" character varying(64) NULL,
+            "TargetType" character varying(128) NULL,
+            "TargetId" character varying(128) NULL,
+            "Route" character varying(1024) NULL,
+            "HttpMethod" character varying(16) NULL,
+            "StatusCode" integer NULL,
+            "IpAddress" character varying(64) NULL,
+            "UserAgent" character varying(1024) NULL,
+            "Country" character varying(128) NULL,
+            "City" character varying(128) NULL,
+            "MetadataJson" text NULL,
+            CONSTRAINT "PK_ActivityEvents" PRIMARY KEY ("Id")
+        );
+        """;
+
+    var indexSql = """
+        CREATE INDEX IF NOT EXISTS "IX_ActivityEvents_OccurredAtUtc"
+            ON import."ActivityEvents" ("OccurredAtUtc");
+
+        CREATE INDEX IF NOT EXISTS "IX_ActivityEvents_Category"
+            ON import."ActivityEvents" ("Category");
+
+        CREATE INDEX IF NOT EXISTS "IX_ActivityEvents_Action"
+            ON import."ActivityEvents" ("Action");
+
+        CREATE INDEX IF NOT EXISTS "IX_ActivityEvents_UserId"
+            ON import."ActivityEvents" ("UserId");
+
+        CREATE INDEX IF NOT EXISTS "IX_ActivityEvents_OccurredAtUtc_Category"
+            ON import."ActivityEvents" ("OccurredAtUtc", "Category");
+        """;
+
+    await db.Database.ExecuteSqlRawAsync("CREATE SCHEMA IF NOT EXISTS import; " + createSql + " " + indexSql);
 }
 
