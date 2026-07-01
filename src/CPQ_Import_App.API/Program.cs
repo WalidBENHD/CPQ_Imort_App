@@ -33,7 +33,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (string.Equals(databaseProvider, "Postgres", StringComparison.OrdinalIgnoreCase))
     {
-        options.UseNpgsql(importConnection);
+        options.UseNpgsql(importConnection,
+            npgsql => npgsql.MigrationsAssembly("CPQ_Import_App.Infrastructure"));
         return;
     }
 
@@ -194,10 +195,9 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // SQL Server uses migrations; Postgres test deployment can bootstrap with EnsureCreated.
     if (db.Database.IsNpgsql())
     {
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
     else if (app.Environment.IsDevelopment())
     {
