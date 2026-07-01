@@ -1,6 +1,6 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Component, inject } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,8 +11,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
+import { DATASET_CATALOG, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
-import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models';
 
 @Component({
   selector: 'app-import-wizard',
@@ -23,9 +23,12 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
     MatSnackBarModule, MatDividerModule],
   template: `
     <div class="page-header">
-      <h1>New Import</h1>
+      <div>
+        <div class="eyebrow">Dataset submission</div>
+        <h1>New Dataset Import</h1>
+      </div>
       <a mat-button routerLink="/dashboard">
-        <mat-icon>arrow_back</mat-icon> Back to Dashboard
+        <mat-icon>arrow_back</mat-icon> Back to Datasets
       </a>
     </div>
 
@@ -33,10 +36,10 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
       <mat-card-content>
         <mat-stepper linear #stepper [orientation]="isMobile ? 'vertical' : 'horizontal'">
 
-          <!-- Step 1: Choose type -->
-          <mat-step label="Select Data Type" [completed]="!!selectedType">
+          <!-- Step 1: Choose dataset -->
+          <mat-step label="Select Dataset" [completed]="!!selectedType">
             <div class="step-content">
-              <p class="step-subtitle">What type of data do you want to import?</p>
+              <p class="step-subtitle">Choose the dataset you want to update.</p>
               <div class="entity-grid">
                 <div
                   *ngFor="let opt of entityOptions"
@@ -53,7 +56,7 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
                   Continue <mat-icon>chevron_right</mat-icon>
                 </button>
                 <button mat-stroked-button (click)="downloadTemplate()" [disabled]="!selectedType" class="ml-8">
-                  <mat-icon>download</mat-icon> Download Template
+                  <mat-icon>download</mat-icon> Download Dataset Template
                 </button>
               </div>
             </div>
@@ -62,7 +65,7 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
           <!-- Step 2: Upload file -->
           <mat-step label="Upload File" [completed]="!!selectedFile">
             <div class="step-content">
-              <p class="step-subtitle">Upload your filled Excel (.xlsx) or CSV (.csv) file.</p>
+              <p class="step-subtitle">Upload your filled Excel (.xlsx) or CSV (.csv) file for the selected dataset.</p>
 
               <div
                 class="drop-zone"
@@ -102,7 +105,7 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
                     Please verify all values are accurate before submission.
                   </p>
                   <p style="margin-bottom: 12px; font-size: 13px; color: rgba(0,0,0,0.65);">
-                    <em>Note: Administrators and approvers review the structural integrity of the data, not the correctness of individual values. 
+                    <em>Note: Administrators and approvers review the structural integrity of the data, not the correctness of individual values.
                     Data validation and accuracy is your responsibility as the data source owner.</em>
                   </p>
                   <label class="responsibility-checkbox">
@@ -143,32 +146,47 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
     </mat-card>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    h1 { margin: 0; font-size: 24px; font-weight: 400; }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .eyebrow {
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    h1 { margin: 0; font-size: 28px; font-weight: 700; color: #0f172a; }
 
-    .wizard-shell { border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
+    .wizard-shell { border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: none; }
     .step-content { padding: 24px 0; }
     .step-subtitle { color: #64748b; margin-bottom: 20px; }
-    .entity-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; max-width: 640px; }
+    .entity-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; max-width: 760px; }
     .entity-card {
-      border: 1px solid #dbe3ee; border-radius: 12px; padding: 16px; cursor: pointer;
+      border: 1px solid #dbe3ee; border-radius: 14px; padding: 16px; cursor: pointer;
       transition: all 0.2s; display: flex; flex-direction: column; gap: 4px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
     }
     .entity-card:hover { border-color: #5b6bd4; background: #f8f9ff; transform: translateY(-1px); }
-    .entity-card.selected { border-color: #3f51b5; background: #eef2ff; }
-    .entity-card mat-icon { font-size: 28px; height: 28px; color: #3f51b5; }
-    .entity-label { font-weight: 500; }
-    .entity-desc { font-size: 12px; color: rgba(0,0,0,0.54); }
+    .entity-card.selected { border-color: #2563eb; background: #eff6ff; }
+    .entity-card mat-icon { font-size: 28px; height: 28px; color: #2563eb; }
+    .entity-label { font-weight: 700; color: #0f172a; }
+    .entity-desc { font-size: 12px; color: rgba(0,0,0,0.54); line-height: 1.45; }
     .drop-zone {
-      border: 2px dashed #bfcae6; border-radius: 12px; padding: 40px; text-align: center;
+      border: 2px dashed #bfcae6; border-radius: 14px; padding: 40px; text-align: center;
       cursor: pointer; transition: all 0.2s; min-height: 160px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     }
-    .drop-zone:hover, .drop-zone.drag-over { border-color: #3f51b5; background: #f8f9ff; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #2563eb; background: #f8f9ff; }
     .drop-icon { font-size: 48px; height: 48px; width: 48px; color: #bdbdbd; }
     .hint { font-size: 12px; color: rgba(0,0,0,0.38); margin: 0; }
-    .file-preview { display: flex; align-items: center; gap: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; padding: 8px 12px; }
-    .file-name { font-weight: 500; }
+    .file-preview { display: flex; align-items: center; gap: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; padding: 8px 12px; width: 100%; }
+    .file-name { font-weight: 600; }
     .file-size { font-size: 12px; color: rgba(0,0,0,0.54); }
     .upload-progress { margin-top: 16px; }
     .step-actions { display: flex; align-items: center; margin-top: 24px; }
@@ -177,10 +195,10 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
     .ml-8 { margin-left: 8px; }
     .center { text-align: center; padding: 40px; }
     .success-icon { font-size: 64px; height: 64px; width: 64px; }
-    .responsibility-notice { display: flex; gap: 12px; padding: 12px; background: #fff7ed; border-radius: 10px; border-left: 4px solid #f59e0b; margin: 24px 0; }
+    .responsibility-notice { display: flex; gap: 12px; padding: 12px; background: #fff7ed; border-radius: 12px; border-left: 4px solid #f59e0b; margin: 24px 0; }
     .notice-icon { color: #f57f17; flex-shrink: 0; }
     .notice-content { flex: 1; }
-    .notice-content h3 { margin: 0 0 8px 0; font-size: 14px; color: #e65100; font-weight: 600; }
+    .notice-content h3 { margin: 0 0 8px 0; font-size: 14px; color: #e65100; font-weight: 700; }
     .notice-content p { margin: 0 0 8px 0; font-size: 13px; color: rgba(0,0,0,0.75); line-height: 1.5; }
     .responsibility-checkbox { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: rgba(0,0,0,0.75); }
     .responsibility-checkbox input[type="checkbox"] { margin-top: 2px; cursor: pointer; }
@@ -204,6 +222,7 @@ import { ENTITY_TYPE_OPTIONS, EntityType } from '../../core/models/import.models
 export class ImportWizardComponent {
   private readonly importService = inject(ImportService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly snackBar = inject(MatSnackBar);
 
   entityOptions = ENTITY_TYPE_OPTIONS;
@@ -218,12 +237,15 @@ export class ImportWizardComponent {
     return typeof window !== 'undefined' && window.innerWidth <= 768;
   }
 
+  constructor() {
+    const dataset = this.route.snapshot.queryParamMap.get('dataset') as EntityType | null;
+    if (dataset && DATASET_CATALOG.some(item => item.key === dataset)) {
+      this.selectedType = dataset;
+    }
+  }
+
   entityIcon(type: EntityType): string {
-    const icons: Record<EntityType, string> = {
-      Article: 'inventory_2', PriceList: 'price_change',
-      Description: 'translate', CurrencyRate: 'currency_exchange'
-    };
-    return icons[type];
+    return getDatasetDefinition(type).icon;
   }
 
   formatSize(bytes: number): string {
@@ -245,8 +267,8 @@ export class ImportWizardComponent {
     if (f) this.validateAndSetFile(f);
   }
 
-  clearFile(e: Event) { 
-    e.stopPropagation(); 
+  clearFile(e: Event) {
+    e.stopPropagation();
     this.selectedFile = null;
     this.acknowledgedResponsibility = false;
   }
@@ -271,7 +293,6 @@ export class ImportWizardComponent {
       next: job => {
         this.uploadedJobId = job.id;
         this.uploading = false;
-        // Move to step 3 (done)
         document.querySelector('.mat-stepper-next')?.dispatchEvent(new Event('click'));
       },
       error: err => {
@@ -283,11 +304,12 @@ export class ImportWizardComponent {
   }
 
   downloadTemplate() {
-    if (!this.selectedType) return;
-    this.importService.downloadTemplate(this.selectedType).subscribe(blob => {
+    const selectedType = this.selectedType;
+    if (!selectedType) return;
+    this.importService.downloadTemplate(selectedType).subscribe(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `CPQ_Import_Template_${this.selectedType}.xlsx`;
+      a.download = `CPQ_Dataset_Template_${getDatasetDefinition(selectedType).fileNameFragment}.xlsx`;
       a.click();
     });
   }

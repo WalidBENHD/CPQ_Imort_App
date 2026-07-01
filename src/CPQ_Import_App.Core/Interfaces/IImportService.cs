@@ -9,7 +9,7 @@ public interface IImportService
         string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid jobId, CancellationToken ct = default);
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
-        int page, int pageSize, CancellationToken ct = default);
+        int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
     Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
         Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default);
     Task<ImportJob> CommitAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);

@@ -43,3 +43,48 @@ public record UploadRequest(string EntityType);
 public record RejectRequest(string Reason);
 
 public record CommitResultDto(Guid JobId, int CommittedRows, string Message);
+
+public record DashboardSummaryDto(
+    int AwaitingApproval,
+    int CommittedToday,
+    int Rejected,
+    int TotalSubmissions,
+    int OpenExceptions,
+    int AgingApprovals);
+
+public record DashboardAttentionDto(
+    Guid? JobId,
+    string Title,
+    string Dataset,
+    string Message,
+    string Severity,
+    string? ActionLabel,
+    DateTime? OccurredAt);
+
+public record DashboardDatasetHealthDto(
+    EntityType EntityType,
+    string DatasetName,
+    string Owner,
+    string Status,
+    string CurrentVersion,
+    int TotalSubmissions,
+    int OpenItems,
+    int ErrorRows,
+    double ErrorRate,
+    DateTime? LastActivityAt);
+
+public record DashboardActivityDto(
+    Guid JobId,
+    string Action,
+    string Title,
+    string Dataset,
+    string PerformedByDisplayName,
+    DateTime PerformedAt,
+    string? Details);
+
+public record DashboardOverviewDto(
+    DashboardSummaryDto Summary,
+    IReadOnlyList<DashboardAttentionDto> AttentionItems,
+    IReadOnlyList<DashboardDatasetHealthDto> DatasetHealth,
+    IReadOnlyList<DashboardActivityDto> ActivityFeed,
+    IReadOnlyList<ImportJobDto> RecentSubmissions);

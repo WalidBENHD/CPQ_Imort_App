@@ -20,14 +20,17 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
     <mat-toolbar color="primary" *ngIf="showAppChrome">
       <span class="brand">
         <mat-icon>cloud_upload</mat-icon>
-        CPQ Data Import
+        CPQ Dataset Platform
       </span>
       <span class="spacer"></span>
       <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/dashboard" routerLinkActive="active-link">
-        <mat-icon>dashboard</mat-icon> Dashboard
+        <mat-icon>space_dashboard</mat-icon> Dashboard
       </a>
-      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/import/new" routerLinkActive="active-link">
-        <mat-icon>add</mat-icon> New Import
+      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/datasets" routerLinkActive="active-link">
+        <mat-icon>dataset</mat-icon> Datasets
+      </a>
+      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/uploads" routerLinkActive="active-link">
+        <mat-icon>view_list</mat-icon> Uploads
       </a>
       <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
         <mat-icon>admin_panel_settings</mat-icon> Admin Panel
@@ -51,12 +54,16 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
 
       <mat-menu #mobileNavMenu="matMenu">
         <a mat-menu-item routerLink="/dashboard">
-          <mat-icon>dashboard</mat-icon>
+          <mat-icon>space_dashboard</mat-icon>
           <span>Dashboard</span>
         </a>
-        <a mat-menu-item routerLink="/import/new">
-          <mat-icon>add</mat-icon>
-          <span>New Import</span>
+        <a mat-menu-item routerLink="/datasets">
+          <mat-icon>dataset</mat-icon>
+          <span>Datasets</span>
+        </a>
+        <a mat-menu-item routerLink="/uploads">
+          <mat-icon>view_list</mat-icon>
+          <span>Uploads</span>
         </a>
         <a mat-menu-item *ngIf="auth.isAdmin" routerLink="/admin/users">
           <mat-icon>admin_panel_settings</mat-icon>

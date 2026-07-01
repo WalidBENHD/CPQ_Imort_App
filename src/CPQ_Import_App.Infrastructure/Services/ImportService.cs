@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
+using CPQ_Import_App.Core.Metadata;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Templates;
 using OfficeOpenXml;
@@ -40,7 +41,7 @@ public class ImportService(
 
         // Find parser
         var parser = parsers.FirstOrDefault(p => p.CanParse(fileName, entityType))
-            ?? throw new InvalidOperationException($"No parser found for entity type '{entityType}'.");
+            ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(entityType).DisplayName}'.");
 
         List<StagingRow> stagingRows;
         try
@@ -100,8 +101,9 @@ public class ImportService(
     public Task<ImportJob?> GetJobAsync(Guid jobId, CancellationToken ct = default)
         => repository.GetJobAsync(jobId, ct);
 
-    public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, CancellationToken ct = default)
-        => repository.GetJobsPagedAsync(page, pageSize, ct);
+    public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
+        int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
+        => repository.GetJobsPagedAsync(page, pageSize, search, status, entityType, ct);
 
     public Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
         Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default)
@@ -116,7 +118,7 @@ public class ImportService(
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be committed.");
 
         var strategy = commitStrategies.FirstOrDefault(s => s.EntityType == job.EntityType)
-            ?? throw new InvalidOperationException($"No commit strategy for entity type '{job.EntityType}'.");
+            ?? throw new InvalidOperationException($"No commit strategy for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
 
         // Retrieve all valid + warning rows
         var allRows = new List<StagingRow>();

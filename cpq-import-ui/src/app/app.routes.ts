@@ -21,6 +21,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
   },
   {
+    path: 'datasets',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/datasets/datasets.component').then(m => m.DatasetsComponent)
+  },
+  {
+    path: 'uploads',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/uploads/uploads.component').then(m => m.UploadsComponent)
+  },
+  {
     path: 'import/new',
     canActivate: [authGuard],
     loadComponent: () => import('./features/import-wizard/import-wizard.component').then(m => m.ImportWizardComponent)

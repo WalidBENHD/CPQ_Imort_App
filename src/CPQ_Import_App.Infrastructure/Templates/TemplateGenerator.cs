@@ -1,4 +1,5 @@
 using CPQ_Import_App.Core.Enums;
+using CPQ_Import_App.Core.Metadata;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Drawing;
@@ -15,31 +16,32 @@ public static class TemplateGenerator
         [EntityType.Article] = (
             ["ArticleNumber", "Name", "Category", "Unit"],
             ["ART-001", "Widget Pro", "Electronics", "PCS"],
-            "Articles"
+            "ProductMaster"
         ),
         [EntityType.PriceList] = (
             ["ArticleNumber", "Price", "Currency", "ValidFrom", "ValidTo"],
             ["ART-001", "49.99", "EUR", "2024-01-01", "2024-12-31"],
-            "PriceLists"
+            "PricingConditions"
         ),
         [EntityType.Description] = (
             ["ArticleNumber", "LanguageCode", "ShortDescription", "LongDescription"],
             ["ART-001", "EN", "A compact widget", "The Widget Pro is a high-quality, compact device..."],
-            "Descriptions"
+            "ProductTexts"
         ),
         [EntityType.CurrencyRate] = (
             ["FromCurrency", "ToCurrency", "Rate", "ValidFrom"],
             ["USD", "EUR", "0.92", "2024-01-01"],
-            "CurrencyRates"
+            "ExchangeRates"
         )
     };
 
     public static byte[] Generate(EntityType entityType)
     {
         if (!Templates.TryGetValue(entityType, out var template))
-            throw new ArgumentException($"No template defined for entity type '{entityType}'.");
+            throw new ArgumentException($"No template defined for dataset '{entityType}'.");
 
         var (headers, exampleRow, sheetName) = template;
+        var dataset = DatasetCatalog.Get(entityType);
 
         using var package = new ExcelPackage();
         var ws = package.Workbook.Worksheets.Add(sheetName);
@@ -51,7 +53,7 @@ public static class TemplateGenerator
             cell.Value = headers[c];
             cell.Style.Font.Bold = true;
             cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(0x1F, 0x49, 0x7D)); // brand blue
+            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(0x1F, 0x49, 0x7D));
             cell.Style.Font.Color.SetColor(Color.White);
             cell.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
         }
@@ -67,19 +69,22 @@ public static class TemplateGenerator
             cell.Style.Font.Color.SetColor(Color.FromArgb(0x66, 0x66, 0x66));
         }
 
-        ws.Cells[ws.Dimension.Address].AutoFitColumns();
-        ws.View.FreezePanes(2, 1); // Freeze header row
+        if (ws.Dimension is not null)
+        {
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        }
+        ws.View.FreezePanes(2, 1);
 
         // Instructions sheet
         var instructions = package.Workbook.Worksheets.Add("Instructions");
-        instructions.Cells[1, 1].Value = $"Import Template — {entityType}";
+        instructions.Cells[1, 1].Value = $"Dataset Template - {dataset.DisplayName}";
         instructions.Cells[1, 1].Style.Font.Bold = true;
         instructions.Cells[1, 1].Style.Font.Size = 14;
-        instructions.Cells[2, 1].Value = "• Row 2 (grey/italic) is an example row — replace or delete it before uploading.";
-        instructions.Cells[3, 1].Value = "• All column headers must be kept exactly as-is (case-insensitive).";
-        instructions.Cells[4, 1].Value = "• Dates must be in YYYY-MM-DD format.";
-        instructions.Cells[5, 1].Value = "• Currency codes must be 3-letter ISO 4217 codes (e.g. EUR, USD, GBP).";
-        instructions.Cells[6, 1].Value = "• Required fields: " + GetRequiredFields(entityType);
+        instructions.Cells[2, 1].Value = "- Row 2 (grey/italic) is an example row - replace or delete it before uploading.";
+        instructions.Cells[3, 1].Value = "- All column headers must be kept exactly as-is (case-insensitive).";
+        instructions.Cells[4, 1].Value = "- Dates must be in YYYY-MM-DD format.";
+        instructions.Cells[5, 1].Value = "- Currency codes must be 3-letter ISO 4217 codes (e.g. EUR, USD, GBP).";
+        instructions.Cells[6, 1].Value = "- Required fields: " + GetRequiredFields(entityType);
         instructions.Column(1).Width = 80;
 
         return package.GetAsByteArray();
@@ -91,6 +96,6 @@ public static class TemplateGenerator
         EntityType.PriceList => "ArticleNumber, Price, Currency, ValidFrom",
         EntityType.Description => "ArticleNumber, LanguageCode, ShortDescription",
         EntityType.CurrencyRate => "FromCurrency, ToCurrency, Rate, ValidFrom",
-        _ => "—"
+        _ => "-"
     };
 }

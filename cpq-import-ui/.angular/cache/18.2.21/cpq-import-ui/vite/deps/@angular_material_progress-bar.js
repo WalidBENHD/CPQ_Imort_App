@@ -39,8 +39,8 @@ import {
   ɵɵstyleProp,
   ɵɵtemplate
 } from "./chunk-TL4DGONE.js";
-import "./chunk-FFZIAYYX.js";
 import "./chunk-6Q4RANH6.js";
+import "./chunk-FFZIAYYX.js";
 import "./chunk-CXCX2JKZ.js";
 
 // node_modules/@angular/material/fesm2022/progress-bar.mjs

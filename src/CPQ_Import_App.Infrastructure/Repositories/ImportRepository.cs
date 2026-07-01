@@ -21,11 +21,30 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .FirstOrDefaultAsync(j => j.Id == id, ct);
 
     public async Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
-        int page, int pageSize, CancellationToken ct = default)
+        int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
     {
-        var query = db.ImportJobs.OrderByDescending(j => j.CreatedAt);
+        IQueryable<ImportJob> query = db.ImportJobs.AsNoTracking().OrderByDescending(j => j.CreatedAt);
+
+        if (status.HasValue)
+            query = query.Where(j => j.Status == status.Value);
+
+        if (entityType.HasValue)
+            query = query.Where(j => j.EntityType == entityType.Value);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(j =>
+                EF.Functions.Like(j.OriginalFileName, $"%{term}%") ||
+                EF.Functions.Like(j.CreatedByDisplayName, $"%{term}%") ||
+                EF.Functions.Like(j.FileName, $"%{term}%"));
+        }
+
         var total = await query.CountAsync(ct);
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
         return (items, total);
     }
 

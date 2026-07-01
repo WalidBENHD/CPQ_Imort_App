@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  CommitResult, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
+  CommitResult, DashboardOverview, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -14,9 +14,22 @@ export class ImportService {
   private readonly notificationService = inject(NotificationService);
   private readonly base = `${environment.apiUrl}/imports`;
 
-  getJobs(page = 1, pageSize = 20): Observable<PagedResult<ImportJob>> {
-    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+  getJobs(
+    page = 1,
+    pageSize = 20,
+    search?: string | null,
+    status?: string | null,
+    entityType?: EntityType | null
+  ): Observable<PagedResult<ImportJob>> {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (search) params = params.set('search', search);
+    if (status) params = params.set('status', status);
+    if (entityType) params = params.set('entityType', entityType);
     return this.http.get<PagedResult<ImportJob>>(this.base, { params });
+  }
+
+  getDashboardOverview(): Observable<DashboardOverview> {
+    return this.http.get<DashboardOverview>(`${environment.apiUrl}/dashboard/overview`);
   }
 
   getJob(id: string): Observable<ImportJob> {

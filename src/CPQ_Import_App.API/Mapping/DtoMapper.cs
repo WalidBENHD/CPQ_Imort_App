@@ -1,5 +1,6 @@
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Models;
+using CPQ_Import_App.Core.Metadata;
 using CPQ_Import_App.API.DTOs;
 using System.Text.Json;
 
@@ -30,7 +31,7 @@ public static class DtoMapper
         job.Id,
         job.OriginalFileName,
         job.EntityType,
-        job.EntityType.ToString(),
+        DatasetCatalog.Get(job.EntityType).DisplayName,
         job.Status,
         job.Status.ToString(),
         job.CreatedBy,

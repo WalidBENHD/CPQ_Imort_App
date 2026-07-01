@@ -61,7 +61,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
               <app-status-badge [status]="job.statusLabel" />
             </div>
             <div class="summary-item">
-              <div class="label">Data Type</div>
+              <div class="label">Dataset</div>
               <div class="value">{{ job.entityTypeLabel }}</div>
             </div>
             <div class="summary-item">

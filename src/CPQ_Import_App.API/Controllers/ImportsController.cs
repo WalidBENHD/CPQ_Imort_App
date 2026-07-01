@@ -2,6 +2,7 @@ using CPQ_Import_App.API.DTOs;
 using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
+using CPQ_Import_App.Core.Metadata;
 using CPQ_Import_App.Infrastructure.Data;
 using CPQ_Import_App.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -39,7 +40,7 @@ public class ImportsController(
             return BadRequest("No file provided.");
 
         if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown)
-            return BadRequest($"Invalid entity type '{entityType}'. Valid values: Article, PriceList, Description, CurrencyRate.");
+            return BadRequest($"Invalid dataset '{entityType}'. Valid datasets: {DatasetCatalog.GetValidDatasetList()}.");
 
         var allowedExtensions = new[] { ".xlsx", ".csv" };
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -84,11 +85,23 @@ public class ImportsController(
     public async Task<ActionResult<PagedResult<ImportJobDto>>> GetJobs(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? entityType = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
         if (pageSize is < 1 or > 100) pageSize = 20;
-        var (items, total) = await importService.GetJobsPagedAsync(page, pageSize, ct);
+
+        ImportStatus? parsedStatus = null;
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ImportStatus>(status, ignoreCase: true, out var st))
+            parsedStatus = st;
+
+        EntityType? parsedEntityType = null;
+        if (!string.IsNullOrWhiteSpace(entityType) && Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) && et != EntityType.Unknown)
+            parsedEntityType = et;
+
+        var (items, total) = await importService.GetJobsPagedAsync(page, pageSize, search, parsedStatus, parsedEntityType, ct);
         return Ok(new PagedResult<ImportJobDto>(items.Select(j => j.ToDto()).ToList(), total, page, pageSize));
     }
 
