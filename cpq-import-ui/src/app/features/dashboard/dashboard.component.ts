@@ -176,7 +176,13 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     .recent-main { order: 1; flex: 1; min-width: 0; }
     .desktop-icon { order: 2; margin-left: auto; flex: 0 0 auto; }
     .recent-item-top { display: none; }
-    .recent-name { font-weight: 800; color: #0f172a; word-break: break-word; }
+    .recent-name {
+      font-weight: 600;
+      color: #334155;
+      word-break: break-word;
+      font-size: 13px;
+      line-height: 1.35;
+    }
     .recent-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; color: #64748b; font-size: 12px; }
     .open-icon { color: #94a3b8; }
     .loading-card { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px solid #dbe4f0; box-shadow: none; }
@@ -212,7 +218,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
         gap: 12px;
       }
       .recent-main { min-width: 0; }
-      .recent-name { font-size: 14px; line-height: 1.25; word-break: break-word; }
+      .recent-name { font-size: 13.5px; line-height: 1.3; word-break: break-word; }
       .recent-meta { gap: 8px; margin-top: 3px; }
     }
     @media (max-width: 380px) {

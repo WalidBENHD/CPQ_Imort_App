@@ -1,7 +1,9 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -76,9 +78,6 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
         </mat-form-field>
 
         <div class="filter-actions">
-          <button mat-raised-button color="primary" type="button" (click)="applyFilters()">
-            <mat-icon>filter_alt</mat-icon> Apply
-          </button>
           <button mat-button type="button" (click)="clearFilters()">
             <mat-icon>filter_alt_off</mat-icon> Clear
           </button>
@@ -251,25 +250,17 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     }
 
     .filters-toolbar {
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: 2fr repeat(2, minmax(150px, 1fr)) auto;
+      gap: 10px;
+      align-items: start;
       padding: 0;
-    }
-
-    .search-field {
-      flex: 1 1 320px;
-      min-width: 260px;
-    }
-
-    .select-field {
-      flex: 0 1 220px;
-      min-width: 200px;
     }
 
     .search-field,
     .select-field {
+      width: 100%;
+      min-width: 0;
       margin-bottom: 0;
     }
 
@@ -277,9 +268,8 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       display: flex;
       gap: 6px;
       align-items: center;
-      margin-left: auto;
       padding-bottom: 2px;
-      flex-wrap: wrap;
+      justify-self: end;
     }
 
     .filter-actions button {
@@ -330,9 +320,10 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     }
 
     .file-name {
-      font-weight: 700;
-      color: #0f172a;
+      font-weight: 500;
+      color: #334155;
       line-height: 1.35;
+      font-size: 12.5px;
     }
 
     .file-subtitle,
@@ -472,13 +463,15 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       }
 
       .filters-toolbar {
-        align-items: stretch;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .search-field {
+        grid-column: 1 / -1;
       }
 
       .filter-actions {
-        margin-left: 0;
-        width: 100%;
-        justify-content: flex-end;
+        justify-self: end;
       }
     }
 
@@ -488,13 +481,16 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       }
 
       .filters-toolbar {
+        grid-template-columns: 1fr;
         gap: 10px;
       }
 
       .filter-actions {
+        grid-column: 1 / -1;
         flex-direction: column;
         align-items: stretch;
         width: 100%;
+        justify-self: stretch;
       }
 
       .filter-actions button {
@@ -520,6 +516,7 @@ export class UploadsComponent implements OnInit {
   private readonly importService = inject(ImportService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   result: PagedResult<ImportJob> | null = null;
   loading = false;
@@ -544,6 +541,10 @@ export class UploadsComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.filtersForm.valueChanges.pipe(debounceTime(200), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.page = 1;
+      this.load();
+    });
     this.load();
   }
 
@@ -567,15 +568,8 @@ export class UploadsComponent implements OnInit {
     });
   }
 
-  applyFilters(): void {
-    this.page = 1;
-    this.load();
-  }
-
   clearFilters(): void {
     this.filtersForm.reset({ search: '', status: '', entityType: '' });
-    this.page = 1;
-    this.load();
   }
 
   onPage(event: PageEvent): void {

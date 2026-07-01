@@ -6,11 +6,11 @@ import {
 import {
   CdkScrollableModule
 } from "./chunk-GAY5QX3W.js";
-import "./chunk-XUPB2GYR.js";
 import {
   DomPortalOutlet,
   TemplatePortal
 } from "./chunk-RF7ZMVJA.js";
+import "./chunk-XUPB2GYR.js";
 import {
   animate,
   state,

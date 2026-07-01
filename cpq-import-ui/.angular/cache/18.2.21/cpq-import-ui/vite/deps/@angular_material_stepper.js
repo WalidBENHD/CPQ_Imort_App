@@ -8,7 +8,6 @@ import {
   PortalModule,
   TemplatePortal
 } from "./chunk-RF7ZMVJA.js";
-import "./chunk-A2MYQCX4.js";
 import {
   animate,
   animateChild,
@@ -19,6 +18,7 @@ import {
   transition,
   trigger
 } from "./chunk-JYQKWHEH.js";
+import "./chunk-A2MYQCX4.js";
 import {
   ControlContainer
 } from "./chunk-GZCVTFTR.js";

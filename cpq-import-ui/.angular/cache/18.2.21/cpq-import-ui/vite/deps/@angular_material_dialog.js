@@ -8,7 +8,6 @@ import {
 import {
   CdkScrollable
 } from "./chunk-GAY5QX3W.js";
-import "./chunk-XUPB2GYR.js";
 import {
   BasePortalOutlet,
   CdkPortalOutlet,
@@ -16,6 +15,7 @@ import {
   PortalModule,
   TemplatePortal
 } from "./chunk-RF7ZMVJA.js";
+import "./chunk-XUPB2GYR.js";
 import {
   animate,
   animateChild,
