@@ -28,7 +28,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
           (click)="toggleSidebar()"
           aria-label="Toggle navigation"
         >
-          <mat-icon>{{ isSidebarOpen ? 'menu_open' : 'menu' }}</mat-icon>
+          <mat-icon>{{ navToggleIcon }}</mat-icon>
         </button>
 
         <span class="brand">
@@ -84,22 +84,24 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
             <span *ngIf="isSidebarOpen">{{ item.label }}</span>
           </a>
 
-          <div class="nav-group-label" *ngIf="isSidebarOpen && auth.isAdmin">Admin</div>
+          <ng-container *ngIf="auth.isAdmin">
+            <div class="nav-group-label" *ngIf="isSidebarOpen">Admin</div>
 
-          <a
-            mat-button
-            class="side-link"
-            *ngFor="let item of adminNavItems"
-            [routerLink]="item.route"
-            routerLinkActive="side-link--active"
-            [class.side-link--compact]="!isSidebarOpen"
-            [attr.aria-label]="item.label"
-            [matTooltip]="!isSidebarOpen ? item.label : ''"
-            (click)="onNavItemClick()"
-          >
-            <mat-icon>{{ item.icon }}</mat-icon>
-            <span *ngIf="isSidebarOpen">{{ item.label }}</span>
-          </a>
+            <a
+              mat-button
+              class="side-link"
+              *ngFor="let item of adminNavItems"
+              [routerLink]="item.route"
+              routerLinkActive="side-link--active"
+              [class.side-link--compact]="!isSidebarOpen"
+              [attr.aria-label]="item.label"
+              [matTooltip]="!isSidebarOpen ? item.label : ''"
+              (click)="onNavItemClick()"
+            >
+              <mat-icon>{{ item.icon }}</mat-icon>
+              <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+            </a>
+          </ng-container>
         </aside>
 
         <button
@@ -465,6 +467,14 @@ export class AppComponent implements OnInit, OnDestroy {
   private routeSub: Subscription | null = null;
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
+
+  get navToggleIcon(): string {
+    if (this.isMobile) {
+      return this.isMobileSidebarOpen ? 'close' : 'menu';
+    }
+
+    return this.isSidebarOpen ? 'menu_open' : 'menu';
+  }
 
   private get isMobile(): boolean {
     return typeof window !== 'undefined' && window.innerWidth <= 768;
