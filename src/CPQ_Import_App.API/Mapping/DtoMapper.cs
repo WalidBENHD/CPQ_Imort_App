@@ -94,4 +94,24 @@ public static class DtoMapper
         overview.ImportEventsLast24h,
         overview.FailuresLast24h
     );
+
+    public static DatasetRequirementDto ToDto(this DatasetDefinition dataset) => new(
+        dataset.EntityType,
+        dataset.EntityType.ToString(),
+        dataset.DisplayName,
+        dataset.Owner,
+        dataset.TemplateName,
+        dataset.CurrentVersion,
+        dataset.Description,
+        dataset.Columns.Select(x => new DatasetColumnRequirementDto(
+            x.Name,
+            x.Required,
+            x.DataType,
+            x.Description,
+            x.Example)).ToList(),
+        dataset.ValidationRules.Select(x => new DatasetValidationRuleDto(
+            x.Field,
+            x.Rule,
+            x.Severity)).ToList()
+    );
 }

@@ -11,7 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
-import { DATASET_CATALOG, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition } from '../../core/models/import.models';
+import { DATASET_CATALOG, DatasetRequirement, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 
 @Component({
@@ -45,12 +45,55 @@ import { ImportService } from '../../core/services/import.service';
                   *ngFor="let opt of entityOptions"
                   class="entity-card"
                   [class.selected]="selectedType === opt.value"
-                  (click)="selectedType = opt.value">
+                  (click)="setSelectedType(opt.value)">
                   <mat-icon>{{ entityIcon(opt.value) }}</mat-icon>
                   <div class="entity-label">{{ opt.label }}</div>
                   <div class="entity-desc">{{ opt.description }}</div>
                 </div>
               </div>
+
+              <div class="requirements-panel" *ngIf="selectedRequirement as req">
+                <div class="requirements-header">
+                  <div>
+                    <h3>Template Requirements</h3>
+                    <p>Review required columns and validation checks before uploading your file.</p>
+                  </div>
+                  <button mat-stroked-button (click)="downloadTemplate()">
+                    <mat-icon>download</mat-icon>
+                    Download Template
+                  </button>
+                </div>
+
+                <div class="requirements-grid">
+                  <div>
+                    <div class="requirements-title">Columns</div>
+                    <div class="requirements-item" *ngFor="let col of req.columns">
+                      <div class="requirements-name">
+                        {{ col.name }}
+                        <span class="badge" [class.badge-optional]="!col.required">
+                          {{ col.required ? 'Required' : 'Optional' }}
+                        </span>
+                      </div>
+                      <div class="requirements-meta">{{ col.dataType }} - {{ col.description }}</div>
+                      <div class="requirements-example" *ngIf="col.example">Example: {{ col.example }}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="requirements-title">Validation Rules</div>
+                    <div class="requirements-item" *ngFor="let rule of req.validationRules">
+                      <div class="requirements-name">
+                        {{ rule.field }}
+                        <span class="badge" [class.badge-warning]="rule.severity.toLowerCase() !== 'error'">
+                          {{ rule.severity }}
+                        </span>
+                      </div>
+                      <div class="requirements-meta">{{ rule.rule }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="step-actions">
                 <button mat-raised-button color="primary" matStepperNext [disabled]="!selectedType">
                   Continue <mat-icon>chevron_right</mat-icon>
@@ -66,6 +109,11 @@ import { ImportService } from '../../core/services/import.service';
           <mat-step label="Upload File" [completed]="!!selectedFile">
             <div class="step-content">
               <p class="step-subtitle">Upload your filled Excel (.xlsx) or CSV (.csv) file for the selected dataset.</p>
+
+              <div class="upload-hint" *ngIf="selectedRequirement as req">
+                Required columns for {{ req.displayName }}:
+                <strong>{{ requiredColumnsHint(req) }}</strong>
+              </div>
 
               <div
                 class="drop-zone"
@@ -177,6 +225,110 @@ import { ImportService } from '../../core/services/import.service';
     .entity-card mat-icon { font-size: 28px; height: 28px; color: #2563eb; }
     .entity-label { font-weight: 700; color: #0f172a; }
     .entity-desc { font-size: 12px; color: rgba(0,0,0,0.54); line-height: 1.45; }
+    .upload-hint {
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .requirements-panel {
+      border: 1px solid #dbe4f0;
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .requirements-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .requirements-header h3 {
+      margin: 0 0 4px;
+      font-size: 16px;
+      color: #0f172a;
+    }
+
+    .requirements-header p {
+      margin: 0;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .requirements-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .requirements-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .requirements-item {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .requirements-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .requirements-meta,
+    .requirements-example {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .badge-optional {
+      border-color: #e2e8f0;
+      background: #f8fafc;
+      color: #475569;
+    }
+
+    .badge-warning {
+      border-color: #fde68a;
+      background: #fffbeb;
+      color: #92400e;
+    }
+
     .drop-zone {
       border: 2px dashed #bfcae6; border-radius: 14px; padding: 40px; text-align: center;
       cursor: pointer; transition: all 0.2s; min-height: 160px;
@@ -208,6 +360,15 @@ import { ImportService } from '../../core/services/import.service';
       h1 { font-size: 22px; }
       .step-content { padding: 12px 0; }
       .entity-grid { grid-template-columns: 1fr; gap: 10px; }
+      .requirements-header,
+      .requirements-grid {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+      .requirements-header {
+        display: flex;
+        flex-direction: column;
+      }
       .drop-zone { padding: 24px 12px; min-height: 130px; }
       .drop-icon { font-size: 38px; height: 38px; width: 38px; }
       .step-actions { flex-direction: column; align-items: stretch; gap: 8px; }
@@ -232,16 +393,54 @@ export class ImportWizardComponent {
   uploading = false;
   uploadedJobId: string | null = null;
   acknowledgedResponsibility = false;
+  requirementsByType: Partial<Record<EntityType, DatasetRequirement>> = {};
 
   get isMobile(): boolean {
     return typeof window !== 'undefined' && window.innerWidth <= 768;
   }
 
+  get selectedRequirement(): DatasetRequirement | undefined {
+    if (!this.selectedType) {
+      return undefined;
+    }
+
+    return this.requirementsByType[this.selectedType];
+  }
+
   constructor() {
+    this.loadDatasetRequirements();
+
     const dataset = this.route.snapshot.queryParamMap.get('dataset') as EntityType | null;
     if (dataset && DATASET_CATALOG.some(item => item.key === dataset)) {
-      this.selectedType = dataset;
+      this.setSelectedType(dataset);
     }
+  }
+
+  setSelectedType(type: EntityType) {
+    this.selectedType = type;
+    this.selectedFile = null;
+    this.acknowledgedResponsibility = false;
+  }
+
+  requiredColumnsHint(requirement: DatasetRequirement): string {
+    return requirement.columns
+      .filter(col => col.required)
+      .map(col => col.name)
+      .join(', ');
+  }
+
+  private loadDatasetRequirements() {
+    this.importService.getDatasetRequirements().subscribe({
+      next: (requirements) => {
+        this.requirementsByType = requirements.reduce((acc, item) => {
+          acc[item.entityTypeLabel] = item;
+          return acc;
+        }, {} as Partial<Record<EntityType, DatasetRequirement>>);
+      },
+      error: () => {
+        this.requirementsByType = {};
+      }
+    });
   }
 
   entityIcon(type: EntityType): string {

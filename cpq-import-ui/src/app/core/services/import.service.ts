@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  CommitResult, DashboardOverview, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
+  CommitResult, DashboardOverview, DatasetRequirement, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -84,5 +84,9 @@ export class ImportService {
 
   downloadTemplate(entityType: EntityType): Observable<Blob> {
     return this.http.get(`${environment.apiUrl}/templates/${entityType}`, { responseType: 'blob' });
+  }
+
+  getDatasetRequirements(): Observable<DatasetRequirement[]> {
+    return this.http.get<DatasetRequirement[]>(`${environment.apiUrl}/templates/requirements`);
   }
 }

@@ -1,10 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { DATASET_CATALOG, DatasetDefinition } from '../../core/models/import.models';
+import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 
 @Component({
@@ -52,6 +52,40 @@ import { ImportService } from '../../core/services/import.service';
           <div class="dataset-meta-item">
             <span>Current version</span>
             <strong>{{ dataset.currentVersion }}</strong>
+          </div>
+        </div>
+
+        <div class="dataset-requirements" *ngIf="getRequirement(dataset.key) as requirement">
+          <div class="requirements-grid">
+            <div>
+              <div class="requirements-title">Required Columns</div>
+              <ul class="requirements-list">
+                <li *ngFor="let col of requirement.columns">
+                  <span>
+                    <strong>{{ col.name }}</strong>
+                    <span class="badge" [class.badge-optional]="!col.required">
+                      {{ col.required ? 'Required' : 'Optional' }}
+                    </span>
+                  </span>
+                  <small>{{ col.dataType }} - {{ col.description }}</small>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <div class="requirements-title">Validation Rules</div>
+              <ul class="requirements-list">
+                <li *ngFor="let rule of requirement.validationRules">
+                  <span>
+                    <strong>{{ rule.field }}</strong>
+                    <span class="badge" [class.badge-warning]="rule.severity.toLowerCase() !== 'error'">
+                      {{ rule.severity }}
+                    </span>
+                  </span>
+                  <small>{{ rule.rule }}</small>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -181,6 +215,84 @@ import { ImportService } from '../../core/services/import.service';
       gap: 10px;
       flex-wrap: wrap;
     }
+
+    .dataset-requirements {
+      margin-bottom: 16px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .requirements-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .requirements-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .requirements-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .requirements-list li {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: grid;
+      gap: 4px;
+      background: #f8fafc;
+    }
+
+    .requirements-list li > span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #0f172a;
+      font-size: 13px;
+    }
+
+    .requirements-list li small {
+      color: #475569;
+      line-height: 1.4;
+      font-size: 12px;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .badge-optional {
+      border-color: #e2e8f0;
+      background: #f8fafc;
+      color: #475569;
+    }
+
+    .badge-warning {
+      border-color: #fde68a;
+      background: #fffbeb;
+      color: #92400e;
+    }
     .dataset-actions button {
       border-radius: 999px;
       min-height: 38px;
@@ -205,6 +317,9 @@ import { ImportService } from '../../core/services/import.service';
       .dataset-meta {
         grid-template-columns: 1fr;
       }
+      .requirements-grid {
+        grid-template-columns: 1fr;
+      }
       .dataset-card { padding: 14px; }
       .dataset-top { grid-template-columns: auto 1fr; }
       .dataset-status {
@@ -221,11 +336,27 @@ import { ImportService } from '../../core/services/import.service';
     }
   `]
 })
-export class DatasetsComponent {
+export class DatasetsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly importService = inject(ImportService);
 
   readonly datasetCatalog: DatasetDefinition[] = DATASET_CATALOG;
+  requirementsByType: Partial<Record<EntityType, DatasetRequirement>> = {};
+
+  ngOnInit(): void {
+    this.importService.getDatasetRequirements().subscribe({
+      next: (requirements) => {
+        this.requirementsByType = requirements.reduce((acc, item) => {
+          acc[item.entityTypeLabel] = item;
+          return acc;
+        }, {} as Partial<Record<EntityType, DatasetRequirement>>);
+      }
+    });
+  }
+
+  getRequirement(type: EntityType): DatasetRequirement | undefined {
+    return this.requirementsByType[type];
+  }
 
   startImport(dataset: DatasetDefinition) {
     this.router.navigate(['/import/new'], { queryParams: { dataset: dataset.key } });

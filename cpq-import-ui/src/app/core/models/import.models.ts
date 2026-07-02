@@ -14,6 +14,32 @@ export interface DatasetDefinition {
   fileNameFragment: string;
 }
 
+export interface DatasetColumnRequirement {
+  name: string;
+  required: boolean;
+  dataType: string;
+  description: string;
+  example: string | null;
+}
+
+export interface DatasetValidationRule {
+  field: string;
+  rule: string;
+  severity: string;
+}
+
+export interface DatasetRequirement {
+  entityType: number;
+  entityTypeLabel: EntityType;
+  displayName: string;
+  owner: string;
+  templateName: string;
+  currentVersion: string;
+  description: string;
+  columns: DatasetColumnRequirement[];
+  validationRules: DatasetValidationRule[];
+}
+
 export interface ImportJob {
   id: string;
   originalFileName: string;

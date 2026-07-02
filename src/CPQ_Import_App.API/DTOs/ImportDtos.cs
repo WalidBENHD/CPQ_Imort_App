@@ -90,3 +90,26 @@ public record DashboardOverviewDto(
     IReadOnlyList<DashboardDatasetHealthDto> DatasetHealth,
     IReadOnlyList<DashboardActivityDto> ActivityFeed,
     IReadOnlyList<ImportJobDto> RecentSubmissions);
+
+public record DatasetColumnRequirementDto(
+    string Name,
+    bool Required,
+    string DataType,
+    string Description,
+    string? Example);
+
+public record DatasetValidationRuleDto(
+    string Field,
+    string Rule,
+    string Severity);
+
+public record DatasetRequirementDto(
+    EntityType EntityType,
+    string EntityTypeLabel,
+    string DisplayName,
+    string Owner,
+    string TemplateName,
+    string CurrentVersion,
+    string Description,
+    IReadOnlyList<DatasetColumnRequirementDto> Columns,
+    IReadOnlyList<DatasetValidationRuleDto> ValidationRules);
