@@ -82,7 +82,7 @@ import { ImportService } from '../../core/services/import.service';
                       {{ rule.severity }}
                     </span>
                   </span>
-                  <small>{{ rule.rule }}</small>
+                  <small>{{ displayRule(rule.field, rule.rule) }}</small>
                 </li>
               </ul>
             </div>
@@ -356,6 +356,16 @@ export class DatasetsComponent implements OnInit {
 
   getRequirement(type: EntityType): DatasetRequirement | undefined {
     return this.requirementsByType[type];
+  }
+
+  displayRule(field: string, rule: string): string {
+    if (field.toLowerCase() !== 'articlenumber') {
+      return rule;
+    }
+
+    return /space/i.test(rule)
+      ? rule
+      : `${rule} No spaces are allowed.`;
   }
 
   startImport(dataset: DatasetDefinition) {

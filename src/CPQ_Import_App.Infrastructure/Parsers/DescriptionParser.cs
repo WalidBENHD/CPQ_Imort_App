@@ -46,6 +46,7 @@ public class DescriptionParser : IFileParser
     {
         var msgs = new List<ValidationMessage>();
         RowValidator.RequireField(fields, "ArticleNumber", msgs);
+        RowValidator.NoWhitespace(fields, "ArticleNumber", msgs);
         RowValidator.RequireField(fields, "LanguageCode", msgs);
         RowValidator.RequireField(fields, "ShortDescription", msgs);
         RowValidator.MaxLength(fields, "LanguageCode", 10, msgs);

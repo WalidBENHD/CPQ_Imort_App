@@ -46,6 +46,7 @@ public class ArticleParser : IFileParser
     {
         var msgs = new List<ValidationMessage>();
         RowValidator.RequireField(fields, "ArticleNumber", msgs);
+        RowValidator.NoWhitespace(fields, "ArticleNumber", msgs);
         RowValidator.RequireField(fields, "Name", msgs);
         RowValidator.MaxLength(fields, "ArticleNumber", 50, msgs);
         RowValidator.MaxLength(fields, "Name", 255, msgs);

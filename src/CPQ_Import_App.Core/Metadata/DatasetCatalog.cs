@@ -46,7 +46,7 @@ public static class DatasetCatalog
                 new DatasetColumnRequirement("Unit", false, "Text", "Sales or stocking unit.", "EA")
             ],
             [
-                new DatasetValidationRule("ArticleNumber", "Required and max length 50 characters."),
+                new DatasetValidationRule("ArticleNumber", "Required, max length 50 characters, and must not contain spaces."),
                 new DatasetValidationRule("Name", "Required and max length 255 characters."),
                 new DatasetValidationRule("Category", "Optional; max length 100 characters.", "Warning"),
                 new DatasetValidationRule("Unit", "Optional; max length 20 characters.", "Warning")
@@ -68,7 +68,7 @@ public static class DatasetCatalog
                 new DatasetColumnRequirement("ValidTo", false, "Date", "Price validity end date.", "2026-12-31")
             ],
             [
-                new DatasetValidationRule("ArticleNumber", "Required."),
+                new DatasetValidationRule("ArticleNumber", "Required and must not contain spaces."),
                 new DatasetValidationRule("Price", "Required and must be a valid decimal number."),
                 new DatasetValidationRule("Currency", "Required; must be a 3-letter ISO 4217 code (e.g., USD)."),
                 new DatasetValidationRule("ValidFrom", "Required and must be a valid date."),
@@ -90,7 +90,7 @@ public static class DatasetCatalog
                 new DatasetColumnRequirement("LongDescription", false, "Text", "Long-form product description.", "Industrial hydraulic pump suitable for...")
             ],
             [
-                new DatasetValidationRule("ArticleNumber", "Required."),
+                new DatasetValidationRule("ArticleNumber", "Required and must not contain spaces."),
                 new DatasetValidationRule("LanguageCode", "Required; max length 10 characters."),
                 new DatasetValidationRule("ShortDescription", "Required; max length 255 characters."),
                 new DatasetValidationRule("LongDescription", "Optional; max length 4000 characters.", "Warning")

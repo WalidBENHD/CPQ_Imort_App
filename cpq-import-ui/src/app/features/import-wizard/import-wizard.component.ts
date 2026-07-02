@@ -88,7 +88,7 @@ import { ImportService } from '../../core/services/import.service';
                           {{ rule.severity }}
                         </span>
                       </div>
-                      <div class="requirements-meta">{{ rule.rule }}</div>
+                      <div class="requirements-meta">{{ displayRule(rule.field, rule.rule) }}</div>
                     </div>
                   </div>
                 </div>
@@ -222,7 +222,19 @@ import { ImportService } from '../../core/services/import.service';
     }
     .entity-card:hover { border-color: #5b6bd4; background: #f8f9ff; transform: translateY(-1px); }
     .entity-card.selected { border-color: #2563eb; background: #eff6ff; }
-    .entity-card mat-icon { font-size: 28px; height: 28px; color: #2563eb; }
+    .entity-card mat-icon {
+      font-size: 28px;
+      height: 28px;
+      width: 28px;
+      min-width: 28px;
+      line-height: 28px;
+      color: #2563eb;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+      flex-shrink: 0;
+    }
     .entity-label { font-weight: 700; color: #0f172a; }
     .entity-desc { font-size: 12px; color: rgba(0,0,0,0.54); line-height: 1.45; }
     .upload-hint {
@@ -358,6 +370,12 @@ import { ImportService } from '../../core/services/import.service';
     @media (max-width: 768px) {
       .page-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
       h1 { font-size: 22px; }
+      .wizard-shell { overflow: visible; }
+      :host ::ng-deep .wizard-shell .mat-mdc-card-content { overflow: visible; }
+      :host ::ng-deep .wizard-shell .mat-stepper-vertical { overflow: visible; }
+      :host ::ng-deep .wizard-shell .mat-vertical-stepper-header {
+        padding-left: 6px;
+      }
       .step-content { padding: 12px 0; }
       .entity-grid { grid-template-columns: 1fr; gap: 10px; }
       .requirements-header,
@@ -427,6 +445,16 @@ export class ImportWizardComponent {
       .filter(col => col.required)
       .map(col => col.name)
       .join(', ');
+  }
+
+  displayRule(field: string, rule: string): string {
+    if (field.toLowerCase() !== 'articlenumber') {
+      return rule;
+    }
+
+    return /space/i.test(rule)
+      ? rule
+      : `${rule} No spaces are allowed.`;
   }
 
   private loadDatasetRequirements() {

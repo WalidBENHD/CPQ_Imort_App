@@ -46,6 +46,7 @@ public class PriceListParser : IFileParser
     {
         var msgs = new List<ValidationMessage>();
         RowValidator.RequireField(fields, "ArticleNumber", msgs);
+        RowValidator.NoWhitespace(fields, "ArticleNumber", msgs);
         RowValidator.RequireField(fields, "Price", msgs);
         RowValidator.RequireField(fields, "Currency", msgs);
         RowValidator.RequireField(fields, "ValidFrom", msgs);

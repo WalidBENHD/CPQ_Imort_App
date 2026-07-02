@@ -89,4 +89,8 @@ export class ImportService {
   getDatasetRequirements(): Observable<DatasetRequirement[]> {
     return this.http.get<DatasetRequirement[]>(`${environment.apiUrl}/templates/requirements`);
   }
+
+  getDatasetRequirement(entityType: EntityType | string): Observable<DatasetRequirement> {
+    return this.http.get<DatasetRequirement>(`${environment.apiUrl}/templates/requirements/${entityType}`);
+  }
 }

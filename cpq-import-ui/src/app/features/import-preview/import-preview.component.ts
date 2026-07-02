@@ -17,7 +17,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from '../../core/services/import.service';
-import { ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
+import { DatasetRequirement, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
@@ -102,6 +102,18 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
               <div class="label">Errors</div>
               <div class="value error-count">{{ job.errorRows }}</div>
             </div>
+          </div>
+
+          <div class="criteria-box" *ngIf="datasetRequirement?.validationRules?.length">
+            <div class="criteria-title">
+              <mat-icon>rule</mat-icon>
+              Validation criteria for {{ job.entityTypeLabel }}
+            </div>
+            <ul class="criteria-list">
+              <li *ngFor="let rule of datasetRequirement?.validationRules || []">
+                <strong>{{ rule.field }}</strong>: {{ rule.rule }}
+              </li>
+            </ul>
           </div>
 
           <!-- Rejection reason -->
@@ -370,6 +382,37 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     .summary-item .valid-count { color: #2e7d32; }
     .summary-item .warning-count { color: #f57f17; }
     .summary-item .error-count { color: #c62828; }
+    .criteria-box {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      border-radius: 10px;
+    }
+    .criteria-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #1e3a8a;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .criteria-title mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      line-height: 18px;
+    }
+    .criteria-list {
+      margin: 0;
+      padding-left: 18px;
+      color: #1e3a8a;
+      display: grid;
+      gap: 4px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
     .rejection-box, .commit-box { display: flex; align-items: flex-start; gap: 12px; margin-top: 16px; padding: 12px; border-radius: 4px; background: #fff3e0; }
     .rejection-box { background: #ffebee; }
     .commit-box { background: #e8f5e9; }
@@ -396,6 +439,19 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     }
     .cancelled-copy { display: flex; align-items: center; gap: 12px; color: #334155; }
     .cancelled-copy mat-icon { color: #64748b; }
+    .correction-copy mat-icon,
+    .cancelled-copy mat-icon {
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      font-size: 22px;
+      line-height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+      flex-shrink: 0;
+    }
     .action-card { margin-bottom: 16px; border: 1px solid #dbe4f0; box-shadow: none; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
     .action-info {
@@ -429,12 +485,13 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     .reject-actions { display: flex; align-items: center; }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
     .rows-card .mat-mdc-card-header {
-      padding: 14px 16px 0;
+      padding: 12px 16px 8px;
     }
     .rows-header.mat-mdc-card-header {
       min-height: 0;
-      align-items: center;
-      gap: 8px;
+      align-items: flex-end;
+      row-gap: 10px;
+      column-gap: 8px;
     }
     .rows-header .mat-mdc-card-title {
       margin: 0;
@@ -444,11 +501,16 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
       padding: 0 16px 12px !important;
     }
     .rows-header {
-      margin-bottom: 0;
-      padding-bottom: 0;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
       border-bottom: 1px solid #e2e8f0;
     }
-    .filter-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
     .active-filter { background: #e8eaf6 !important; border-color: #3f51b5 !important; color: #3f51b5; }
     .table-wrapper { overflow-x: auto; width: 100%; }
     .desktop-rows { display: block; }
@@ -525,12 +587,25 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
       .summary-item { padding: 8px; }
       .summary-item .value { font-size: 15px; }
       .rows-header {
-        margin-bottom: 0;
-        padding-bottom: 0;
+        margin-bottom: 6px;
+        padding-bottom: 8px;
+      }
+      .rows-header.mat-mdc-card-header {
+        align-items: stretch;
+        row-gap: 10px;
       }
       .filter-chips {
         width: 100%;
-        padding-bottom: 0;
+        margin-top: 6px;
+        padding-bottom: 2px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .filter-chips button {
+        width: 100%;
+        justify-content: center;
+        min-height: 36px;
       }
       .header-actions { grid-template-columns: 1fr; gap: 6px; }
       .header-action-btn { width: 100%; justify-content: center; min-height: 38px; border-radius: 10px; }
@@ -553,6 +628,14 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
         align-items: stretch;
       }
       .correction-card button { width: 100%; }
+      .correction-copy,
+      .cancelled-copy {
+        align-items: flex-start;
+      }
+      .correction-copy > div,
+      .cancelled-copy > div {
+        min-width: 0;
+      }
       .cancelled-card {
         padding: 12px;
       }
@@ -573,6 +656,7 @@ export class ImportPreviewComponent implements OnInit {
   readonly auth = inject(AuthFacade);
 
   job: ImportJob | null = null;
+  datasetRequirement: DatasetRequirement | null = null;
   rows: PagedResult<StagingRow> | null = null;
   loading = false;
   rowsLoading = false;
@@ -640,8 +724,24 @@ export class ImportPreviewComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.loading = true;
     this.importService.getJob(id).subscribe({
-      next: j => { this.job = j; this.loading = false; this.loadRows(); },
+      next: j => {
+        this.job = j;
+        this.loading = false;
+        this.loadDatasetRequirement(j.entityTypeLabel);
+        this.loadRows();
+      },
       error: () => { this.loading = false; }
+    });
+  }
+
+  private loadDatasetRequirement(entityTypeLabel: string): void {
+    this.importService.getDatasetRequirement(entityTypeLabel).subscribe({
+      next: req => {
+        this.datasetRequirement = req;
+      },
+      error: () => {
+        this.datasetRequirement = null;
+      }
     });
   }
 

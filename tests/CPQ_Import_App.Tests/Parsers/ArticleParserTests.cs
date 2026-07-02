@@ -35,6 +35,22 @@ public class ArticleParserTests
     }
 
     [Fact]
+    public async Task ParseAsync_ArticleNumberWithSpaces_ReturnsErrorRow()
+    {
+        var csv = "ArticleNumber,Name,Category,Unit\nART 001,Widget,Electronics,PCS";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        var rows = await _parser.ParseAsync(stream, "articles.csv");
+
+        Assert.Single(rows);
+        Assert.Equal(RowStatus.Error, rows[0].Status);
+        Assert.Contains(rows[0].Messages, m =>
+            m.Field == "ArticleNumber"
+            && m.Severity == ValidationSeverity.Error
+            && m.Message.Contains("must not contain spaces", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task ParseAsync_MissingRequiredColumn_Throws()
     {
         var csv = "ArticleNumber,Category,Unit\nART-001,Electronics,PCS";

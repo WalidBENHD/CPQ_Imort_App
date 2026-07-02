@@ -62,6 +62,21 @@ public static class RowValidator
             });
     }
 
+    public static void NoWhitespace(Dictionary<string, string?> fields, string key,
+        List<ValidationMessage> msgs)
+    {
+        if (fields.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val)
+            && val.Any(char.IsWhiteSpace))
+        {
+            msgs.Add(new ValidationMessage
+            {
+                Field = key,
+                Message = $"'{key}' must not contain spaces.",
+                Severity = ValidationSeverity.Error
+            });
+        }
+    }
+
     public static RowStatus DeriveStatus(IEnumerable<ValidationMessage> msgs)
     {
         if (msgs.Any(m => m.Severity == ValidationSeverity.Error)) return RowStatus.Error;
