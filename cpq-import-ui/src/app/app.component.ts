@@ -1,10 +1,11 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { NgIf } from '@angular/common';
+import { NgFor, NgIf } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { Subscription, filter } from 'rxjs';
 import { authConfig } from './core/auth/auth.config';
@@ -16,89 +17,109 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgIf, RouterOutlet, RouterLink, RouterLinkActive,
-    MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, NotificationCenterComponent],
+  imports: [NgIf, NgFor, RouterOutlet, RouterLink, RouterLinkActive,
+    MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, NotificationCenterComponent],
   template: `
-    <mat-toolbar color="primary" *ngIf="showAppChrome">
-      <span class="brand">
-        <mat-icon>cloud_upload</mat-icon>
-        CPQ Dataset Platform
-      </span>
-      <span class="spacer"></span>
-      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/dashboard" routerLinkActive="active-link">
-        <mat-icon>space_dashboard</mat-icon> Dashboard
-      </a>
-      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/datasets" routerLinkActive="active-link">
-        <mat-icon>dataset</mat-icon> Datasets
-      </a>
-      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated" routerLink="/uploads" routerLinkActive="active-link">
-        <mat-icon>view_list</mat-icon> Uploads
-      </a>
-      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/users" routerLinkActive="active-link">
-        <mat-icon>admin_panel_settings</mat-icon> Admin Panel
-      </a>
-      <a mat-button class="desktop-link" *ngIf="auth.isAuthenticated && auth.isAdmin" routerLink="/admin/activity" routerLinkActive="active-link">
-        <mat-icon>monitoring</mat-icon> Activity
-      </a>
-      <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
-
-      <button mat-icon-button class="mobile-nav-trigger" *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="mobileNavMenu" aria-label="Open navigation">
-        <mat-icon>menu</mat-icon>
-      </button>
-
-      <button mat-icon-button *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu">
-        <mat-icon>account_circle</mat-icon>
-      </button>
-      <a mat-button class="desktop-link" *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
-        <mat-icon>login</mat-icon> Sign in
-      </a>
-
-      <button mat-icon-button class="mobile-nav-trigger" *ngIf="!auth.isAuthenticated" routerLink="/login" aria-label="Sign in">
-        <mat-icon>login</mat-icon>
-      </button>
-
-      <mat-menu #mobileNavMenu="matMenu">
-        <a mat-menu-item routerLink="/dashboard">
-          <mat-icon>space_dashboard</mat-icon>
-          <span>Dashboard</span>
-        </a>
-        <a mat-menu-item routerLink="/datasets">
-          <mat-icon>dataset</mat-icon>
-          <span>Datasets</span>
-        </a>
-        <a mat-menu-item routerLink="/uploads">
-          <mat-icon>view_list</mat-icon>
-          <span>Uploads</span>
-        </a>
-        <a mat-menu-item *ngIf="auth.isAdmin" routerLink="/admin/users">
-          <mat-icon>admin_panel_settings</mat-icon>
-          <span>Admin Panel</span>
-        </a>
-        <a mat-menu-item *ngIf="auth.isAdmin" routerLink="/admin/activity">
-          <mat-icon>monitoring</mat-icon>
-          <span>Activity Monitor</span>
-        </a>
-      </mat-menu>
-
-      <mat-menu #userMenu>
-        <button mat-menu-item disabled>
-          <mat-icon>person</mat-icon>
-          <span>{{ auth.userName }}</span>
+    <div class="app-shell" *ngIf="showAppChrome; else landingLayout">
+      <mat-toolbar color="primary" class="top-toolbar">
+        <button
+          mat-icon-button
+          *ngIf="auth.isAuthenticated"
+          (click)="toggleSidebar()"
+          aria-label="Toggle navigation"
+        >
+          <mat-icon>{{ isSidebarOpen ? 'menu_open' : 'menu' }}</mat-icon>
         </button>
-        <button mat-menu-item disabled *ngIf="auth.isAdmin">
-          <mat-icon>verified_user</mat-icon>
-          <span>Administrator</span>
-        </button>
-        <button mat-menu-item (click)="auth.logout()">
-          <mat-icon>logout</mat-icon>
-          <span>Sign out</span>
-        </button>
-      </mat-menu>
-    </mat-toolbar>
 
-    <main class="page-content" [class.page-content--landing]="!showAppChrome">
-      <router-outlet />
-    </main>
+        <span class="brand">
+          <mat-icon>cloud_upload</mat-icon>
+          CPQ Dataset Platform
+        </span>
+
+        <span class="spacer"></span>
+
+        <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
+
+        <button mat-icon-button *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu" aria-label="Open profile menu">
+          <mat-icon>account_circle</mat-icon>
+        </button>
+
+        <a mat-button class="sign-in-link" *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
+          <mat-icon>login</mat-icon> Sign in
+        </a>
+
+        <mat-menu #userMenu>
+          <button mat-menu-item disabled>
+            <mat-icon>person</mat-icon>
+            <span>{{ auth.userName }}</span>
+          </button>
+          <button mat-menu-item disabled *ngIf="auth.isAdmin">
+            <mat-icon>verified_user</mat-icon>
+            <span>Administrator</span>
+          </button>
+          <button mat-menu-item (click)="auth.logout()">
+            <mat-icon>logout</mat-icon>
+            <span>Sign out</span>
+          </button>
+        </mat-menu>
+      </mat-toolbar>
+
+      <div class="shell-body" [class.shell-body--collapsed]="!isSidebarOpen" [class.shell-body--mobile-open]="isMobileSidebarOpen">
+        <aside class="side-nav" *ngIf="auth.isAuthenticated" aria-label="Primary navigation">
+          <div class="nav-group-label" *ngIf="isSidebarOpen">Navigation</div>
+
+          <a
+            mat-button
+            class="side-link"
+            *ngFor="let item of navItems"
+            [routerLink]="item.route"
+            routerLinkActive="side-link--active"
+            [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+            [class.side-link--compact]="!isSidebarOpen"
+            [attr.aria-label]="item.label"
+            [matTooltip]="!isSidebarOpen ? item.label : ''"
+            (click)="onNavItemClick()"
+          >
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+          </a>
+
+          <div class="nav-group-label" *ngIf="isSidebarOpen && auth.isAdmin">Admin</div>
+
+          <a
+            mat-button
+            class="side-link"
+            *ngFor="let item of adminNavItems"
+            [routerLink]="item.route"
+            routerLinkActive="side-link--active"
+            [class.side-link--compact]="!isSidebarOpen"
+            [attr.aria-label]="item.label"
+            [matTooltip]="!isSidebarOpen ? item.label : ''"
+            (click)="onNavItemClick()"
+          >
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+          </a>
+        </aside>
+
+        <button
+          class="mobile-backdrop"
+          *ngIf="isMobileSidebarOpen"
+          (click)="closeMobileSidebar()"
+          aria-label="Close navigation"
+        ></button>
+
+        <main class="page-content">
+          <router-outlet />
+        </main>
+      </div>
+    </div>
+
+    <ng-template #landingLayout>
+      <main class="page-content page-content--landing">
+        <router-outlet />
+      </main>
+    </ng-template>
 
     <footer class="app-signature" *ngIf="showAppChrome" aria-label="Application signature">
       <span class="signature-main">
@@ -126,12 +147,89 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
     </footer>
   `,
   styles: [`
-    mat-toolbar { position: sticky; top: 0; z-index: 100; }
-    .brand { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 18px; }
+    .app-shell {
+      min-height: 100vh;
+      background: radial-gradient(circle at 0% 0%, #eef4ff 0%, #f8fafc 36%, #ffffff 100%);
+    }
+    .top-toolbar { position: sticky; top: 0; z-index: 120; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16); }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; letter-spacing: 0.01em; }
     .spacer { flex: 1; }
-    .desktop-link { display: inline-flex; }
-    .mobile-nav-trigger { display: none; }
-    .page-content { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+    .sign-in-link { border-radius: 999px; }
+
+    .shell-body {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      align-items: start;
+      min-height: calc(100vh - 64px);
+      transition: grid-template-columns 0.24s ease;
+    }
+    .shell-body--collapsed {
+      grid-template-columns: 84px minmax(0, 1fr);
+    }
+
+    .side-nav {
+      position: sticky;
+      top: 64px;
+      min-height: calc(100vh - 64px);
+      border-right: 1px solid #dbe4f0;
+      background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 55%, #ffffff 100%);
+      padding: 12px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: hidden;
+      transition: width 0.24s ease, padding 0.24s ease;
+      z-index: 110;
+    }
+
+    .nav-group-label {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 800;
+      margin: 6px 8px 4px;
+    }
+
+    .side-link {
+      min-height: 42px;
+      justify-content: flex-start;
+      border-radius: 12px;
+      color: #1f2937;
+      display: inline-flex;
+      gap: 10px;
+      padding: 0 12px;
+      font-weight: 600;
+      width: 100%;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .side-link mat-icon {
+      margin: 0;
+      color: #4b5563;
+      flex: 0 0 auto;
+    }
+
+    .side-link--compact {
+      justify-content: center;
+      padding: 0;
+    }
+
+    .side-link--active {
+      background: linear-gradient(180deg, #eaf2ff, #dbeafe);
+      color: #1d4ed8;
+    }
+
+    .side-link--active mat-icon {
+      color: #1d4ed8;
+    }
+
+    .page-content {
+      max-width: 1240px;
+      margin: 22px auto;
+      padding: 0 18px;
+      width: 100%;
+    }
     .page-content--landing {
       max-width: none;
       width: 100%;
@@ -139,7 +237,11 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       padding: 0;
       overflow-x: hidden;
     }
-    .active-link { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    .mobile-backdrop {
+      display: none;
+    }
+
+    .active-link { background: rgba(255,255,255,0.15); border-radius: 6px; }
     .app-signature {
       position: fixed;
       right: 20px;
@@ -273,11 +375,40 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       }
     }
     @media (max-width: 768px) {
-      mat-toolbar { padding: 0 8px; }
+      .top-toolbar { padding: 0 8px; }
       .brand { font-size: 15px; gap: 6px; }
-      .desktop-link { display: none; }
-      .mobile-nav-trigger { display: inline-flex; }
-      .page-content { margin: 16px auto 78px; padding: 0 10px; }
+
+      .shell-body,
+      .shell-body--collapsed {
+        display: block;
+        min-height: calc(100vh - 56px);
+      }
+
+      .side-nav {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        min-height: calc(100vh - 56px);
+        width: 260px;
+        transform: translateX(-110%);
+        transition: transform 0.24s ease;
+        box-shadow: 0 8px 26px rgba(15, 23, 42, 0.2);
+      }
+
+      .shell-body--mobile-open .side-nav {
+        transform: translateX(0);
+      }
+
+      .mobile-backdrop {
+        display: block;
+        position: fixed;
+        inset: 56px 0 0 0;
+        border: 0;
+        background: rgba(15, 23, 42, 0.4);
+        z-index: 105;
+      }
+
+      .page-content { margin: 14px auto 78px; padding: 0 10px; }
 
       .app-signature {
         right: 8px;
@@ -316,11 +447,28 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
   `]
 })
 export class AppComponent implements OnInit, OnDestroy {
+  readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string; exact?: boolean }> = [
+    { route: '/dashboard', label: 'Dashboard', icon: 'space_dashboard' },
+    { route: '/datasets', label: 'Datasets', icon: 'dataset' },
+    { route: '/uploads', label: 'Uploads', icon: 'view_list' }
+  ];
+
+  readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
+    { route: '/admin/users', label: 'Admin Panel', icon: 'admin_panel_settings' },
+    { route: '/admin/activity', label: 'Activity', icon: 'monitoring' }
+  ];
+
   readonly auth = inject(AuthFacade);
   private readonly router = inject(Router);
   private readonly oauthService = inject(OAuthService);
   private readonly activityMonitorService = inject(ActivityMonitorService);
   private routeSub: Subscription | null = null;
+  isSidebarOpen = true;
+  isMobileSidebarOpen = false;
+
+  private get isMobile(): boolean {
+    return typeof window !== 'undefined' && window.innerWidth <= 768;
+  }
 
   get showAppChrome(): boolean {
     return !this.router.url.startsWith('/login') && !this.router.url.startsWith('/register');
@@ -340,6 +488,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routeSub = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event) => {
+        if (this.isMobile) {
+          this.isMobileSidebarOpen = false;
+        }
+
         if (!this.auth.isAuthenticated) {
           return;
         }
@@ -355,5 +507,24 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.routeSub?.unsubscribe();
+  }
+
+  toggleSidebar(): void {
+    if (this.isMobile) {
+      this.isMobileSidebarOpen = !this.isMobileSidebarOpen;
+      return;
+    }
+
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeMobileSidebar(): void {
+    this.isMobileSidebarOpen = false;
+  }
+
+  onNavItemClick(): void {
+    if (this.isMobile) {
+      this.isMobileSidebarOpen = false;
+    }
   }
 }
