@@ -1,14 +1,16 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Router } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
 import { Notification, NotificationType } from '../../core/models/notification.models';
+import { AuthFacade } from '../../core/auth/auth.facade';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -114,7 +116,11 @@ import { takeUntil } from 'rxjs/operators';
   `]
 })
 export class NotificationCenterComponent implements OnInit, OnDestroy {
+  @ViewChild(MatMenuTrigger) private menuTrigger?: MatMenuTrigger;
+
   private readonly notificationService = inject(NotificationService);
+  private readonly router = inject(Router);
+  private readonly auth = inject(AuthFacade);
   private readonly destroy$ = new Subject<void>();
 
   notifications$ = this.notificationService.notifications$;
@@ -137,9 +143,39 @@ export class NotificationCenterComponent implements OnInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe();
     }
-    // TODO: Navigate to related import or user if needed
+
+    const route = this.resolveNotificationRoute(notification);
+    this.menuTrigger?.closeMenu();
+
+    if (route) {
+      this.router.navigate(route);
+    }
+  }
+
+  private resolveNotificationRoute(notification: Notification): string[] | null {
     if (notification.relatedImportId) {
-      // Navigate to import details
+      return ['/import', notification.relatedImportId];
+    }
+
+    switch (notification.notificationType) {
+      case NotificationType.UserPendingApproval:
+        return this.auth.isAdmin ? ['/admin/users'] : ['/dashboard'];
+
+      case NotificationType.UserApproved:
+      case NotificationType.UserRoleChanged:
+      case NotificationType.UserDeleted:
+        return ['/dashboard'];
+
+      case NotificationType.ImportUploaded:
+      case NotificationType.ImportRejected:
+      case NotificationType.ImportApproved:
+      case NotificationType.ImportCommitted:
+      case NotificationType.ImportFailed:
+      case NotificationType.ImportNeedsCorrection:
+        return ['/uploads'];
+
+      default:
+        return ['/dashboard'];
     }
   }
 

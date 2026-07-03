@@ -92,15 +92,15 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
             </div>
 
             <div class="workflow-track">
-              <article class="workflow-step" *ngFor="let step of workflowSteps; let last = last">
+              <article class="workflow-step" *ngFor="let step of workflowSteps; let i = index">
                 <span class="workflow-icon" aria-hidden="true">
                   <mat-icon>{{ step.icon }}</mat-icon>
                 </span>
+                <span class="workflow-step-index" aria-hidden="true">Step {{ formatStep(i) }}</span>
                 <div>
                   <h3>{{ step.title }}</h3>
                   <p>{{ step.description }}</p>
                 </div>
-                <mat-icon class="workflow-arrow" *ngIf="!last" aria-hidden="true">arrow_forward</mat-icon>
               </article>
             </div>
           </section>
@@ -403,16 +403,20 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       font-size: 13px;
     }
 
-    .workflow-arrow {
+    .workflow-step-index {
       position: absolute;
-      top: 26px;
-      right: -6px;
-      width: 24px;
-      height: 24px;
+      top: 16px;
+      right: 16px;
+      min-height: 24px;
       border-radius: 999px;
-      background: #ffffff;
-      color: #1261a6;
-      font-size: 22px;
+      border: 1px solid #dbe4f0;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 2px 8px;
     }
 
     .auth-column {
@@ -599,10 +603,6 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
         min-height: auto;
       }
 
-      .workflow-arrow {
-        display: none;
-      }
-
       .auth-card {
         position: relative;
         top: auto;
@@ -718,6 +718,10 @@ export class LoginComponent {
       description: 'Commit approved data into the CPQ update process.'
     }
   ];
+
+  formatStep(index: number): string {
+    return String(index + 1).padStart(2, '0');
+  }
 
   submit(): void {
     if (this.form.invalid || this.submitting) return;
