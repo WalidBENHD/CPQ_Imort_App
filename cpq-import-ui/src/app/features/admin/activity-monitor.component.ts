@@ -70,14 +70,20 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
       </div>
 
       <mat-card class="panel">
-        <form class="filter-toolbar" [formGroup]="filterForm">
+        <div class="filters-card">
+        <form class="filters-toolbar" [formGroup]="filterForm">
           <mat-form-field appearance="outline" class="search-field">
             <mat-label>Search</mat-label>
-            <input matInput formControlName="search" placeholder="User, action, route, city" />
+            <input
+              matInput
+              formControlName="search"
+              [placeholder]="searchFocused ? 'User, action, route, city' : ''"
+              (focus)="searchFocused = true"
+              (blur)="searchFocused = false" />
             <mat-icon matSuffix>search</mat-icon>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" class="select-field">
             <mat-label>Category</mat-label>
             <mat-select formControlName="category">
               <mat-option value="">All</mat-option>
@@ -89,7 +95,7 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" class="select-field">
             <mat-label>Status</mat-label>
             <mat-select formControlName="statusCode">
               <mat-option value="">All</mat-option>
@@ -104,15 +110,18 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
             </mat-select>
           </mat-form-field>
 
-          <button mat-stroked-button type="button" (click)="clearFilters()">
-            <mat-icon>filter_alt_off</mat-icon>
-            Clear
-          </button>
+          <div class="filter-actions">
+            <button mat-button type="button" (click)="clearFilters()">
+              <mat-icon>filter_alt_off</mat-icon>
+              Clear
+            </button>
+          </div>
 
           <mat-checkbox class="hide-mine-toggle" formControlName="hideMine">
             Hide my activity
           </mat-checkbox>
         </form>
+        </div>
 
         <div class="table-wrapper desktop-table" *ngIf="rows.length > 0; else emptyState">
           <table mat-table [dataSource]="rows">
@@ -251,19 +260,118 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
 
     .panel { padding: 16px; border: 1px solid #e2e8f0; box-shadow: none; border-radius: 12px; }
 
-    .filter-toolbar {
+    .filters-card {
+      margin-bottom: 10px;
+      background: var(--app-surface-elevated);
+      border: 1px solid var(--app-border);
+      box-shadow: 0 16px 36px rgba(2, 6, 23, 0.12);
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .filters-toolbar {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr auto auto;
       gap: 10px;
-      align-items: start;
-      margin-bottom: 10px;
+      align-items: end;
+      margin: 0;
     }
+
+    .search-field,
+    .select-field {
+      width: 100%;
+      min-width: 0;
+      margin-bottom: 0;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-self: end;
+      padding-bottom: 2px;
+    }
+
+    .filter-actions button {
+      border-radius: 999px;
+      min-height: 40px;
+      font-weight: 700;
+    }
+
+    .filter-actions button[mat-button] {
+      color: var(--app-accent);
+      background: rgba(126, 162, 255, 0.1);
+      border: 1px solid rgba(126, 162, 255, 0.18);
+      padding-inline: 14px;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field {
+      --mdc-outlined-text-field-container-shape: 16px;
+      --mdc-outlined-text-field-label-text-color: var(--app-text-muted);
+      --mdc-outlined-text-field-focus-label-text-color: var(--app-accent);
+      --mdc-outlined-text-field-input-text-color: var(--app-text);
+      --mdc-outlined-text-field-input-text-placeholder-color: var(--app-text-muted);
+      --mdc-outlined-text-field-caret-color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-text-field-wrapper {
+      background: var(--app-surface) !important;
+      border-radius: 16px;
+    }
+
+    html.theme-dark :host ::ng-deep .filters-card .mat-mdc-text-field-wrapper {
+      background: rgba(15, 23, 42, 0.6) !important;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-infix {
+      min-height: 48px;
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-icon-suffix .mat-icon {
+      color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-label,
+    :host ::ng-deep .filters-card .mat-mdc-select-value,
+    :host ::ng-deep .filters-card .mat-mdc-input-element,
+    :host ::ng-deep .filters-card .mdc-text-field__input {
+      color: var(--app-text) !important;
+      caret-color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-input-element::placeholder,
+    :host ::ng-deep .filters-card .mdc-text-field__input::placeholder {
+      color: var(--app-text-muted) !important;
+      opacity: 1;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-floating-label {
+      color: var(--app-text-muted) !important;
+    }
+
+    :host ::ng-deep .filters-card .mdc-notched-outline__leading,
+    :host ::ng-deep .filters-card .mdc-notched-outline__notch,
+    :host ::ng-deep .filters-card .mdc-notched-outline__trailing {
+      border-color: var(--app-border) !important;
+    }
+
+    html.theme-dark .filter-actions button[mat-button] {
+      background: rgba(126, 162, 255, 0.08);
+      border-color: rgba(126, 162, 255, 0.22);
+    }
+
     .hide-mine-toggle {
       align-self: center;
-      color: #334155;
+      color: var(--app-text-muted);
       font-size: 13px;
       font-weight: 600;
-      margin-top: 6px;
+      margin-top: 0;
       white-space: nowrap;
     }
 
@@ -370,8 +478,9 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
 
     @media (max-width: 960px) {
       .summary-cards { grid-template-columns: repeat(2, 1fr); }
-      .filter-toolbar { grid-template-columns: 1fr 1fr; }
+      .filters-toolbar { grid-template-columns: 1fr 1fr; }
       .search-field { grid-column: 1 / -1; }
+      .filter-actions { grid-column: 1 / -1; justify-self: stretch; justify-content: flex-end; }
       .hide-mine-toggle { grid-column: 1 / -1; margin-top: 0; }
     }
 
@@ -383,8 +492,15 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
       .summary-card { padding: 12px; }
       .summary-card .value { font-size: 26px; }
       .panel { padding: 12px; }
-      .filter-toolbar { grid-template-columns: 1fr; }
-      .filter-toolbar button { width: 100%; }
+      .filters-toolbar { grid-template-columns: 1fr; gap: 10px; }
+      .filter-actions {
+        grid-column: 1 / -1;
+        flex-direction: column;
+        align-items: stretch;
+        justify-self: stretch;
+        width: 100%;
+      }
+      .filter-actions button { width: 100%; }
       .desktop-table { display: none; }
       .mobile-list { display: block; }
       .mobile-meta-grid { grid-template-columns: 1fr; }
@@ -405,6 +521,7 @@ export class ActivityMonitorComponent implements OnInit, OnDestroy {
   total = 0;
   page = 1;
   pageSize = 50;
+  searchFocused = false;
   private filterSub: Subscription | null = null;
 
   columns = ['when', 'actor', 'action', 'target', 'route', 'location', 'status'];

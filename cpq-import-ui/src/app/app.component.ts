@@ -13,6 +13,7 @@ import { AuthFacade } from './core/auth/auth.facade';
 import { isLocalAuthMode } from './core/auth/auth-mode';
 import { NotificationCenterComponent } from './shared/notification-center/notification-center.component';
 import { ActivityMonitorService } from './core/services/activity-monitor.service';
+import { ThemeService } from './core/services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -20,8 +21,19 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
   imports: [NgIf, NgFor, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, NotificationCenterComponent],
   template: `
+    <button
+      mat-icon-button
+      class="theme-toggle-fab"
+      type="button"
+      (click)="toggleTheme()"
+      [matTooltip]="themeTooltip"
+      [attr.aria-label]="themeTooltip"
+    >
+      <mat-icon>{{ themeIcon }}</mat-icon>
+    </button>
+
     <div class="app-shell" *ngIf="showAppChrome; else landingLayout">
-      <mat-toolbar color="primary" class="top-toolbar">
+      <mat-toolbar class="top-toolbar">
         <button
           mat-icon-button
           *ngIf="auth.isAuthenticated"
@@ -151,12 +163,38 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
   styles: [`
     .app-shell {
       min-height: 100vh;
-      background: radial-gradient(circle at 0% 0%, #eef4ff 0%, #f8fafc 36%, #ffffff 100%);
+      background: var(--app-background);
     }
-    .top-toolbar { position: sticky; top: 0; z-index: 120; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16); }
+    .top-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 120;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
+      background: var(--app-toolbar-bg);
+      color: var(--app-toolbar-text);
+      border-bottom: 1px solid var(--app-border);
+    }
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; letter-spacing: 0.01em; }
     .spacer { flex: 1; }
     .sign-in-link { border-radius: 999px; }
+
+    .theme-toggle-fab {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 180;
+      width: auto;
+      min-width: 0;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: var(--app-surface-elevated);
+      color: var(--app-text);
+      border: 1px solid var(--app-border);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+    }
+    .theme-toggle-fab mat-icon {
+      margin-right: 6px;
+    }
 
     .shell-body {
       display: grid;
@@ -173,8 +211,8 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       position: sticky;
       top: 64px;
       min-height: calc(100vh - 64px);
-      border-right: 1px solid #dbe4f0;
-      background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 55%, #ffffff 100%);
+      border-right: 1px solid var(--app-border);
+      background: var(--app-sidebar-bg);
       padding: 12px;
       display: grid;
       align-content: start;
@@ -188,7 +226,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       font-size: 10px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #64748b;
+      color: var(--app-text-muted);
       font-weight: 800;
       margin: 6px 8px 4px;
     }
@@ -197,7 +235,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       min-height: 42px;
       justify-content: flex-start;
       border-radius: 12px;
-      color: #1f2937;
+      color: var(--app-text);
       display: inline-flex;
       gap: 10px;
       padding: 0 12px;
@@ -208,7 +246,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
 
     .side-link mat-icon {
       margin: 0;
-      color: #4b5563;
+      color: var(--app-text-muted);
       flex: 0 0 auto;
     }
 
@@ -218,12 +256,12 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
     }
 
     .side-link--active {
-      background: linear-gradient(180deg, #eaf2ff, #dbeafe);
-      color: #1d4ed8;
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.24));
+      color: var(--app-accent);
     }
 
     .side-link--active mat-icon {
-      color: #1d4ed8;
+      color: var(--app-accent);
     }
 
     .page-content {
@@ -231,6 +269,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       margin: 22px auto;
       padding: 0 18px;
       width: 100%;
+      color: var(--app-text);
     }
     .page-content--landing {
       max-width: none;
@@ -259,11 +298,11 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       width: max-content;
       max-width: calc(100vw - 20px);
       border-radius: 12px 12px 0 0;
-      border: 1px solid rgba(148, 163, 184, 0.45);
+      border: 1px solid var(--app-border);
       border-bottom: 0;
-      background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.95));
+      background: var(--app-surface-elevated);
       backdrop-filter: blur(6px);
-      color: #334155;
+      color: var(--app-text);
       font-size: 15px;
       letter-spacing: 0;
       box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
@@ -285,7 +324,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       width: max-content;
     }
     .signature-label {
-      color: #64748b;
+      color: var(--app-text-muted);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.6px;
@@ -293,7 +332,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       line-height: 1;
     }
     .signature-name {
-      color: #334155;
+      color: var(--app-text);
       font-weight: 700;
       letter-spacing: 0.2px;
       font-size: 19px;
@@ -308,7 +347,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       gap: 8px;
       width: 100%;
       min-width: 0;
-      color: #334155;
+      color: var(--app-text);
       font-size: 13px;
       font-weight: 500;
       text-align: left;
@@ -323,7 +362,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
       transition: opacity 0.2s ease, max-height 0.28s ease, margin-top 0.28s ease, padding-top 0.28s ease, border-color 0.28s ease;
     }
     .signature-role {
-      color: #475569;
+      color: var(--app-text-muted);
       font-size: 12px;
       font-weight: 600;
       line-height: 1.3;
@@ -354,7 +393,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
     .linkedin-logo {
       width: 16px;
       height: 16px;
-      fill: #0a66c2;
+      fill: var(--app-accent);
       flex: 0 0 auto;
     }
     .app-signature:hover .signature-hint,
@@ -418,7 +457,7 @@ import { ActivityMonitorService } from './core/services/activity-monitor.service
         padding: 7px 10px;
         border-radius: 999px;
         max-width: calc(100vw - 16px);
-        border: 1px solid rgba(148, 163, 184, 0.5);
+        border: 1px solid var(--app-border);
         box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
         backdrop-filter: blur(4px);
       }
@@ -464,9 +503,18 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly oauthService = inject(OAuthService);
   private readonly activityMonitorService = inject(ActivityMonitorService);
+  private readonly themeService = inject(ThemeService);
   private routeSub: Subscription | null = null;
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
+
+  get themeIcon(): string {
+    return this.themeService.currentTheme === 'dark' ? 'light_mode' : 'dark_mode';
+  }
+
+  get themeTooltip(): string {
+    return this.themeService.currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  }
 
   get navToggleIcon(): string {
     if (this.isMobile) {
@@ -485,6 +533,8 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.themeService.initialize();
+
     if (isLocalAuthMode()) {
       this.auth.initializeLocalSession();
     }
@@ -517,6 +567,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.routeSub?.unsubscribe();
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   toggleSidebar(): void {

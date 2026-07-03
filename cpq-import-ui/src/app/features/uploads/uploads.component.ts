@@ -57,7 +57,12 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       <form class="filters-toolbar" [formGroup]="filtersForm">
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
           <mat-label>Search</mat-label>
-          <input matInput formControlName="search" placeholder="File name or uploader" />
+          <input
+            matInput
+            formControlName="search"
+            [placeholder]="searchFocused ? 'File name or uploader' : ''"
+            (focus)="searchFocused = true"
+            (blur)="searchFocused = false" />
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
 
@@ -201,7 +206,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     }
 
     .eyebrow {
-      color: #2563eb;
+      color: var(--app-accent);
       font-size: 12px;
       font-weight: 800;
       text-transform: uppercase;
@@ -213,12 +218,12 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       margin: 0;
       font-size: 30px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--app-text);
     }
 
     .page-intro {
       margin: 10px 0 0;
-      color: #475569;
+      color: var(--app-text-muted);
       line-height: 1.6;
       max-width: 780px;
     }
@@ -243,17 +248,18 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
 
     .filters-card {
       margin-bottom: 16px;
-      background: transparent;
-      border: 0;
-      box-shadow: none;
-      padding: 0;
+      background: var(--app-surface-elevated);
+      border: 1px solid var(--app-border);
+      box-shadow: 0 16px 36px rgba(2, 6, 23, 0.12);
+      border-radius: 20px;
+      padding: 16px;
     }
 
     .filters-toolbar {
       display: grid;
       grid-template-columns: 2fr repeat(2, minmax(150px, 1fr)) auto;
       gap: 10px;
-      align-items: start;
+      align-items: end;
       padding: 0;
     }
 
@@ -279,12 +285,83 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     }
 
     .list-card {
-      border: 1px solid #dbe4f0;
+      border: 1px solid var(--app-border);
       box-shadow: none;
     }
 
     .filter-actions button[mat-button] {
-      color: #334155;
+      color: var(--app-accent);
+      background: rgba(126, 162, 255, 0.1);
+      border: 1px solid rgba(126, 162, 255, 0.18);
+      padding-inline: 14px;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field {
+      --mdc-outlined-text-field-container-shape: 16px;
+      --mdc-outlined-text-field-label-text-color: var(--app-text-muted);
+      --mdc-outlined-text-field-focus-label-text-color: var(--app-accent);
+      --mdc-outlined-text-field-input-text-color: var(--app-text);
+      --mdc-outlined-text-field-input-text-placeholder-color: var(--app-text-muted);
+      --mdc-outlined-text-field-caret-color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-text-field-wrapper {
+      background: var(--app-surface) !important;
+      border-radius: 16px;
+    }
+
+    html.theme-dark :host ::ng-deep .filters-card .mat-mdc-text-field-wrapper {
+      background: rgba(15, 23, 42, 0.6) !important;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-infix {
+      min-height: 48px;
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-icon-suffix .mat-icon {
+      color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-label,
+    :host ::ng-deep .filters-card .mat-mdc-select-value,
+    :host ::ng-deep .filters-card .mat-mdc-input-element {
+      color: var(--app-text) !important;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-input-element::placeholder {
+      color: var(--app-text-muted);
+      opacity: 1;
+    }
+
+    :host ::ng-deep .filters-card .mdc-text-field__input {
+      color: var(--app-text) !important;
+      caret-color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mdc-text-field__input::placeholder {
+      color: var(--app-text-muted) !important;
+      opacity: 1;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-floating-label {
+      color: var(--app-text-muted) !important;
+    }
+
+    :host ::ng-deep .filters-card .mdc-notched-outline__leading,
+    :host ::ng-deep .filters-card .mdc-notched-outline__notch,
+    :host ::ng-deep .filters-card .mdc-notched-outline__trailing {
+      border-color: var(--app-border) !important;
+    }
+
+    html.theme-dark .filter-actions button[mat-button] {
+      background: rgba(126, 162, 255, 0.08);
+      border-color: rgba(126, 162, 255, 0.22);
     }
 
     .list-card mat-card-header {
@@ -296,7 +373,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     }
 
     .list-meta {
-      color: #64748b;
+      color: var(--app-text-muted);
       font-size: 13px;
       white-space: nowrap;
     }
@@ -517,6 +594,8 @@ export class UploadsComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+
+  searchFocused = false;
 
   result: PagedResult<ImportJob> | null = null;
   loading = false;

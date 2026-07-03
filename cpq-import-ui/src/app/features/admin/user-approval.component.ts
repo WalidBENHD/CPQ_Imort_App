@@ -170,14 +170,21 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           <span class="count-pill">{{ filteredUsers.length }} of {{ users.length }} users</span>
         </div>
 
-        <form class="filter-toolbar" [formGroup]="filterForm">
-          <mat-form-field appearance="outline" class="filter-search">
+        <div class="filters-card">
+        <form class="filters-toolbar" [formGroup]="filterForm">
+          <mat-form-field appearance="outline" class="filter-search search-field">
             <mat-label>Search users</mat-label>
-            <input matInput formControlName="query" placeholder="Name or username" autocomplete="off" />
+            <input
+              matInput
+              formControlName="query"
+              [placeholder]="userSearchFocused ? 'Name or username' : ''"
+              (focus)="userSearchFocused = true"
+              (blur)="userSearchFocused = false"
+              autocomplete="off" />
             <mat-icon matSuffix>search</mat-icon>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" class="select-field">
             <mat-label>Role</mat-label>
             <mat-select formControlName="role">
               <mat-option value="all">All roles</mat-option>
@@ -186,7 +193,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
             </mat-select>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
+          <mat-form-field appearance="outline" class="select-field">
             <mat-label>Status</mat-label>
             <mat-select formControlName="status">
               <mat-option value="all">All statuses</mat-option>
@@ -196,15 +203,18 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
             </mat-select>
           </mat-form-field>
 
-          <button mat-stroked-button type="button" (click)="clearFilters()">
-            <mat-icon>filter_alt_off</mat-icon>
-            Clear
-          </button>
-          <button mat-stroked-button type="button" (click)="refreshUsers()">
-            <mat-icon>refresh</mat-icon>
-            Refresh
-          </button>
+          <div class="filter-actions">
+            <button mat-button type="button" (click)="clearFilters()">
+              <mat-icon>filter_alt_off</mat-icon>
+              Clear
+            </button>
+            <button mat-stroked-button class="secondary-action" type="button" (click)="refreshUsers()">
+              <mat-icon>refresh</mat-icon>
+              Refresh
+            </button>
+          </div>
         </form>
+        </div>
 
         <div *ngIf="filteredUsers.length === 0" class="empty">
           <mat-icon>person_search</mat-icon>
@@ -389,15 +399,118 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       color: #dc2626;
     }
 
-    .filter-toolbar {
-      display: grid;
-      grid-template-columns: 2fr repeat(2, minmax(150px, 1fr)) auto auto;
-      gap: 10px;
-      align-items: start;
+    .filters-card {
       margin-bottom: 10px;
+      background: var(--app-surface-elevated);
+      border: 1px solid var(--app-border);
+      box-shadow: 0 16px 36px rgba(2, 6, 23, 0.12);
+      border-radius: 20px;
+      padding: 16px;
     }
-    .filter-search { min-width: 220px; }
-    .filter-toolbar button { height: 40px; border-radius: 999px; }
+
+    .filters-toolbar {
+      display: grid;
+      grid-template-columns: 2fr repeat(2, minmax(150px, 1fr)) auto;
+      gap: 10px;
+      align-items: end;
+      margin: 0;
+    }
+
+    .filter-search,
+    .search-field,
+    .select-field {
+      width: 100%;
+      min-width: 0;
+      margin-bottom: 0;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-self: end;
+      padding-bottom: 2px;
+    }
+
+    .filter-actions button {
+      border-radius: 999px;
+      min-height: 40px;
+      font-weight: 700;
+    }
+
+    .filter-actions button[mat-button] {
+      color: var(--app-accent);
+      background: rgba(126, 162, 255, 0.1);
+      border: 1px solid rgba(126, 162, 255, 0.18);
+      padding-inline: 14px;
+    }
+
+    .filter-actions .secondary-action {
+      border-color: var(--app-border);
+      color: var(--app-text);
+      padding-inline: 14px;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field {
+      --mdc-outlined-text-field-container-shape: 16px;
+      --mdc-outlined-text-field-label-text-color: var(--app-text-muted);
+      --mdc-outlined-text-field-focus-label-text-color: var(--app-accent);
+      --mdc-outlined-text-field-input-text-color: var(--app-text);
+      --mdc-outlined-text-field-input-text-placeholder-color: var(--app-text-muted);
+      --mdc-outlined-text-field-caret-color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-text-field-wrapper {
+      background: var(--app-surface) !important;
+      border-radius: 16px;
+    }
+
+    html.theme-dark :host ::ng-deep .filters-card .mat-mdc-text-field-wrapper {
+      background: rgba(15, 23, 42, 0.6) !important;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-infix {
+      min-height: 48px;
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-icon-suffix .mat-icon {
+      color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-form-field-label,
+    :host ::ng-deep .filters-card .mat-mdc-select-value,
+    :host ::ng-deep .filters-card .mat-mdc-input-element,
+    :host ::ng-deep .filters-card .mdc-text-field__input {
+      color: var(--app-text) !important;
+      caret-color: var(--app-accent);
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-input-element::placeholder,
+    :host ::ng-deep .filters-card .mdc-text-field__input::placeholder {
+      color: var(--app-text-muted) !important;
+      opacity: 1;
+    }
+
+    :host ::ng-deep .filters-card .mat-mdc-floating-label {
+      color: var(--app-text-muted) !important;
+    }
+
+    :host ::ng-deep .filters-card .mdc-notched-outline__leading,
+    :host ::ng-deep .filters-card .mdc-notched-outline__notch,
+    :host ::ng-deep .filters-card .mdc-notched-outline__trailing {
+      border-color: var(--app-border) !important;
+    }
+
+    html.theme-dark .filter-actions button[mat-button] {
+      background: rgba(126, 162, 255, 0.08);
+      border-color: rgba(126, 162, 255, 0.22);
+    }
 
     .create-form {
       display: grid;
@@ -431,8 +544,9 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .user-row { flex-direction: column; align-items: flex-start; }
       .actions { width: 100%; justify-content: flex-start; }
       .create-form { grid-template-columns: 1fr; }
-      .filter-toolbar { grid-template-columns: 1fr 1fr; }
+      .filters-toolbar { grid-template-columns: 1fr 1fr; }
       .filter-search { grid-column: 1 / -1; }
+      .filter-actions { grid-column: 1 / -1; justify-self: stretch; justify-content: flex-end; }
     }
 
     @media (max-width: 600px) {
@@ -462,8 +576,18 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       }
       .form-actions button { width: 100%; }
       .toggles { flex-direction: column; gap: 8px; }
-      .filter-toolbar { grid-template-columns: 1fr; }
-      .filter-toolbar button { width: 100%; }
+      .filters-toolbar { grid-template-columns: 1fr; gap: 10px; }
+      .filter-actions {
+        grid-column: 1 / -1;
+        flex-direction: column;
+        align-items: stretch;
+        justify-self: stretch;
+        width: 100%;
+      }
+      .filter-actions button,
+      .filter-actions .secondary-action {
+        width: 100%;
+      }
     }
 
     @media (max-width: 420px) {
@@ -488,6 +612,7 @@ export class UserApprovalComponent implements OnInit, OnDestroy {
   showCreateForm = false;
   successMessage = '';
   errorMessage = '';
+  userSearchFocused = false;
 
   get approvedCount(): number {
     return this.users.filter((u) => u.isApproved).length;

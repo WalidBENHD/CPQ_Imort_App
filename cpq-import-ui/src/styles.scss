@@ -6,13 +6,494 @@
 // Use Material's prebuilt theme
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 
+:root {
+  --app-background: radial-gradient(circle at 0% 0%, #eef4ff 0%, #f8fafc 36%, #ffffff 100%);
+  --app-surface: #ffffff;
+  --app-surface-elevated: rgba(255, 255, 255, 0.98);
+  --app-sidebar-bg: linear-gradient(180deg, #f8fbff 0%, #f8fafc 55%, #ffffff 100%);
+  --app-toolbar-bg: #4053b6;
+  --app-toolbar-text: #ffffff;
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+  --app-border: #dbe4f0;
+  --app-accent: #2563eb;
+  --app-soft-surface: #f8fafc;
+}
+
+html.theme-dark {
+  --app-background: radial-gradient(circle at top, rgba(37, 99, 235, 0.18) 0%, #0f172a 34%, #020617 100%);
+  --app-surface: #0f172a;
+  --app-surface-elevated: rgba(15, 23, 42, 0.96);
+  --app-sidebar-bg: linear-gradient(180deg, #111c35 0%, #0b1326 55%, #0f172a 100%);
+  --app-toolbar-bg: #111c35;
+  --app-toolbar-text: #e2e8f0;
+  --app-text: #e2e8f0;
+  --app-text-muted: #94a3b8;
+  --app-border: rgba(148, 163, 184, 0.28);
+  --app-accent: #7ea2ff;
+  --app-soft-surface: rgba(15, 23, 42, 0.78);
+  color-scheme: dark;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   height: 100%;
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
-  background: #f5f5f5;
+  background: var(--app-background);
+  color: var(--app-text);
+  color-scheme: light;
+}
+
+html.theme-dark body {
+  background: var(--app-background);
+  color: var(--app-text);
+}
+
+html.theme-dark .mat-mdc-card,
+html.theme-dark mat-card,
+html.theme-dark .mat-mdc-menu-panel,
+html.theme-dark .mat-mdc-dialog-surface,
+html.theme-dark .mat-mdc-select-panel,
+html.theme-dark .mat-mdc-autocomplete-panel,
+html.theme-dark .mdc-menu-surface,
+html.theme-dark .mat-mdc-snack-bar-container .mdc-snackbar__surface {
+  background-color: var(--app-surface) !important;
+  color: var(--app-text) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark .mat-mdc-card,
+html.theme-dark mat-card {
+  box-shadow: none;
+}
+
+html.theme-dark .mat-mdc-button,
+html.theme-dark .mat-mdc-outlined-button,
+html.theme-dark .mat-mdc-unelevated-button {
+  color: var(--app-text);
+}
+
+html.theme-dark .mat-mdc-button.mat-primary,
+html.theme-dark .mat-mdc-outlined-button.mat-primary {
+  color: var(--app-accent);
+}
+
+/* Outlined (stroked) buttons need a visible border in dark mode,
+   otherwise the near-black default outline makes them look borderless. */
+html.theme-dark .mat-mdc-outlined-button {
+  --mdc-outlined-button-outline-color: var(--app-border);
+  --mdc-outlined-button-disabled-outline-color: rgba(148, 163, 184, 0.2);
+}
+html.theme-dark .mat-mdc-outlined-button.mat-primary,
+html.theme-dark .mat-mdc-outlined-button.mat-accent {
+  --mdc-outlined-button-outline-color: rgba(126, 162, 255, 0.5);
+}
+html.theme-dark .mat-mdc-outlined-button.mat-warn {
+  --mdc-outlined-button-outline-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+
+html.theme-dark .mat-mdc-form-field-subscript-wrapper,
+html.theme-dark .mat-mdc-form-field-hint-wrapper,
+html.theme-dark .mat-mdc-form-field-error-wrapper,
+html.theme-dark .mat-mdc-input-element,
+html.theme-dark .mat-mdc-select-value,
+html.theme-dark .mat-mdc-select-arrow,
+html.theme-dark .mat-mdc-option,
+html.theme-dark .mat-mdc-menu-item,
+html.theme-dark .mat-mdc-dialog-container,
+html.theme-dark .mat-mdc-dialog-title,
+html.theme-dark .mat-mdc-dialog-content,
+html.theme-dark .mat-mdc-dialog-actions {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark .mat-mdc-text-field-wrapper,
+html.theme-dark .mat-mdc-form-field-flex,
+html.theme-dark .mat-mdc-select-trigger,
+html.theme-dark .mat-mdc-menu-content {
+  background-color: rgba(15, 23, 42, 0.82) !important;
+}
+
+html.theme-dark .mat-mdc-form-field-outline,
+html.theme-dark .mdc-notched-outline__leading,
+html.theme-dark .mdc-notched-outline__notch,
+html.theme-dark .mdc-notched-outline__trailing {
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-login,
+html.theme-dark app-register,
+html.theme-dark app-dashboard,
+html.theme-dark app-user-approval,
+html.theme-dark app-activity-monitor,
+html.theme-dark app-datasets,
+html.theme-dark app-uploads {
+  color: var(--app-text);
+}
+
+html.theme-dark app-login,
+html.theme-dark app-register {
+  background: var(--app-background);
+}
+
+html.theme-dark app-login .auth-card,
+html.theme-dark app-register .register-card,
+html.theme-dark app-login .mission-panel,
+html.theme-dark app-login .value-card,
+html.theme-dark app-login .workflow-step,
+html.theme-dark app-login .trust-pill,
+html.theme-dark app-login .account-panel,
+html.theme-dark app-register .approval-panel article,
+html.theme-dark app-register .account-panel {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-login .landing-shell,
+html.theme-dark app-register .register-shell {
+  background: transparent;
+}
+
+html.theme-dark app-login .business-column,
+html.theme-dark app-register .register-story {
+  color: var(--app-text);
+}
+
+html.theme-dark app-login .trust-row .trust-pill,
+html.theme-dark app-login .workflow-step,
+html.theme-dark app-login .value-card,
+html.theme-dark app-login .mission-panel,
+html.theme-dark app-register .approval-panel article {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid var(--app-border) !important;
+}
+
+html.theme-dark app-login .brand-mark,
+html.theme-dark app-register .brand-mark,
+html.theme-dark app-login .mission-icon,
+html.theme-dark app-login .value-icon,
+html.theme-dark app-login .workflow-icon,
+html.theme-dark app-register .approval-panel span,
+html.theme-dark app-register .card-badge {
+  background: rgba(126, 162, 255, 0.16) !important;
+  color: var(--app-accent) !important;
+}
+
+html.theme-dark app-login .auth-card,
+html.theme-dark app-register .register-card,
+html.theme-dark app-login .account-panel,
+html.theme-dark app-register .account-panel {
+  background: rgba(15, 23, 42, 0.92) !important;
+}
+
+html.theme-dark app-login h1,
+html.theme-dark app-register h1,
+html.theme-dark app-login .section-heading h2,
+html.theme-dark app-register .approval-panel h2,
+html.theme-dark app-login .card-header h2,
+html.theme-dark app-register .card-header h2 {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-login .hero-copy,
+html.theme-dark app-login .brand-subtitle,
+html.theme-dark app-login .muted,
+html.theme-dark app-login .section-heading p,
+html.theme-dark app-login .workflow-step p,
+html.theme-dark app-login .value-card p,
+html.theme-dark app-login .mission-panel p,
+html.theme-dark app-register .hero-copy,
+html.theme-dark app-register .brand-subtitle,
+html.theme-dark app-register .muted,
+html.theme-dark app-register .approval-panel p,
+html.theme-dark app-register .card-kicker,
+html.theme-dark app-login .section-heading p,
+html.theme-dark app-login .card-kicker,
+html.theme-dark app-register .card-kicker {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-login .eyebrow,
+html.theme-dark app-register .eyebrow,
+html.theme-dark app-datasets .eyebrow,
+html.theme-dark app-uploads .eyebrow,
+html.theme-dark app-user-approval .eyebrow,
+html.theme-dark app-activity-monitor .eyebrow,
+html.theme-dark app-import-preview .eyebrow,
+html.theme-dark app-import-wizard .eyebrow,
+html.theme-dark app-login .card-kicker,
+html.theme-dark app-register .card-kicker,
+html.theme-dark app-datasets .page-header .eyebrow,
+html.theme-dark app-uploads .page-header .eyebrow,
+html.theme-dark app-user-approval .page-header .eyebrow,
+html.theme-dark app-activity-monitor .page-header .eyebrow,
+html.theme-dark app-import-preview .page-header .eyebrow,
+html.theme-dark app-import-wizard .page-header .eyebrow {
+  color: var(--app-accent) !important;
+}
+
+html.theme-dark app-dashboard .summary-card,
+html.theme-dark app-dashboard .status-strip,
+html.theme-dark app-dashboard .panel,
+html.theme-dark app-dashboard .admin-insights,
+html.theme-dark app-dashboard .mini-stat,
+html.theme-dark app-dashboard .connection-item,
+html.theme-dark app-dashboard .recent-item,
+html.theme-dark app-dashboard .loading-card {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-dashboard .admin-insights-empty {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-dashboard .connection-badge {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-datasets .dataset-card,
+html.theme-dark app-datasets .dataset-meta-item,
+html.theme-dark app-datasets .dataset-requirements,
+html.theme-dark app-datasets .requirements-list li,
+html.theme-dark app-uploads .filters-card,
+html.theme-dark app-uploads .list-card,
+html.theme-dark app-uploads .mobile-item,
+html.theme-dark app-uploads .loading-card,
+html.theme-dark app-user-approval .summary-card,
+html.theme-dark app-user-approval .panel,
+html.theme-dark app-user-approval .user-row,
+html.theme-dark app-user-approval .create-form,
+html.theme-dark app-activity-monitor .panel,
+html.theme-dark app-activity-monitor .summary-card,
+html.theme-dark app-activity-monitor .activity-row,
+html.theme-dark app-import-preview .summary-item,
+html.theme-dark app-import-preview .rejection-box,
+html.theme-dark app-import-preview .commit-box,
+html.theme-dark app-import-preview .cancelled-copy,
+html.theme-dark app-import-preview .mobile-row,
+html.theme-dark app-import-preview .mobile-row-details,
+html.theme-dark app-import-preview .row-toolbar,
+html.theme-dark app-import-preview .table-container,
+html.theme-dark app-import-wizard .step-card,
+html.theme-dark app-import-wizard .info-card,
+html.theme-dark app-import-wizard .file-preview,
+html.theme-dark app-import-wizard .responsibility-notice {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-datasets .page-header h1,
+html.theme-dark app-datasets .dataset-name,
+html.theme-dark app-datasets .dataset-meta-item strong,
+html.theme-dark app-datasets .requirements-list strong,
+html.theme-dark app-datasets .dataset-actions button,
+html.theme-dark app-datasets .eyebrow {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-datasets .page-intro,
+html.theme-dark app-datasets .dataset-description,
+html.theme-dark app-datasets .dataset-meta-item span,
+html.theme-dark app-datasets .requirements-title,
+html.theme-dark app-datasets .requirements-list small,
+html.theme-dark app-datasets .dataset-status {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-datasets .dataset-icon,
+html.theme-dark app-datasets .dataset-status,
+html.theme-dark app-datasets .dataset-meta-item,
+html.theme-dark app-datasets .dataset-requirements,
+html.theme-dark app-datasets .requirements-list li {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-datasets .dataset-icon {
+  color: var(--app-accent) !important;
+}
+
+html.theme-dark app-datasets .dataset-status--active {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.42) !important;
+}
+
+/* Datasets badges keep their semantic colours in dark mode */
+html.theme-dark app-datasets .badge {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.42) !important;
+}
+html.theme-dark app-datasets .badge-optional {
+  background: rgba(148, 163, 184, 0.16) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+html.theme-dark app-datasets .badge-warning {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.42) !important;
+}
+
+html.theme-dark app-datasets .dataset-description,
+html.theme-dark app-datasets .dataset-meta-item span,
+html.theme-dark app-datasets .requirements-title,
+html.theme-dark app-datasets .requirements-list small,
+html.theme-dark app-uploads .page-intro,
+html.theme-dark app-uploads .list-meta,
+html.theme-dark app-uploads .file-subtitle,
+html.theme-dark app-uploads .row-hint,
+html.theme-dark app-uploads .mobile-sub,
+html.theme-dark app-uploads .mobile-meta,
+html.theme-dark app-uploads .mobile-errors,
+html.theme-dark app-user-approval .page-header p,
+html.theme-dark app-user-approval .muted,
+html.theme-dark app-user-approval .meta,
+html.theme-dark app-user-approval .dialog-subtitle,
+html.theme-dark app-activity-monitor .page-header p,
+html.theme-dark app-activity-monitor .activity-meta,
+html.theme-dark app-activity-monitor .summary-label,
+html.theme-dark app-import-preview .summary-item .label,
+html.theme-dark app-import-preview .rejection-box,
+html.theme-dark app-import-preview .commit-box,
+html.theme-dark app-import-preview .cancelled-copy,
+html.theme-dark app-import-preview .mobile-field-label,
+html.theme-dark app-import-preview .mobile-row-index,
+html.theme-dark app-import-preview .expand-icon,
+html.theme-dark app-import-wizard .step-subtitle,
+html.theme-dark app-import-wizard .wizard-copy,
+html.theme-dark app-import-wizard .summary-note,
+html.theme-dark app-import-wizard .file-preview span,
+html.theme-dark app-import-wizard .responsibility-notice {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-datasets .dataset-name,
+html.theme-dark app-datasets .dataset-meta-item strong,
+html.theme-dark app-datasets .requirements-list strong,
+html.theme-dark app-uploads .file-name,
+html.theme-dark app-uploads .row-count,
+html.theme-dark app-uploads .mobile-file,
+html.theme-dark app-uploads .mobile-item,
+html.theme-dark app-user-approval .name,
+html.theme-dark app-user-approval .summary-card .value,
+html.theme-dark app-activity-monitor .actor-name,
+html.theme-dark app-activity-monitor .summary-value,
+html.theme-dark app-import-preview .summary-item .value,
+html.theme-dark app-import-preview .mobile-row-title,
+html.theme-dark app-import-wizard .step-title,
+html.theme-dark app-import-wizard .file-name {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-dashboard .page-intro,
+html.theme-dark app-dashboard .summary-top,
+html.theme-dark app-dashboard .status-strip-copy,
+html.theme-dark app-dashboard .recent-meta,
+html.theme-dark app-dashboard .admin-insights-head p,
+html.theme-dark app-dashboard .mini-stat-label,
+html.theme-dark app-dashboard .connection-meta,
+html.theme-dark app-dashboard .admin-insights-empty {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-dashboard .summary-value,
+html.theme-dark app-dashboard .mini-stat-value,
+html.theme-dark app-dashboard .recent-name,
+html.theme-dark app-dashboard .admin-insights-head h2,
+html.theme-dark app-dashboard .connection-name,
+html.theme-dark app-dashboard .status-strip strong,
+html.theme-dark app-dashboard .panel-header,
+html.theme-dark app-dashboard .page-header h1 {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-user-approval .summary-card .value,
+html.theme-dark app-user-approval .count-pill,
+html.theme-dark app-user-approval .name,
+html.theme-dark app-user-approval .dialog-head h2,
+html.theme-dark app-user-approval .dialog-copy .value,
+html.theme-dark app-activity-monitor .summary-card .value,
+html.theme-dark app-activity-monitor .actor-name,
+html.theme-dark app-activity-monitor .mobile-meta-value,
+html.theme-dark app-uploads .row-count,
+html.theme-dark app-uploads .file-name,
+html.theme-dark app-uploads .mobile-file,
+html.theme-dark app-import-preview .summary-item .value,
+html.theme-dark app-import-preview .mobile-row-title,
+html.theme-dark app-import-preview .mobile-field-value,
+html.theme-dark app-import-wizard .step-title,
+html.theme-dark app-import-wizard .file-name,
+html.theme-dark app-datasets .dataset-name,
+html.theme-dark app-datasets .dataset-meta-item strong,
+html.theme-dark app-datasets .requirements-list strong {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-root .app-shell {
+  background: var(--app-background);
+}
+
+html.theme-dark app-root .side-nav {
+  background: var(--app-sidebar-bg);
+  border-right-color: var(--app-border);
+}
+
+html.theme-dark app-root .top-toolbar {
+  background: var(--app-toolbar-bg);
+  color: var(--app-toolbar-text);
+  border-bottom-color: var(--app-border);
+}
+
+html.theme-dark app-root .app-signature {
+  background: var(--app-surface-elevated);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+html.theme-dark app-root .signature-label,
+html.theme-dark app-root .signature-role {
+  color: var(--app-text-muted);
+}
+
+html.theme-dark app-root .signature-name,
+html.theme-dark app-root .signature-profile-link,
+html.theme-dark app-root .side-link,
+html.theme-dark app-root .brand,
+html.theme-dark app-root .brand mat-icon,
+html.theme-dark app-root .nav-group-label {
+  color: var(--app-text);
+}
+
+html.theme-dark app-root .side-link mat-icon,
+html.theme-dark app-root .brand mat-icon {
+  color: var(--app-accent);
+}
+
+html.theme-dark app-root .side-link--active {
+  background: rgba(126, 162, 255, 0.18);
+  color: var(--app-accent);
+}
+
+html.theme-dark app-root .side-link--active mat-icon {
+  color: var(--app-accent);
+}
+
+html.theme-dark .theme-toggle-fab {
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
+  border-color: var(--app-border);
 }
 
 // Status row colours used in the preview table
@@ -97,3 +578,493 @@ html, body {
   background: transparent !important;
   box-shadow: none !important;
 }
+
+/* ============================================================
+   DARK MODE CONTRAST FIXES
+   Centralised overrides for badges, chips, tables, notifications
+   and status labels that used hard-coded light palettes.
+   ============================================================ */
+
+/* --- Status badge component (tables, previews, mobile lists) --- */
+html.theme-dark app-status-badge .badge-pending,
+html.theme-dark .status-chip-pending {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.38);
+}
+
+html.theme-dark app-status-badge .badge-processing,
+html.theme-dark .status-chip-processing {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.42);
+}
+
+html.theme-dark app-status-badge .badge-awaiting-approval,
+html.theme-dark app-status-badge .badge-warning,
+html.theme-dark .status-chip-awaiting-approval {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.42);
+}
+
+html.theme-dark app-status-badge .badge-committed,
+html.theme-dark app-status-badge .badge-valid,
+html.theme-dark .status-chip-committed {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.42);
+}
+
+html.theme-dark app-status-badge .badge-rejected,
+html.theme-dark app-status-badge .badge-error,
+html.theme-dark .status-chip-rejected {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.42);
+}
+
+html.theme-dark app-status-badge .badge-failed,
+html.theme-dark .status-chip-failed {
+  background: rgba(236, 72, 153, 0.2);
+  color: #f9a8d4;
+  border-color: rgba(236, 72, 153, 0.42);
+}
+
+/* --- Preview table row tints --- */
+html.theme-dark .row-valid { background: rgba(34, 197, 94, 0.12) !important; }
+html.theme-dark .row-warning { background: rgba(245, 158, 11, 0.12) !important; }
+html.theme-dark .row-error { background: rgba(239, 68, 68, 0.14) !important; }
+
+/* --- Notification toast (rendered in overlay) --- */
+html.theme-dark .notification-toast-container {
+  background: linear-gradient(180deg, rgba(17, 28, 53, 0.98), rgba(9, 16, 33, 0.98));
+  border-color: rgba(126, 162, 255, 0.28);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.35);
+  color: var(--app-text);
+}
+
+html.theme-dark .notification-toast-title { color: #f1f5f9; }
+html.theme-dark .notification-toast-message { color: #cbd5e1; }
+html.theme-dark .notification-toast-state,
+html.theme-dark .notification-toast-meta { color: #94a3b8; }
+html.theme-dark .notification-toast-kind { color: #93c5fd; }
+html.theme-dark .notification-toast-dot { background: #64748b; }
+
+html.theme-dark .notification-toast-icon.toast-approval { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+html.theme-dark .notification-toast-icon.toast-success { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+html.theme-dark .notification-toast-icon.toast-warning { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+html.theme-dark .notification-toast-icon.toast-danger { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+html.theme-dark .notification-toast-icon { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+
+html.theme-dark .notification-toast-close {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(148, 163, 184, 0.32);
+  color: #cbd5e1;
+}
+html.theme-dark .notification-toast-close:hover {
+  background: rgba(148, 163, 184, 0.28);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* --- Notification center menu (rendered in overlay) --- */
+html.theme-dark .notification-menu .notification-item {
+  border-bottom-color: var(--app-border);
+}
+html.theme-dark .notification-menu .notification-item:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+html.theme-dark .notification-menu .notification-item.unread {
+  background: rgba(126, 162, 255, 0.14);
+  border-left-color: var(--app-accent);
+}
+html.theme-dark .notification-menu .notification-title { color: var(--app-text); }
+html.theme-dark .notification-menu .notification-message { color: #cbd5e1; }
+html.theme-dark .notification-menu .notification-time { color: #94a3b8; }
+html.theme-dark .notification-menu .empty-state { color: #94a3b8; }
+
+/* --- Activity monitor chips, status labels, table --- */
+html.theme-dark app-activity-monitor .chip-category {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.42);
+}
+html.theme-dark app-activity-monitor .status-chip {
+  background: rgba(148, 163, 184, 0.18);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.38);
+}
+html.theme-dark app-activity-monitor .status-chip.error {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.42);
+}
+html.theme-dark app-activity-monitor th.mat-mdc-header-cell {
+  color: #cbd5e1;
+}
+html.theme-dark app-activity-monitor .actor-name,
+html.theme-dark app-activity-monitor .action-name,
+html.theme-dark app-activity-monitor .mobile-item-title,
+html.theme-dark app-activity-monitor .mobile-meta-value {
+  color: var(--app-text);
+}
+html.theme-dark app-activity-monitor .actor-meta,
+html.theme-dark app-activity-monitor .action-desc,
+html.theme-dark app-activity-monitor .mobile-item-desc,
+html.theme-dark app-activity-monitor .mobile-meta-label,
+html.theme-dark app-activity-monitor .mobile-meta-sub {
+  color: #94a3b8;
+}
+html.theme-dark app-activity-monitor .mobile-item,
+html.theme-dark app-activity-monitor .empty-state {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text-muted);
+}
+html.theme-dark app-activity-monitor .mobile-meta-grid {
+  border-top-color: var(--app-border);
+}
+
+/* --- Uploads table cells, row count, mobile items --- */
+html.theme-dark app-uploads .row-count {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+html.theme-dark app-uploads .file-name,
+html.theme-dark app-uploads .mobile-file {
+  color: var(--app-text);
+}
+html.theme-dark app-uploads .file-cell mat-icon,
+html.theme-dark app-uploads .mobile-file mat-icon {
+  color: #94a3b8;
+}
+html.theme-dark app-uploads .mobile-sub {
+  color: #93c5fd;
+}
+html.theme-dark app-uploads .clickable-row:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+html.theme-dark app-uploads .mobile-item {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+}
+
+/* --- User approval badges, presence pills, buttons --- */
+html.theme-dark app-user-approval .badge.role {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.42);
+}
+html.theme-dark app-user-approval .badge.admin {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.42);
+}
+html.theme-dark app-user-approval .badge.pending {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.42);
+}
+html.theme-dark app-user-approval .count-pill {
+  background: rgba(126, 162, 255, 0.16);
+  color: #93c5fd;
+  border-color: rgba(126, 162, 255, 0.34);
+}
+html.theme-dark app-user-approval .presence-online {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.42);
+}
+html.theme-dark app-user-approval .presence-recent {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.42);
+}
+html.theme-dark app-user-approval .presence-offline {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.34);
+}
+html.theme-dark app-user-approval .presence-time,
+html.theme-dark app-user-approval .meta {
+  color: #94a3b8;
+}
+html.theme-dark app-user-approval .name {
+  color: var(--app-text);
+}
+html.theme-dark app-user-approval .role-action {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+html.theme-dark app-user-approval .delete-action {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+html.theme-dark app-user-approval .empty {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: var(--app-border);
+  color: #94a3b8;
+}
+html.theme-dark app-user-approval .summary-card .label {
+  color: #94a3b8;
+}
+
+/* --- Import preview action buttons, boxes, table, mobile, messages --- */
+html.theme-dark app-import-preview .header-action-btn {
+  background: rgba(148, 163, 184, 0.12) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+html.theme-dark app-import-preview .action-original {
+  background: rgba(59, 130, 246, 0.16) !important;
+  border-color: rgba(59, 130, 246, 0.42) !important;
+  color: #93c5fd !important;
+}
+html.theme-dark app-import-preview .action-error {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(239, 68, 68, 0.42) !important;
+  color: #fca5a5 !important;
+}
+html.theme-dark app-import-preview .action-cancel {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border-color: rgba(245, 158, 11, 0.42) !important;
+  color: #fcd34d !important;
+}
+html.theme-dark app-import-preview .summary-item .valid-count { color: #86efac; }
+html.theme-dark app-import-preview .summary-item .warning-count { color: #fcd34d; }
+html.theme-dark app-import-preview .summary-item .error-count { color: #fca5a5; }
+html.theme-dark app-import-preview .msg-error { color: #fca5a5; }
+html.theme-dark app-import-preview .msg-warning { color: #fcd34d; }
+html.theme-dark app-import-preview .msg-info { color: #93c5fd; }
+html.theme-dark app-import-preview .info-box {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.34);
+  color: #cbd5e1;
+}
+html.theme-dark app-import-preview .info-box,
+html.theme-dark app-import-preview .info-box strong,
+html.theme-dark app-import-preview .info-box p {
+  color: #cbd5e1;
+}
+html.theme-dark app-import-preview .correction-notice {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.34);
+}
+html.theme-dark app-import-preview .correction-copy { color: #fcd34d; }
+html.theme-dark app-import-preview .correction-copy mat-icon { color: #fbbf24; }
+html.theme-dark app-import-preview .rejection-box {
+  background: rgba(239, 68, 68, 0.14) !important;
+}
+html.theme-dark app-import-preview .commit-box {
+  background: rgba(34, 197, 94, 0.14) !important;
+}
+html.theme-dark app-import-preview .rejection-reason { color: #cbd5e1; }
+html.theme-dark app-import-preview .active-filter {
+  background: rgba(126, 162, 255, 0.18) !important;
+  border-color: var(--app-accent) !important;
+  color: #93c5fd !important;
+}
+html.theme-dark app-import-preview .desktop-rows .mat-mdc-row:hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+html.theme-dark app-import-preview .mobile-primary,
+html.theme-dark app-import-preview .mobile-field-value {
+  color: var(--app-text);
+}
+html.theme-dark app-import-preview .btn-secondary {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+/* --- Dashboard connection/presence badges & labels --- */
+html.theme-dark app-dashboard .connection-online {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.42) !important;
+}
+html.theme-dark app-dashboard .connection-recent {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.42) !important;
+}
+html.theme-dark app-dashboard .connection-offline {
+  background: rgba(148, 163, 184, 0.16) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+}
+html.theme-dark app-dashboard .connection-name {
+  color: var(--app-text);
+}
+html.theme-dark app-dashboard .connection-meta {
+  color: #94a3b8;
+}
+
+/* --- Material tables, paginator & card titles (ROOT dark surface fix) --- */
+/* Material tables render an opaque white surface by default, which left
+   themed light text invisible on a white block inside dark cards. */
+html.theme-dark .mat-mdc-table,
+html.theme-dark .mat-mdc-header-row,
+html.theme-dark .mat-mdc-row,
+html.theme-dark .mat-mdc-footer-row {
+  background: transparent !important;
+  --mat-table-background-color: transparent;
+}
+
+html.theme-dark .mat-mdc-header-cell {
+  background: transparent !important;
+  color: var(--app-text-muted) !important;
+  border-bottom-color: var(--app-border) !important;
+}
+
+html.theme-dark .mat-mdc-cell {
+  color: var(--app-text) !important;
+  border-bottom-color: var(--app-border) !important;
+}
+
+html.theme-dark .mat-mdc-paginator {
+  background: transparent !important;
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark .mat-mdc-paginator .mat-mdc-select-value,
+html.theme-dark .mat-mdc-paginator .mat-mdc-icon-button {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark .mat-mdc-card-title {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark .mat-mdc-card-subtitle {
+  color: var(--app-text-muted) !important;
+}
+
+/* --- Activity monitor chip label token --- */
+html.theme-dark app-activity-monitor .chip-category {
+  --mdc-chip-label-text-color: #93c5fd;
+}
+
+/* --- Import wizard: stepper, cards, requirements, drop zone, notice --- */
+html.theme-dark app-import-wizard .wizard-shell {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-import-wizard .mat-horizontal-stepper-wrapper,
+html.theme-dark app-import-wizard .mat-horizontal-content-container,
+html.theme-dark app-import-wizard .mat-vertical-content-container,
+html.theme-dark app-import-wizard .mat-step-header {
+  background: transparent !important;
+}
+
+html.theme-dark app-import-wizard .mat-step-label {
+  color: var(--app-text-muted) !important;
+}
+html.theme-dark app-import-wizard .mat-step-label.mat-step-label-active,
+html.theme-dark app-import-wizard .mat-step-label-selected {
+  color: var(--app-text) !important;
+}
+html.theme-dark app-import-wizard .mat-stepper-horizontal-line,
+html.theme-dark app-import-wizard .mat-horizontal-stepper-header::before,
+html.theme-dark app-import-wizard .mat-horizontal-stepper-header::after,
+html.theme-dark app-import-wizard .mat-vertical-stepper-header::before {
+  border-top-color: var(--app-border) !important;
+}
+html.theme-dark app-import-wizard .mat-step-icon {
+  background-color: rgba(148, 163, 184, 0.3);
+  color: var(--app-text);
+}
+html.theme-dark app-import-wizard .mat-step-icon-selected,
+html.theme-dark app-import-wizard .mat-step-icon-state-done,
+html.theme-dark app-import-wizard .mat-step-icon-state-edit {
+  background-color: var(--app-accent);
+  color: #0b1326;
+}
+
+html.theme-dark app-import-wizard .entity-card {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: var(--app-border) !important;
+}
+html.theme-dark app-import-wizard .entity-card:hover {
+  background: rgba(126, 162, 255, 0.1) !important;
+  border-color: rgba(126, 162, 255, 0.4) !important;
+}
+html.theme-dark app-import-wizard .entity-card.selected {
+  background: rgba(126, 162, 255, 0.16) !important;
+  border-color: var(--app-accent) !important;
+}
+html.theme-dark app-import-wizard .entity-label { color: var(--app-text); }
+html.theme-dark app-import-wizard .entity-desc { color: var(--app-text-muted); }
+
+html.theme-dark app-import-wizard .requirements-panel {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: var(--app-border) !important;
+}
+html.theme-dark app-import-wizard .requirements-item {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+}
+html.theme-dark app-import-wizard .requirements-header h3,
+html.theme-dark app-import-wizard .requirements-name {
+  color: var(--app-text) !important;
+}
+html.theme-dark app-import-wizard .requirements-header p,
+html.theme-dark app-import-wizard .requirements-title,
+html.theme-dark app-import-wizard .requirements-meta,
+html.theme-dark app-import-wizard .requirements-example,
+html.theme-dark app-import-wizard .step-subtitle {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-import-wizard .badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.42);
+}
+html.theme-dark app-import-wizard .badge-optional {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.34);
+}
+html.theme-dark app-import-wizard .badge-warning {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.42);
+}
+
+html.theme-dark app-import-wizard .upload-hint {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.34);
+  color: #cbd5e1;
+}
+html.theme-dark app-import-wizard .drop-zone {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+html.theme-dark app-import-wizard .drop-zone:hover,
+html.theme-dark app-import-wizard .drop-zone.drag-over {
+  border-color: var(--app-accent);
+  background: rgba(126, 162, 255, 0.08);
+}
+html.theme-dark app-import-wizard .drop-icon { color: #64748b; }
+html.theme-dark app-import-wizard .hint,
+html.theme-dark app-import-wizard .file-size {
+  color: var(--app-text-muted) !important;
+}
+html.theme-dark app-import-wizard .file-preview {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+}
+html.theme-dark app-import-wizard .file-name { color: var(--app-text) !important; }
+
+html.theme-dark app-import-wizard .responsibility-notice {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-left-color: #f59e0b !important;
+}
+html.theme-dark app-import-wizard .notice-content h3 { color: #fcd34d !important; }
+html.theme-dark app-import-wizard .notice-content p,
+html.theme-dark app-import-wizard .responsibility-checkbox {
+  color: var(--app-text-muted) !important;
+}
+html.theme-dark app-import-wizard .notice-icon { color: #fbbf24 !important; }
