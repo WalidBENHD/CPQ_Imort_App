@@ -18,6 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 var disableAuth = builder.Configuration.GetValue<bool>("Auth:DisableAuth");
 
 builder.Services.Configure<AppActivityTrackingOptions>(builder.Configuration.GetSection("ActivityTracking"));
+builder.Services.AddSingleton<ILiveUserPresenceTracker, LiveUserPresenceTracker>();
 
 var renderPort = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(renderPort))

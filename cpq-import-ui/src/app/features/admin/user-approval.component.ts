@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Subscription, interval } from 'rxjs';
 import { AuthUser } from '../../core/models/auth.models';
 import { LocalAuthService } from '../../core/auth/local-auth.service';
 
@@ -214,6 +215,13 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           <div class="identity">
             <div class="name">{{ user.displayName }}</div>
             <div class="meta">{{ user.userName }}</div>
+            <div class="presence-row" *ngIf="user.isApproved">
+              <span class="presence-pill" [class]="'presence-pill presence-' + getPresenceStatus(user)">
+                <span class="presence-dot"></span>
+                {{ getPresenceLabel(user) }}
+              </span>
+              <span class="presence-time">{{ formatLastSeen(user) }}</span>
+            </div>
             <div class="badges">
               <span class="badge role">{{ user.role }}</span>
               <span class="badge admin" *ngIf="user.isAdmin">admin</span>
@@ -296,6 +304,58 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .identity { min-width: 0; }
     .name { font-size: 18px; font-weight: 700; color: #0f172a; }
     .meta { color: #64748b; font-size: 13px; margin-top: 2px; }
+
+    .presence-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .presence-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .presence-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: currentColor;
+      box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
+    }
+
+    .presence-online {
+      background: #ecfdf5;
+      color: #15803d;
+      border-color: #bbf7d0;
+    }
+
+    .presence-recent {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .presence-offline {
+      background: #f8fafc;
+      color: #64748b;
+      border-color: #cbd5e1;
+    }
+
+    .presence-time {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 500;
+    }
 
     .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
     .badge {
@@ -413,10 +473,14 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     }
   `]
 })
-export class UserApprovalComponent implements OnInit {
+export class UserApprovalComponent implements OnInit, OnDestroy {
+  private static readonly ONLINE_WINDOW_MS = 45 * 1000;
+  private static readonly RECENT_WINDOW_MS = 10 * 60 * 1000;
+
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(LocalAuthService);
   private readonly dialog = inject(MatDialog);
+  private refreshSub: Subscription | null = null;
 
   pending: AuthUser[] = [];
   users: AuthUser[] = [];
@@ -469,6 +533,78 @@ export class UserApprovalComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    this.refreshSub = interval(15000).subscribe(() => this.reload());
+  }
+
+  ngOnDestroy(): void {
+    this.refreshSub?.unsubscribe();
+  }
+
+  getPresenceStatus(user: AuthUser): 'online' | 'recent' | 'offline' {
+    const diffMs = this.getPresenceAgeMs(user);
+    if (diffMs === null) {
+      return 'offline';
+    }
+
+    if (diffMs <= UserApprovalComponent.ONLINE_WINDOW_MS) {
+      return 'online';
+    }
+
+    if (diffMs <= UserApprovalComponent.RECENT_WINDOW_MS) {
+      return 'recent';
+    }
+
+    return 'offline';
+  }
+
+  getPresenceLabel(user: AuthUser): string {
+    switch (this.getPresenceStatus(user)) {
+      case 'online':
+        return 'Online';
+      case 'recent':
+        return 'Recently active';
+      default:
+        return 'Offline';
+    }
+  }
+
+  formatLastSeen(user: AuthUser): string {
+    const lastSeen = user.lastSeenAt ?? user.lastLoginAt;
+    if (!lastSeen) {
+      return 'Never signed in';
+    }
+
+    if (this.getPresenceStatus(user) === 'online') {
+      return 'Active now';
+    }
+
+    const lastSeenDate = new Date(lastSeen);
+    const diffMs = Date.now() - lastSeenDate.getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+    if (diffMinutes < 1) {
+      return 'Seen just now';
+    }
+
+    if (diffMinutes < 60) {
+      return `Seen ${diffMinutes} min ago`;
+    }
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+      return `Seen ${diffHours}h ago`;
+    }
+
+    return `Last seen ${lastSeenDate.toLocaleString()}`;
+  }
+
+  private getPresenceAgeMs(user: AuthUser): number | null {
+    const lastSeen = user.lastSeenAt ?? user.lastLoginAt;
+    if (!lastSeen) {
+      return null;
+    }
+
+    return Math.max(0, Date.now() - new Date(lastSeen).getTime());
   }
 
   approve(user: AuthUser, role: string, isAdmin: boolean): void {

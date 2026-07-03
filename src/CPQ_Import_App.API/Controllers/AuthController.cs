@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using CPQ_Import_App.API.DTOs;
+using CPQ_Import_App.API.Monitoring;
 using CPQ_Import_App.API.Security;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Data;
@@ -17,7 +18,8 @@ public class AuthController(
     AppDbContext db,
     LocalJwtTokenFactory tokenFactory,
     INotificationService notificationService,
-    IActivityService activityService) : ControllerBase
+    IActivityService activityService,
+    ILiveUserPresenceTracker liveUserPresenceTracker) : ControllerBase
 {
     private string CurrentUserName => User.FindFirstValue("preferred_username")
         ?? User.FindFirstValue(ClaimTypes.Name)
@@ -207,7 +209,7 @@ public class AuthController(
             .OrderBy(x => x.CreatedAt)
             .ToListAsync(ct);
 
-        return Ok(users.Select(ToDto).ToList());
+        return Ok(users.Select(x => ToDto(x)).ToList());
     }
 
     [HttpGet("users")]
@@ -219,7 +221,26 @@ public class AuthController(
             .OrderBy(x => x.UserName)
             .ToListAsync(ct);
 
-        return Ok(users.Select(ToDto).ToList());
+        var userIds = users.Select(x => x.Id.ToString()).ToList();
+        var activityByUserId = await db.ActivityEvents
+            .AsNoTracking()
+            .Where(x => x.UserId != null && userIds.Contains(x.UserId))
+            .GroupBy(x => x.UserId!)
+            .Select(g => new { UserId = g.Key, LastSeenAt = g.Max(x => x.OccurredAtUtc) })
+            .ToDictionaryAsync(x => x.UserId, x => (DateTime?)x.LastSeenAt, ct);
+
+        return Ok(users.Select(user =>
+        {
+            activityByUserId.TryGetValue(user.Id.ToString(), out var lastSeenAt);
+
+            var liveLastSeenAt = liveUserPresenceTracker.GetLastSeenUtc(user.Id.ToString());
+            if (liveLastSeenAt.HasValue && (!lastSeenAt.HasValue || liveLastSeenAt > lastSeenAt))
+            {
+                lastSeenAt = liveLastSeenAt;
+            }
+
+            return ToDto(user, lastSeenAt);
+        }).ToList());
     }
 
     [HttpPost("users")]
@@ -409,7 +430,7 @@ public class AuthController(
         return NoContent();
     }
 
-    private static AuthUserDto ToDto(TestUser user) => new(
+    private static AuthUserDto ToDto(TestUser user, DateTime? lastSeenAt = null) => new(
         user.Id,
         user.UserName,
         user.DisplayName,
@@ -419,6 +440,9 @@ public class AuthController(
         user.CreatedAt,
         user.ApprovedAt,
         user.ApprovedByUserName,
-        user.LastLoginAt
+        user.LastLoginAt,
+        lastSeenAt is null || (user.LastLoginAt.HasValue && user.LastLoginAt > lastSeenAt)
+            ? user.LastLoginAt
+            : lastSeenAt
     );
 }

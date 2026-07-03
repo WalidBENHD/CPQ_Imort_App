@@ -2,6 +2,7 @@ using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Infrastructure.Services;
 using CPQ_Import_App.API.Monitoring;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 
 namespace CPQ_Import_App.API.Middleware;
 
@@ -10,16 +11,28 @@ public class ActivityTrackingMiddleware(RequestDelegate next)
     public async Task InvokeAsync(
         HttpContext context,
         IActivityService activityService,
+        ILiveUserPresenceTracker liveUserPresenceTracker,
         IOptions<AppActivityTrackingOptions> options)
     {
         await next(context);
+
+        var path = context.Request.Path.Value ?? string.Empty;
+        if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
+        {
+            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? context.User.FindFirstValue("sub");
+
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                liveUserPresenceTracker.MarkSeen(userId);
+            }
+        }
 
         if (!options.Value.Enabled)
         {
             return;
         }
 
-        var path = context.Request.Path.Value ?? string.Empty;
         if (!path.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
         {
             return;

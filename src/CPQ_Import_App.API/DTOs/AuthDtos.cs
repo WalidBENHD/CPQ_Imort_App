@@ -27,7 +27,8 @@ public record AuthUserDto(
     DateTime CreatedAt,
     DateTime? ApprovedAt,
     string? ApprovedByUserName,
-    DateTime? LastLoginAt
+    DateTime? LastLoginAt,
+    DateTime? LastSeenAt
 );
 
 public record AuthTokenResponse(string AccessToken, DateTime ExpiresAtUtc, AuthUserDto User);

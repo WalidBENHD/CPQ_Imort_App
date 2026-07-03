@@ -9,6 +9,7 @@ export interface AuthUser {
   approvedAt: string | null;
   approvedByUserName: string | null;
   lastLoginAt: string | null;
+  lastSeenAt: string | null;
 }
 
 export interface AuthTokenResponse {
