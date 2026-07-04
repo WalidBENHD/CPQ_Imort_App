@@ -21,17 +21,6 @@ import { ThemeService } from './core/services/theme.service';
   imports: [NgIf, NgFor, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, NotificationCenterComponent],
   template: `
-    <button
-      mat-icon-button
-      class="theme-toggle-fab"
-      type="button"
-      (click)="toggleTheme()"
-      [matTooltip]="themeTooltip"
-      [attr.aria-label]="themeTooltip"
-    >
-      <mat-icon>{{ themeIcon }}</mat-icon>
-    </button>
-
     <div class="app-shell" *ngIf="showAppChrome; else landingLayout">
       <mat-toolbar class="top-toolbar">
         <button
@@ -60,17 +49,17 @@ import { ThemeService } from './core/services/theme.service';
           <mat-icon>login</mat-icon> Sign in
         </a>
 
-        <mat-menu #userMenu>
+        <mat-menu #userMenu="matMenu" panelClass="user-menu-panel">
           <button mat-menu-item disabled>
-            <mat-icon>person</mat-icon>
+            <mat-icon class="user-menu-icon">person</mat-icon>
             <span>{{ auth.userName }}</span>
           </button>
           <button mat-menu-item disabled *ngIf="auth.isAdmin">
-            <mat-icon>verified_user</mat-icon>
+            <mat-icon class="user-menu-icon">verified_user</mat-icon>
             <span>Administrator</span>
           </button>
           <button mat-menu-item (click)="auth.logout()">
-            <mat-icon>logout</mat-icon>
+            <mat-icon class="user-menu-icon">logout</mat-icon>
             <span>Sign out</span>
           </button>
         </mat-menu>
@@ -114,6 +103,50 @@ import { ThemeService } from './core/services/theme.service';
               <span *ngIf="isSidebarOpen">{{ item.label }}</span>
             </a>
           </ng-container>
+
+          <div class="nav-group-label" *ngIf="isSidebarOpen">Settings</div>
+
+          <button
+            mat-button
+            class="side-link side-link--settings"
+            type="button"
+            [class.side-link--compact]="!isSidebarOpen"
+            [attr.aria-label]="themeTooltip"
+            [matTooltip]="!isSidebarOpen ? themeTooltip : ''"
+            (click)="toggleTheme()"
+          >
+            <mat-icon>{{ themeIcon }}</mat-icon>
+            <span *ngIf="isSidebarOpen">{{ themeLabel }}</span>
+          </button>
+
+          <div class="side-nav-footer" *ngIf="auth.isAuthenticated">
+            <div class="signature-card" [class.signature-card--collapsed]="!isSidebarOpen">
+              <span class="signature-mark" aria-hidden="true">WB</span>
+
+              <div class="signature-copy" *ngIf="isSidebarOpen">
+                <span class="signature-label">Created by</span>
+                <span class="signature-name">BENHAMED Walid</span>
+                <span class="signature-role">CPQ specialist &#64; Legrand</span>
+              </div>
+
+              <a
+                class="signature-profile-link"
+                href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Take a look into my profile"
+                aria-label="Take a look into my profile on LinkedIn"
+                [matTooltip]="!isSidebarOpen ? 'Take a look into my profile' : ''"
+              >
+                <svg class="linkedin-logo" viewBox="0 0 24 24" role="img" aria-hidden="true">
+                  <path
+                    d="M19 3A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H19ZM8.6 10.4H6.2V17H8.6V10.4ZM8.8 7.95C8.8 7.17 8.19 6.6 7.4 6.6C6.6 6.6 6 7.17 6 7.95C6 8.72 6.6 9.3 7.4 9.3C8.19 9.3 8.8 8.72 8.8 7.95ZM18 13.35C18 11.35 16.9 10.2 15.2 10.2C14.23 10.2 13.64 10.73 13.35 11.1V10.4H11V17H13.4V13.75C13.4 12.9 13.56 12.08 14.62 12.08C15.66 12.08 15.67 13.05 15.67 13.8V17H18V13.35Z"
+                  />
+                </svg>
+                <span *ngIf="isSidebarOpen">LinkedIn</span>
+              </a>
+            </div>
+          </div>
         </aside>
 
         <button
@@ -135,30 +168,6 @@ import { ThemeService } from './core/services/theme.service';
       </main>
     </ng-template>
 
-    <footer class="app-signature" *ngIf="showAppChrome" aria-label="Application signature">
-      <span class="signature-main">
-        <span class="signature-label">Created by</span>
-        <span class="signature-name">BENHAMED Walid</span>
-      </span>
-      <span class="signature-hint">
-        <span class="signature-role">Product configuration & Data Profile |<br />CPQ specialist &#64; Legrand</span>
-        <a
-          class="signature-profile-link"
-          href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Take a look into my profile"
-          aria-label="Take a look into my profile on LinkedIn"
-        >
-          <svg class="linkedin-logo" viewBox="0 0 24 24" role="img" aria-hidden="true">
-            <path
-              d="M19 3A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H19ZM8.6 10.4H6.2V17H8.6V10.4ZM8.8 7.95C8.8 7.17 8.19 6.6 7.4 6.6C6.6 6.6 6 7.17 6 7.95C6 8.72 6.6 9.3 7.4 9.3C8.19 9.3 8.8 8.72 8.8 7.95ZM18 13.35C18 11.35 16.9 10.2 15.2 10.2C14.23 10.2 13.64 10.73 13.35 11.1V10.4H11V17H13.4V13.75C13.4 12.9 13.56 12.08 14.62 12.08C15.66 12.08 15.67 13.05 15.67 13.8V17H18V13.35Z"
-            />
-          </svg>
-          <span>Take a look into my profile</span>
-        </a>
-      </span>
-    </footer>
   `,
   styles: [`
     .app-shell {
@@ -178,30 +187,11 @@ import { ThemeService } from './core/services/theme.service';
     .spacer { flex: 1; }
     .sign-in-link { border-radius: 999px; }
 
-    .theme-toggle-fab {
-      position: fixed;
-      left: 16px;
-      bottom: 16px;
-      z-index: 180;
-      width: auto;
-      min-width: 0;
-      padding: 0 14px;
-      border-radius: 999px;
-      background: var(--app-surface-elevated);
-      color: var(--app-text);
-      border: 1px solid var(--app-border);
-      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
-    }
-    .theme-toggle-fab mat-icon {
-      margin-right: 6px;
-    }
-
     .shell-body {
       display: grid;
       grid-template-columns: 240px minmax(0, 1fr);
       align-items: start;
       min-height: calc(100vh - 64px);
-      transition: grid-template-columns 0.24s ease;
     }
     .shell-body--collapsed {
       grid-template-columns: 84px minmax(0, 1fr);
@@ -214,11 +204,11 @@ import { ThemeService } from './core/services/theme.service';
       border-right: 1px solid var(--app-border);
       background: var(--app-sidebar-bg);
       padding: 12px;
-      display: grid;
-      align-content: start;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
       gap: 8px;
       overflow: hidden;
-      transition: width 0.24s ease, padding 0.24s ease;
       z-index: 110;
     }
 
@@ -255,6 +245,14 @@ import { ThemeService } from './core/services/theme.service';
       padding: 0;
     }
 
+    .side-link--settings {
+      margin-top: 4px;
+    }
+
+    .side-link--settings mat-icon {
+      color: var(--app-accent);
+    }
+
     .side-link--active {
       background: linear-gradient(180deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.24));
       color: var(--app-accent);
@@ -262,6 +260,145 @@ import { ThemeService } from './core/services/theme.service';
 
     .side-link--active mat-icon {
       color: var(--app-accent);
+    }
+
+    .side-nav-footer {
+      margin-top: auto;
+      padding-top: 12px;
+    }
+
+    .signature-card {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      grid-template-areas:
+        "mark copy"
+        "mark link";
+      column-gap: 10px;
+      row-gap: 4px;
+      padding: 12px 8px 0;
+      margin: 0 4px 4px;
+      border-top: 1px solid var(--app-border);
+      border-radius: 0;
+      background: transparent;
+      color: var(--app-text);
+    }
+
+    .signature-card--collapsed {
+      grid-template-areas: "mark link";
+      align-items: center;
+      padding: 12px 8px 0;
+    }
+
+    .signature-mark {
+      grid-area: mark;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(37, 99, 235, 0.14);
+      color: var(--app-accent);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      flex: 0 0 auto;
+    }
+
+    .signature-copy {
+      grid-area: copy;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .signature-label {
+      color: var(--app-text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      line-height: 1;
+    }
+
+    .signature-name {
+      color: var(--app-text);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.15;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    .signature-role {
+      color: var(--app-text-muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .signature-profile-link {
+      grid-area: link;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--app-accent);
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .signature-profile-link:hover,
+    .signature-profile-link:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+
+    .signature-card--collapsed .signature-profile-link {
+      justify-content: center;
+    }
+
+    .signature-card--collapsed .signature-profile-link span {
+      display: none;
+    }
+
+    .signature-card .linkedin-logo {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      flex: 0 0 auto;
+    }
+
+    html.theme-dark .signature-card {
+      background: transparent;
+      border-top-color: rgba(148, 163, 184, 0.22);
+    }
+
+    html.theme-dark .signature-mark {
+      background: rgba(126, 162, 255, 0.16);
+      color: #93c5fd;
+    }
+
+    html.theme-dark .signature-label,
+    html.theme-dark .signature-role {
+      color: #94a3b8;
+    }
+
+    html.theme-dark .signature-name {
+      color: #e2e8f0;
+    }
+
+    html.theme-dark .signature-profile-link {
+      color: #93c5fd;
+    }
+
+    html.theme-dark .signature-profile-link:hover,
+    html.theme-dark .signature-profile-link:focus-visible {
+      color: #bfdbfe;
     }
 
     .page-content {
@@ -283,138 +420,6 @@ import { ThemeService } from './core/services/theme.service';
     }
 
     .active-link { background: rgba(255,255,255,0.15); border-radius: 6px; }
-    .app-signature {
-      position: fixed;
-      right: 20px;
-      bottom: 0;
-      z-index: 90;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 0;
-      padding: 14px 16px;
-      width: max-content;
-      max-width: calc(100vw - 20px);
-      border-radius: 12px 12px 0 0;
-      border: 1px solid var(--app-border);
-      border-bottom: 0;
-      background: var(--app-surface-elevated);
-      backdrop-filter: blur(6px);
-      color: var(--app-text);
-      font-size: 15px;
-      letter-spacing: 0;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-      transform-origin: bottom right;
-      overflow: visible;
-      animation: signature-pop-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.25s ease;
-    }
-    .app-signature:hover {
-      transform: translateY(-18px);
-      border-color: rgba(100, 116, 139, 0.55);
-      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
-    }
-    .signature-main {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 10px;
-      white-space: nowrap;
-      width: max-content;
-    }
-    .signature-label {
-      color: var(--app-text-muted);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      font-size: 11px;
-      line-height: 1;
-    }
-    .signature-name {
-      color: var(--app-text);
-      font-weight: 700;
-      letter-spacing: 0.2px;
-      font-size: 19px;
-      white-space: nowrap;
-      line-height: 1;
-    }
-    .signature-hint {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      justify-content: flex-start;
-      gap: 8px;
-      width: 100%;
-      min-width: 0;
-      color: var(--app-text);
-      font-size: 13px;
-      font-weight: 500;
-      text-align: left;
-      opacity: 0;
-      pointer-events: none;
-      max-height: 0;
-      margin-top: 0;
-      padding-top: 0;
-      overflow: hidden;
-      white-space: normal;
-      border-top: 1px solid transparent;
-      transition: opacity 0.2s ease, max-height 0.28s ease, margin-top 0.28s ease, padding-top 0.28s ease, border-color 0.28s ease;
-    }
-    .signature-role {
-      color: var(--app-text-muted);
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1.3;
-      max-width: 34ch;
-      overflow-wrap: anywhere;
-    }
-    .signature-profile-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: flex-start;
-      flex-wrap: wrap;
-      gap: 6px;
-      color: #0a66c2;
-      font-size: 12px;
-      font-weight: 700;
-      text-decoration: none;
-      border-bottom: 1px solid transparent;
-      transition: color 0.2s ease, border-color 0.2s ease;
-      max-width: 100%;
-      overflow-wrap: anywhere;
-    }
-    .signature-profile-link:hover,
-    .signature-profile-link:focus-visible {
-      color: #084c94;
-      border-bottom-color: rgba(8, 76, 148, 0.45);
-      outline: none;
-    }
-    .linkedin-logo {
-      width: 16px;
-      height: 16px;
-      fill: var(--app-accent);
-      flex: 0 0 auto;
-    }
-    .app-signature:hover .signature-hint,
-    .app-signature:focus-within .signature-hint {
-      opacity: 1;
-      pointer-events: auto;
-      max-height: 120px;
-      margin-top: 7px;
-      padding-top: 8px;
-      border-top-color: rgba(148, 163, 184, 0.35);
-    }
-    @keyframes signature-pop-in {
-      0% {
-        opacity: 0;
-        transform: translateY(12px) scale(0.94);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
     @media (max-width: 768px) {
       .top-toolbar { padding: 0 8px; }
       .brand { font-size: 15px; gap: 6px; }
@@ -429,11 +434,12 @@ import { ThemeService } from './core/services/theme.service';
         position: fixed;
         top: 56px;
         left: 0;
-        min-height: calc(100vh - 56px);
+        height: calc(100vh - 56px);
         width: 260px;
         transform: translateX(-110%);
         transition: transform 0.24s ease;
         box-shadow: 0 8px 26px rgba(15, 23, 42, 0.2);
+        overflow-y: auto;
       }
 
       .shell-body--mobile-open .side-nav {
@@ -451,38 +457,13 @@ import { ThemeService } from './core/services/theme.service';
 
       .page-content { margin: 14px auto 78px; padding: 0 10px; }
 
-      .app-signature {
-        right: 8px;
-        bottom: 8px;
-        padding: 7px 10px;
-        border-radius: 999px;
-        max-width: calc(100vw - 16px);
-        border: 1px solid var(--app-border);
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
-        backdrop-filter: blur(4px);
-      }
-      .app-signature:hover {
-        transform: none;
-        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
-      }
-      .signature-main {
-        gap: 6px;
-      }
-      .signature-label {
-        display: inline;
-        font-size: 10px;
-        letter-spacing: 0.4px;
-      }
-      .signature-name {
-        font-size: 13px;
-        letter-spacing: 0;
-      }
-      .signature-hint {
-        display: none;
+      .side-nav-footer {
+        margin-top: auto;
+        padding-top: 12px;
       }
 
-      .app-signature:focus-within {
-        border-color: rgba(100, 116, 139, 0.6);
+      .signature-card {
+        padding: 10px 12px;
       }
     }
   `]
@@ -516,6 +497,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.themeService.currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   }
 
+  get themeLabel(): string {
+    return this.themeService.currentTheme === 'dark' ? 'Light mode' : 'Dark mode';
+  }
+
   get navToggleIcon(): string {
     if (this.isMobile) {
       return this.isMobileSidebarOpen ? 'close' : 'menu';
@@ -534,6 +519,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.themeService.initialize();
+    this.syncThemeForRoute();
 
     if (isLocalAuthMode()) {
       this.auth.initializeLocalSession();
@@ -548,6 +534,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routeSub = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event) => {
+        this.syncThemeForRoute();
+
         if (this.isMobile) {
           this.isMobileSidebarOpen = false;
         }
@@ -590,5 +578,16 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.isMobile) {
       this.isMobileSidebarOpen = false;
     }
+  }
+
+  private syncThemeForRoute(): void {
+    const isAuthRoute = this.router.url.startsWith('/login') || this.router.url.startsWith('/register');
+
+    if (isAuthRoute) {
+      this.themeService.applyTheme('light');
+      return;
+    }
+
+    this.themeService.applyTheme(this.themeService.currentTheme);
   }
 }

@@ -117,6 +117,106 @@ html.theme-dark .mat-mdc-menu-content {
   background-color: rgba(15, 23, 42, 0.82) !important;
 }
 
+html.theme-dark .user-menu-panel.mat-mdc-menu-panel,
+html.theme-dark .user-menu-panel .mdc-menu-surface {
+  background: linear-gradient(180deg, rgba(17, 28, 53, 0.98), rgba(9, 16, 33, 0.98)) !important;
+  border: 1px solid rgba(126, 162, 255, 0.22) !important;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-content {
+  background: transparent !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .mat-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .material-icons,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .material-symbols-outlined,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item svg {
+  color: inherit !important;
+  fill: currentColor !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .mat-icon-no-color,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .mat-mdc-menu-submenu-icon {
+  color: #e2e8f0 !important;
+  fill: currentColor !important;
+}
+
+html.theme-dark .user-menu-panel {
+  --mat-menu-item-label-text-color: #f8fafc;
+  --mat-menu-item-icon-color: #93c5fd;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[disabled],
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[aria-disabled='true'],
+html.theme-dark .user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled {
+  opacity: 1 !important;
+  color: #94a3b8 !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[disabled] .mat-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .mat-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .mat-icon {
+  color: #7ea2ff !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[disabled] .mat-icon-no-color,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .mat-icon-no-color,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .mat-icon-no-color,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[disabled] .mat-mdc-menu-submenu-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .mat-mdc-menu-submenu-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .mat-mdc-menu-submenu-icon {
+  color: #7ea2ff !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item:not([disabled]):hover {
+  background: rgba(126, 162, 255, 0.14) !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item:not([disabled]) {
+  font-weight: 700;
+  color: #f8fafc !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .mat-mdc-menu-item-text {
+  color: inherit !important;
+}
+
+html.theme-dark .user-menu-panel .user-menu-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .mat-icon-no-color,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item .mat-mdc-menu-submenu-icon {
+  color: #e2e8f0 !important;
+  opacity: 1 !important;
+}
+
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[disabled] .user-menu-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .user-menu-icon,
+html.theme-dark .user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .user-menu-icon {
+  color: #94a3b8 !important;
+}
+
+.user-menu-panel .user-menu-icon,
+.user-menu-panel .mat-mdc-menu-item .mat-icon-no-color,
+.user-menu-panel .mat-mdc-menu-item .mat-mdc-menu-submenu-icon {
+  color: rgba(15, 23, 42, 0.78);
+}
+
+.user-menu-panel .mat-mdc-menu-item[disabled] .user-menu-icon,
+.user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .user-menu-icon,
+.user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .user-menu-icon,
+.user-menu-panel .mat-mdc-menu-item[disabled] .mat-icon-no-color,
+.user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .mat-icon-no-color,
+.user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .mat-icon-no-color,
+.user-menu-panel .mat-mdc-menu-item[disabled] .mat-mdc-menu-submenu-icon,
+.user-menu-panel .mat-mdc-menu-item[aria-disabled='true'] .mat-mdc-menu-submenu-icon,
+.user-menu-panel .mat-mdc-menu-item.mat-mdc-menu-item-disabled .mat-mdc-menu-submenu-icon {
+  color: rgba(15, 23, 42, 0.45);
+}
+
 html.theme-dark .mat-mdc-form-field-outline,
 html.theme-dark .mdc-notched-outline__leading,
 html.theme-dark .mdc-notched-outline__notch,

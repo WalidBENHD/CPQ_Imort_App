@@ -72,9 +72,20 @@ export class ThemeService {
     this.applyTheme(theme);
   }
 
+  applyTheme(theme: ThemeMode): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const root = document.documentElement;
+    root.classList.toggle('theme-dark', theme === 'dark');
+    root.classList.toggle('theme-light', theme === 'light');
+    root.dataset['theme'] = theme;
+  }
+
   private resolvePreference(): ThemePreference {
     if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-      return 'system';
+      return 'light';
     }
 
     const stored = localStorage.getItem(this.storageKey);
@@ -82,7 +93,7 @@ export class ThemeService {
       return stored;
     }
 
-    return 'system';
+    return 'light';
   }
 
   private resolveTheme(): ThemeMode {
@@ -98,14 +109,4 @@ export class ThemeService {
     return 'light';
   }
 
-  private applyTheme(theme: ThemeMode): void {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    const root = document.documentElement;
-    root.classList.toggle('theme-dark', theme === 'dark');
-    root.classList.toggle('theme-light', theme === 'light');
-    root.dataset['theme'] = theme;
-  }
 }
