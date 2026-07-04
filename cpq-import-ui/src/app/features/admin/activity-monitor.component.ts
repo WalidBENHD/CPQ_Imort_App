@@ -257,6 +257,14 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
     .summary-card.auth { border-top-color: #0f766e; }
     .summary-card.import { border-top-color: #7c3aed; }
     .summary-card.error { border-top-color: #dc2626; }
+    .summary-card.total mat-icon { color: #2563eb; }
+    .summary-card.auth mat-icon { color: #0f766e; }
+    .summary-card.import mat-icon { color: #7c3aed; }
+    .summary-card.error mat-icon { color: #dc2626; }
+    .summary-card.total .summary-main mat-icon { color: #2563eb; }
+    .summary-card.auth .summary-main mat-icon { color: #0f766e; }
+    .summary-card.import .summary-main mat-icon { color: #7c3aed; }
+    .summary-card.error .summary-main mat-icon { color: #dc2626; }
 
     .panel { padding: 16px; border: 1px solid #e2e8f0; box-shadow: none; border-radius: 12px; }
 

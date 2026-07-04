@@ -360,6 +360,70 @@ html.theme-dark app-dashboard .connection-badge {
   border-color: var(--app-border) !important;
 }
 
+html.theme-dark app-dashboard .summary-card.awaiting {
+  border-top-color: #f59e0b !important;
+}
+
+html.theme-dark app-dashboard .summary-card.committed {
+  border-top-color: #16a34a !important;
+}
+
+html.theme-dark app-dashboard .summary-card.rejected {
+  border-top-color: #dc2626 !important;
+}
+
+html.theme-dark app-dashboard .summary-card.total {
+  border-top-color: #2563eb !important;
+}
+
+html.theme-dark app-dashboard .summary-card.awaiting mat-icon {
+  color: #f59e0b !important;
+}
+
+html.theme-dark app-dashboard .summary-card.committed mat-icon {
+  color: #16a34a !important;
+}
+
+html.theme-dark app-dashboard .summary-card.rejected mat-icon {
+  color: #dc2626 !important;
+}
+
+html.theme-dark app-dashboard .summary-card.total mat-icon {
+  color: #2563eb !important;
+}
+
+html.theme-dark app-user-approval .summary-card.pending {
+  border-top-color: #f59e0b !important;
+}
+
+html.theme-dark app-user-approval .summary-card.approved {
+  border-top-color: #16a34a !important;
+}
+
+html.theme-dark app-user-approval .summary-card.admins {
+  border-top-color: #2563eb !important;
+}
+
+html.theme-dark app-user-approval .summary-card.total {
+  border-top-color: #64748b !important;
+}
+
+html.theme-dark app-user-approval .summary-card.pending mat-icon {
+  color: #f59e0b !important;
+}
+
+html.theme-dark app-user-approval .summary-card.approved mat-icon {
+  color: #16a34a !important;
+}
+
+html.theme-dark app-user-approval .summary-card.admins mat-icon {
+  color: #2563eb !important;
+}
+
+html.theme-dark app-user-approval .summary-card.total mat-icon {
+  color: #64748b !important;
+}
+
 html.theme-dark app-datasets .dataset-card,
 html.theme-dark app-datasets .dataset-meta-item,
 html.theme-dark app-datasets .dataset-requirements,
@@ -789,6 +853,56 @@ html.theme-dark app-activity-monitor .chip-category {
   color: #93c5fd;
   border-color: rgba(59, 130, 246, 0.42);
 }
+
+html.theme-dark app-activity-monitor .hide-mine-toggle {
+  --mdc-checkbox-selected-icon-color: var(--app-accent);
+  --mdc-checkbox-selected-hover-icon-color: var(--app-accent);
+  --mdc-checkbox-selected-focus-icon-color: var(--app-accent);
+  --mdc-checkbox-selected-pressed-icon-color: var(--app-accent);
+  --mdc-checkbox-selected-checkmark-color: #ffffff;
+  --mdc-checkbox-unselected-icon-color: rgba(148, 163, 184, 0.48);
+  --mdc-checkbox-unselected-hover-icon-color: rgba(148, 163, 184, 0.68);
+  --mdc-checkbox-unselected-focus-icon-color: rgba(148, 163, 184, 0.68);
+  --mdc-checkbox-unselected-pressed-icon-color: rgba(148, 163, 184, 0.78);
+  color: var(--app-text-muted);
+}
+
+html.theme-dark app-activity-monitor .hide-mine-toggle .mdc-label {
+  color: var(--app-text-muted);
+}
+
+html.theme-dark app-activity-monitor .summary-card.total {
+  border-top-color: #2563eb !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.auth {
+  border-top-color: #0f766e !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.import {
+  border-top-color: #7c3aed !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.error {
+  border-top-color: #dc2626 !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.total mat-icon {
+  color: #2563eb !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.auth mat-icon {
+  color: #0f766e !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.import mat-icon {
+  color: #7c3aed !important;
+}
+
+html.theme-dark app-activity-monitor .summary-card.error mat-icon {
+  color: #dc2626 !important;
+}
+
 html.theme-dark app-activity-monitor .status-chip {
   background: rgba(148, 163, 184, 0.18);
   color: #cbd5e1;
