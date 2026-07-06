@@ -144,7 +144,7 @@ import { parseEvolisPresentation } from './evolis-parser';
           <div>
             <div class="eyebrow">Detailed result</div>
             <h2>All table rows</h2>
-            <p>Use the full width below for long files, with each table grouped and totals shown at row and table level.</p>
+            <p>Review the decrypted tables and row-level totals below.</p>
           </div>
           <div class="details-summary" *ngIf="presentation">
             <span>Grand total</span>
