@@ -181,22 +181,29 @@ import { parseEvolisPresentation } from './evolis-parser';
                 <h4>Standard rows</h4>
                 <span>{{ table.lineRows.length }} items</span>
               </div>
-              <table class="result-table">
-                <thead>
-                  <tr>
-                    <th>L</th>
-                    <th>Generic part number</th>
-                    <th>Quantity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let row of table.lineRows">
-                    <td>{{ row.type }}</td>
-                    <td>{{ row.quantity }}</td>
-                    <td>{{ row.genericPartNumber }}</td>
-                  </tr>
-                </tbody>
-              </table>
+                <div class="table-scroll">
+                  <table class="result-table result-table--standard">
+                    <colgroup>
+                      <col style="width: 6%" />
+                      <col style="width: 58%" />
+                      <col style="width: 36%" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>L</th>
+                        <th>Generic part number</th>
+                        <th>Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of table.lineRows">
+                        <td>{{ row.type }}</td>
+                        <td>{{ row.quantity }}</td>
+                        <td>{{ row.genericPartNumber }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
             </div>
 
             <div class="subtable" *ngIf="table.configuredRows.length > 0">
@@ -204,28 +211,38 @@ import { parseEvolisPresentation } from './evolis-parser';
                 <h4>Configured rows</h4>
                 <span>{{ table.configuredRows.length }} items</span>
               </div>
-              <table class="result-table">
-                <thead>
-                  <tr>
-                    <th>C</th>
-                    <th>Generic part number</th>
-                    <th>Quantity</th>
-                    <th>Description</th>
-                    <th>Unit price</th>
-                    <th>Total price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let row of table.configuredRows">
-                    <td>{{ row.type }}</td>
-                    <td>{{ row.genericPartNumber }}</td>
-                    <td>{{ row.quantity }}</td>
-                    <td>{{ row.description }}</td>
-                    <td>{{ row.unitPrice }}</td>
-                    <td class="total-cell">{{ row.totalPrice }}</td>
-                  </tr>
-                </tbody>
-              </table>
+                <div class="table-scroll">
+                  <table class="result-table result-table--configured">
+                    <colgroup>
+                      <col style="width: 4%" />
+                      <col style="width: 16%" />
+                      <col style="width: 8%" />
+                      <col style="width: 50%" />
+                      <col style="width: 11%" />
+                      <col style="width: 11%" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>C</th>
+                        <th>Generic part number</th>
+                        <th>Quantity</th>
+                        <th>Description</th>
+                        <th>Unit price</th>
+                        <th>Total price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let row of table.configuredRows">
+                        <td>{{ row.type }}</td>
+                        <td>{{ row.genericPartNumber }}</td>
+                        <td>{{ row.quantity }}</td>
+                        <td>{{ row.description }}</td>
+                        <td>{{ row.unitPrice }}</td>
+                        <td class="total-cell">{{ row.totalPrice }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
             </div>
           </div>
         </ng-container>
@@ -680,6 +697,16 @@ import { parseEvolisPresentation } from './evolis-parser';
       gap: 10px;
     }
 
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 16px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface);
+    }
+
     .subtable-head {
       display: flex;
       justify-content: space-between;
@@ -700,11 +727,18 @@ import { parseEvolisPresentation } from './evolis-parser';
 
     .result-table {
       width: 100%;
+      min-width: 100%;
+      table-layout: fixed;
       border-collapse: collapse;
-      overflow: hidden;
-      border-radius: 16px;
       background: var(--app-surface);
-      border: 1px solid var(--app-border);
+    }
+
+    .result-table--standard {
+      min-width: 100%;
+    }
+
+    .result-table--configured {
+      min-width: 100%;
     }
 
     .result-table thead th {
@@ -779,9 +813,16 @@ import { parseEvolisPresentation } from './evolis-parser';
         align-items: flex-start;
       }
 
-      .result-table {
-        display: block;
-        overflow-x: auto;
+      .table-scroll {
+        border-radius: 14px;
+      }
+
+      .result-table--standard {
+        min-width: 520px;
+      }
+
+      .result-table--configured {
+        min-width: 860px;
       }
     }
   `]
