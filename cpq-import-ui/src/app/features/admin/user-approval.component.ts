@@ -102,6 +102,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
             <mat-select formControlName="role">
               <mat-option value="cpq-user">cpq-user</mat-option>
               <mat-option value="cpq-approver">cpq-approver</mat-option>
+              <mat-option value="cpq-internal-tools">cpq-internal-tools</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -190,6 +191,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
               <mat-option value="all">All roles</mat-option>
               <mat-option value="cpq-user">cpq-user</mat-option>
               <mat-option value="cpq-approver">cpq-approver</mat-option>
+              <mat-option value="cpq-internal-tools">cpq-internal-tools</mat-option>
             </mat-select>
           </mat-form-field>
 
@@ -242,6 +244,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           <div class="actions" *ngIf="user.isApproved">
             <button mat-button class="role-action" color="primary" (click)="updateRole(user, 'cpq-user', user.isAdmin)">Set User</button>
             <button mat-button class="role-action" color="primary" (click)="updateRole(user, 'cpq-approver', user.isAdmin)">Set Approver</button>
+            <button mat-button class="role-action" color="primary" (click)="updateRole(user, 'cpq-internal-tools', user.isAdmin)">Set Internal Tools</button>
             <button mat-button class="role-action" (click)="updateRole(user, user.role, !user.isAdmin)">
               {{ user.isAdmin ? 'Revoke Admin' : 'Grant Admin' }}
             </button>

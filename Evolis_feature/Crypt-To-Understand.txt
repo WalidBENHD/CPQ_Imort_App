@@ -1,0 +1,92 @@
+
+public class CryptagePDB {
+	  public static String crypte(String pdb, String date, String idPanier)
+	  {
+	String output = "";
+	for (int i = 0; i < 12; i++)
+	    {
+	  int code = pdb.charAt(i) ^ date.charAt(i) ^ idPanier.charAt(i) ^ "123456789123".charAt(i);
+	  if (code < 100) {
+	    output = output + "0";
+	 }
+	  if (code < 10) {
+	    output = output + "0";
+	 }
+	  output = output + Integer.toString(code);
+	    }
+	return output;
+	  }
+
+public static void first()
+{
+	   String res1="";
+	   String res2="";
+	   String res3="";
+	   String res4="";
+	   String prix_base_mono_configure;
+	   String coding_date_mono_conf;
+	   String codding_numero_panier_mono_conf;
+/* 
+DECRYPTAGE 
+*/
+	   prix_base_mono_configure="0000490.4520";
+	   System.out.println("PDB:"+prix_base_mono_configure);
+	   coding_date_mono_conf="20150403"+"0000";
+	   System.out.println("DATE:"+coding_date_mono_conf);	   
+	   codding_numero_panier_mono_conf="LG150400172"+"0";
+	   System.out.println("PANIER:"+codding_numero_panier_mono_conf);	   
+	   res1=crypte(prix_base_mono_configure, coding_date_mono_conf, codding_numero_panier_mono_conf);
+	   System.out.println("CRYPTAGE:"+res1);
+/*		   127 117 003 004 001 015 007 021 012 003 002 003 */
+	   res2=String.valueOf(Character.toChars(127));
+	   res2=res2+String.valueOf(Character.toChars(117));
+	   res2=res2+String.valueOf(Character.toChars(3));
+	   res2=res2+String.valueOf(Character.toChars(4));
+	   res2=res2+String.valueOf(Character.toChars(1));
+	   res2=res2+String.valueOf(Character.toChars(15));
+	   res2=res2+String.valueOf(Character.toChars(7));
+	   res2=res2+String.valueOf(Character.toChars(21));
+	   res2=res2+String.valueOf(Character.toChars(12));
+	   res2=res2+String.valueOf(Character.toChars(3));
+	   res2=res2+String.valueOf(Character.toChars(2));
+	   res2=res2+String.valueOf(Character.toChars(3));
+
+/* 
+DECRYPTAGE 
+*/
+	   res3=crypte(coding_date_mono_conf, codding_numero_panier_mono_conf,res2);
+	   System.out.println("DE CRYPTAGE DU CHAR : 127 117 003 004 001 015 007 021 012 003 002 003:"+res3);
+/* Création de texte = 048 048 048 048 052 057 048 046 052 053 050 048*/ 
+	   res4=String.valueOf(Character.toChars(48));
+	   res4=res4+String.valueOf(Character.toChars(48));
+	   res4=res4+String.valueOf(Character.toChars(48));
+	   res4=res4+String.valueOf(Character.toChars(48));
+	   res4=res4+String.valueOf(Character.toChars(52));
+	   res4=res4+String.valueOf(Character.toChars(57));
+	   res4=res4+String.valueOf(Character.toChars(48));
+	   res4=res4+String.valueOf(Character.toChars(46));
+	   res4=res4+String.valueOf(Character.toChars(52));
+	   res4=res4+String.valueOf(Character.toChars(53));
+	   res4=res4+String.valueOf(Character.toChars(50));
+	   res4=res4+String.valueOf(Character.toChars(48));
+	   System.out.println("048 048 048 048 052 057 048 046 052 053 050 048="+res4);
+}
+
+	  public static void main (String[] args){
+		   System.out.println("DEBUT");
+		   first();		   
+		   System.out.println("FIN");
+	   }
+}
+
+
+
+===> The resulsut after execution :
+DEBUT
+PDB:0000490.4520
+DATE:201504030000
+PANIER:LG1504001720
+CRYPTAGE:127117003004001015007021012003002003
+DE CRYPTAGE DU CHAR : 127 117 003 004 001 015 007 021 012 003 002 003:048048048048052057048046052053050048
+048 048 048 048 052 057 048 046 052 053 050 048=0000490.4520
+FIN

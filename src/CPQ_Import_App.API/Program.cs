@@ -79,6 +79,7 @@ builder.Services.AddScoped<ICpqCommitStrategy, PriceListCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, DescriptionCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, CurrencyRateCommitStrategy>();
 builder.Services.AddScoped<LocalJwtTokenFactory>();
+builder.Services.AddScoped<IEvolisDecryptorService, EvolisDecryptorService>();
 
 // ── Authentication (JWT Bearer / OIDC) ────────────────────────────────────────
 // Configure your OIDC provider in appsettings.json under "Auth".
@@ -138,7 +139,14 @@ builder.Services.AddAuthorization(options =>
             ctx.User.HasClaim(c =>
                 (c.Type == "roles" || c.Type == "role" ||
                  c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                && (c.Value == "cpq-approver" || c.Value == "cpq-admin"))));
+                && (c.Value == "cpq-approver" || c.Value == "cpq-internal-tools" || c.Value == "cpq-admin"))));
+
+    options.AddPolicy("InternalToolsOnly", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.HasClaim(c =>
+                (c.Type == "roles" || c.Type == "role" ||
+                 c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                && (c.Value == "cpq-internal-tools" || c.Value == "cpq-admin"))));
 
     options.AddPolicy("AdminOnly", policy =>
         policy.RequireAssertion(ctx =>

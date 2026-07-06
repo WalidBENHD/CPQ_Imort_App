@@ -36,7 +36,7 @@ export const approverGuard: CanActivateFn = () => {
         if (!user) return router.parseUrl('/login');
         const tokenClaims = readAccessTokenClaims(localAuth.token);
         const roles = readRoles(tokenClaims);
-        if (roles.includes('cpq-approver') || roles.includes('cpq-admin')) return true;
+        if (roles.includes('cpq-approver') || roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
         return router.parseUrl('/forbidden');
       })
     );
@@ -54,7 +54,41 @@ export const approverGuard: CanActivateFn = () => {
   const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
   const claims = mergeClaims(identityClaims, accessTokenClaims);
   const roles = readRoles(claims);
-  if (roles.includes('cpq-approver')) return true;
+  if (roles.includes('cpq-approver') || roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
+
+  router.navigate(['/forbidden']);
+  return false;
+};
+
+export const internalToolsGuard: CanActivateFn = () => {
+  if (isLocalAuthMode()) {
+    const localAuth = inject(LocalAuthService);
+    const router = inject(Router);
+
+    return localAuth.ensureUserLoaded().pipe(
+      map((user) => {
+        if (!user) return router.parseUrl('/login');
+        const tokenClaims = readAccessTokenClaims(localAuth.token);
+        const roles = readRoles(tokenClaims);
+        if (roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
+        return router.parseUrl('/forbidden');
+      })
+    );
+  }
+
+  const oauthService = inject(OAuthService);
+  const router = inject(Router);
+
+  if (!oauthService.hasValidAccessToken()) {
+    oauthService.initCodeFlow();
+    return false;
+  }
+
+  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
+  const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
+  const claims = mergeClaims(identityClaims, accessTokenClaims);
+  const roles = readRoles(claims);
+  if (roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
 
   router.navigate(['/forbidden']);
   return false;

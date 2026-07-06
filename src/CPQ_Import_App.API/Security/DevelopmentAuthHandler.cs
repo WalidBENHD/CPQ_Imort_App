@@ -24,7 +24,8 @@ public sealed class DevelopmentAuthHandler : AuthenticationHandler<Authenticatio
             new Claim(ClaimTypes.NameIdentifier, "local-dev-user"),
             new Claim(ClaimTypes.Name, "Local Test User"),
             new Claim("name", "Local Test User"),
-            new Claim("roles", "cpq-approver")
+            new Claim("roles", "cpq-approver"),
+            new Claim("roles", "cpq-internal-tools")
         };
 
         var identity = new ClaimsIdentity(claims, SchemeName);

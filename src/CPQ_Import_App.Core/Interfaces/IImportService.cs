@@ -22,3 +22,8 @@ public interface IImportService
     Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default);
     Task<byte[]> GenerateErrorReportAsync(Guid jobId, CancellationToken ct = default);
 }
+
+public interface IEvolisDecryptorService
+{
+    Task<string> DecryptAsync(Stream input, CancellationToken ct = default);
+}

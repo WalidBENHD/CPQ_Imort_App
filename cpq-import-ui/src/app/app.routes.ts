@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard } from './core/auth/auth.guard';
+import { adminGuard, authGuard, internalToolsGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -29,6 +29,11 @@ export const routes: Routes = [
     path: 'uploads',
     canActivate: [authGuard],
     loadComponent: () => import('./features/uploads/uploads.component').then(m => m.UploadsComponent)
+  },
+  {
+    path: 'internal-tools/evolis-decryptor',
+    canActivate: [internalToolsGuard],
+    loadComponent: () => import('./features/internal-tools/evolis-decryptor.component').then(m => m.EvolisDecryptorComponent)
   },
   {
     path: 'import/new',

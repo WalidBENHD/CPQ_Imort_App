@@ -85,6 +85,25 @@ import { ThemeService } from './core/services/theme.service';
             <span *ngIf="isSidebarOpen">{{ item.label }}</span>
           </a>
 
+          <ng-container *ngIf="auth.isInternalTools">
+            <div class="nav-group-label" *ngIf="isSidebarOpen">Internal Tools</div>
+
+            <a
+              mat-button
+              class="side-link"
+              *ngFor="let item of internalToolsNavItems"
+              [routerLink]="item.route"
+              routerLinkActive="side-link--active"
+              [class.side-link--compact]="!isSidebarOpen"
+              [attr.aria-label]="item.label"
+              [matTooltip]="!isSidebarOpen ? item.label : ''"
+              (click)="onNavItemClick()"
+            >
+              <mat-icon>{{ item.icon }}</mat-icon>
+              <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+            </a>
+          </ng-container>
+
           <ng-container *ngIf="auth.isAdmin">
             <div class="nav-group-label" *ngIf="isSidebarOpen">Admin</div>
 
@@ -478,6 +497,10 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
     { route: '/admin/users', label: 'Admin Panel', icon: 'admin_panel_settings' },
     { route: '/admin/activity', label: 'Activity', icon: 'monitoring' }
+  ];
+
+  readonly internalToolsNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
+    { route: '/internal-tools/evolis-decryptor', label: 'Evolis Decryptor', icon: 'lock_open' }
   ];
 
   readonly auth = inject(AuthFacade);

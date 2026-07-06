@@ -54,11 +54,11 @@ export class AuthFacade {
     if (isLocalAuthMode()) {
       const tokenClaims = readAccessTokenClaims(this.localAuth.token);
       const tokenRoles = readRoles(tokenClaims);
-      return tokenRoles.includes('cpq-approver') || tokenRoles.includes('cpq-admin');
+      return tokenRoles.includes('cpq-approver') || tokenRoles.includes('cpq-internal-tools') || tokenRoles.includes('cpq-admin');
     }
 
     const roles = readRoles(this.mergedClaims);
-    return roles.includes('cpq-approver');
+    return roles.includes('cpq-approver') || roles.includes('cpq-internal-tools') || roles.includes('cpq-admin');
   }
 
   get isAdmin(): boolean {
@@ -70,6 +70,17 @@ export class AuthFacade {
 
     const roles = readRoles(this.mergedClaims);
     return roles.includes('cpq-admin');
+  }
+
+  get isInternalTools(): boolean {
+    if (isLocalAuthMode()) {
+      const tokenClaims = readAccessTokenClaims(this.localAuth.token);
+      const tokenRoles = readRoles(tokenClaims);
+      return tokenRoles.includes('cpq-internal-tools') || tokenRoles.includes('cpq-admin');
+    }
+
+    const roles = readRoles(this.mergedClaims);
+    return roles.includes('cpq-internal-tools') || roles.includes('cpq-admin');
   }
 
   get isAuthenticated(): boolean {
