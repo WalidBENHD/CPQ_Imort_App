@@ -109,6 +109,30 @@ import { parseEvolisPresentation } from './evolis-parser';
             </div>
           </div>
 
+          <div class="result-overview" *ngIf="presentation && presentation.tables.length > 0">
+            <div class="result-overview-head">
+              <h3>Table overview</h3>
+              <span>{{ presentation.tables.length }} tables</span>
+            </div>
+
+            <div class="result-overview-list">
+              <div class="overview-item" *ngFor="let table of presentation.tables">
+                <div class="overview-item-head">
+                  <strong>{{ table.title }}</strong>
+                  <span>{{ table.subtotal }}</span>
+                </div>
+                <div class="overview-item-meta">
+                  <span>{{ table.idPanier }}</span>
+                  <span>{{ formatTableDate(table.date) }}</span>
+                </div>
+                <div class="overview-item-stats">
+                  <span>{{ table.lineRows.length }} standard</span>
+                  <span>{{ table.configuredRows.length }} configured</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="result-empty-note" *ngIf="result && presentation && presentation.tables.length === 0">
             No table rows were detected in the uploaded file.
           </div>
@@ -161,8 +185,8 @@ import { parseEvolisPresentation } from './evolis-parser';
                 <thead>
                   <tr>
                     <th>L</th>
-                    <th>Quantity</th>
                     <th>Generic part number</th>
+                    <th>Quantity</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -278,13 +302,12 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .upload-panel {
-      height: auto;
+      height: 100%;
       overflow: visible;
     }
 
     .result-panel {
-      height: auto;
-      align-self: start;
+      height: 100%;
     }
 
     .upload-panel .dropzone,
@@ -292,6 +315,11 @@ import { parseEvolisPresentation } from './evolis-parser';
     .result-panel > .result-summary,
     .result-panel > .result-empty-note {
       flex: 0 0 auto;
+    }
+
+    .upload-panel .dropzone {
+      flex: 1 1 auto;
+      justify-content: space-between;
     }
 
     .dropzone {
@@ -428,6 +456,86 @@ import { parseEvolisPresentation } from './evolis-parser';
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 14px;
+    }
+
+    .result-overview {
+      margin-top: auto;
+      display: grid;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .result-overview-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .result-overview-head h3 {
+      margin: 0;
+      color: var(--app-text);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .result-overview-head span {
+      color: var(--app-text-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .result-overview-list {
+      display: grid;
+      gap: 10px;
+      max-height: 240px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .overview-item {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface);
+      display: grid;
+      gap: 8px;
+    }
+
+    .overview-item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    .overview-item-head strong {
+      color: var(--app-text);
+      font-size: 14px;
+      word-break: break-word;
+    }
+
+    .overview-item-head span {
+      color: var(--app-accent);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .overview-item-meta,
+    .overview-item-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      color: var(--app-text-muted);
+      font-size: 12px;
+    }
+
+    .overview-item-stats span {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.08);
+      color: var(--app-text);
+      font-weight: 700;
     }
 
     .summary-item {
@@ -748,13 +856,33 @@ export class EvolisDecryptorComponent {
       return;
     }
 
-    const blob = new Blob([this.result.content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = this.result.downloadFileName;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    this.decryptorService.downloadPdf(this.selectedFile!).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = this.result!.downloadFileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      },
+      error: (error) => {
+        const status = error?.status as number | undefined;
+        const backendMessage = error?.error?.error ?? error?.error?.message ?? error?.message;
+
+        if (status === 401 || status === 403) {
+          this.errorMessage = 'This tool is restricted to admins and the cpq-internal-tools role.';
+        }
+        else if (backendMessage) {
+          this.errorMessage = backendMessage;
+        }
+        else if (status) {
+          this.errorMessage = `Unable to generate the PDF document. Server returned ${status}.`;
+        }
+        else {
+          this.errorMessage = 'Unable to generate the PDF document.';
+        }
+      }
+    });
   }
 
   reset(): void {

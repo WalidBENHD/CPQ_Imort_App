@@ -7,14 +7,17 @@ using CPQ_Import_App.Infrastructure.Services;
 using CPQ_Import_App.API.Middleware;
 using CPQ_Import_App.API.Monitoring;
 using CPQ_Import_App.API.Security;
+using CPQ_Import_App.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = LicenseType.Community;
 var disableAuth = builder.Configuration.GetValue<bool>("Auth:DisableAuth");
 
 builder.Services.Configure<AppActivityTrackingOptions>(builder.Configuration.GetSection("ActivityTracking"));
@@ -80,6 +83,8 @@ builder.Services.AddScoped<ICpqCommitStrategy, DescriptionCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, CurrencyRateCommitStrategy>();
 builder.Services.AddScoped<LocalJwtTokenFactory>();
 builder.Services.AddScoped<IEvolisDecryptorService, EvolisDecryptorService>();
+builder.Services.AddScoped<EvolisWordDocumentBuilder>();
+builder.Services.AddScoped<EvolisPdfDocumentBuilder>();
 
 // ── Authentication (JWT Bearer / OIDC) ────────────────────────────────────────
 // Configure your OIDC provider in appsettings.json under "Auth".

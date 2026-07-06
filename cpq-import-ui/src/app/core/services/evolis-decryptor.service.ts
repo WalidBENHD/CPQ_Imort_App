@@ -15,4 +15,11 @@ export class EvolisDecryptorService {
 
     return this.http.post<EvolisDecryptResponse>(`${this.base}/decrypt`, form);
   }
+
+  downloadPdf(file: File): Observable<Blob> {
+    const form = new FormData();
+    form.append('file', file);
+
+    return this.http.post(`${this.base}/decrypt-pdf`, form, { responseType: 'blob' });
+  }
 }
