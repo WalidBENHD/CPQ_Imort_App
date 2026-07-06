@@ -18,7 +18,7 @@ import { parseEvolisPresentation } from './evolis-parser';
           <div class="eyebrow">Internal tools</div>
           <h1>Evolis Decryptor</h1>
           <p class="page-intro">
-            Upload an Evolis pricing file, decrypt the encrypted price field in each C row, and download the transformed result.
+            Upload an Evolis pricing file, decrypt it, and download the generated PDF report.
           </p>
         </div>
       </header>
@@ -34,7 +34,7 @@ import { parseEvolisPresentation } from './evolis-parser';
           >
             <mat-icon class="dropzone-icon">lock_open</mat-icon>
             <h2>Drop the encrypted file here</h2>
-            <p>Or choose a text file to decrypt. The parser preserves table structure and rewrites only encrypted prices.</p>
+            <p>Or choose a text file to decrypt and generate the PDF report.</p>
 
             <input #fileInput type="file" accept=".txt,text/plain" class="file-input" (change)="onFileSelected($event)" />
 
