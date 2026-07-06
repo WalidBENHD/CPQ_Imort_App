@@ -4,6 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.service';
+import { EvolisDecryptResponse, EvolisPresentation } from '../../core/models/evolis.models';
+import { parseEvolisPresentation } from './evolis-parser';
 
 @Component({
   selector: 'app-evolis-decryptor',
@@ -21,7 +23,7 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
         </div>
       </header>
 
-      <div class="layout-grid">
+      <div class="layout-grid layout-grid--summary">
         <mat-card class="panel upload-panel">
           <div
             class="dropzone"
@@ -80,7 +82,7 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
 
           <div class="result-state" *ngIf="!result && !processing">
             <mat-icon>info</mat-icon>
-            <p>The decrypted file will appear here after processing.</p>
+            <p>The result summary will appear here after processing.</p>
           </div>
 
           <div class="result-state result-state--loading" *ngIf="processing">
@@ -94,14 +96,116 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
               <span class="value">{{ result.sourceFileName }}</span>
             </div>
             <div class="summary-item">
+              <span class="label">Grand total</span>
+              <span class="value">{{ presentation?.grandTotal ?? '0.0000' }}</span>
+            </div>
+            <div class="summary-item">
               <span class="label">Output</span>
               <span class="value">{{ result.downloadFileName }}</span>
             </div>
+            <div class="summary-item">
+              <span class="label">Tables</span>
+              <span class="value">{{ presentation?.tables?.length ?? 0 }}</span>
+            </div>
           </div>
 
-          <pre class="result-preview" *ngIf="result">{{ result.content }}</pre>
+          <div class="result-empty-note" *ngIf="result && presentation && presentation.tables.length === 0">
+            No table rows were detected in the uploaded file.
+          </div>
         </mat-card>
       </div>
+
+      <mat-card class="panel details-panel">
+        <div class="details-head">
+          <div>
+            <div class="eyebrow">Detailed result</div>
+            <h2>All table rows</h2>
+            <p>Use the full width below for long files, with each table grouped and totals shown at row and table level.</p>
+          </div>
+          <div class="details-summary" *ngIf="presentation">
+            <span>Grand total</span>
+            <strong>{{ presentation.grandTotal }}</strong>
+          </div>
+        </div>
+
+        <div class="result-state" *ngIf="!result && !processing">
+          <mat-icon>info</mat-icon>
+          <p>The detailed row breakdown will appear here after processing.</p>
+        </div>
+
+        <div class="result-state result-state--loading" *ngIf="processing">
+          <mat-icon>hourglass_top</mat-icon>
+          <p>Decrypting the file now.</p>
+        </div>
+
+        <ng-container *ngIf="presentation">
+          <div class="table-section" *ngFor="let table of presentation.tables">
+            <div class="table-section-head">
+              <div>
+                <div class="eyebrow eyebrow--soft">{{ table.title }}</div>
+                <h3>{{ table.idPanier }}</h3>
+                <p>{{ formatTableDate(table.date) }}</p>
+              </div>
+              <div class="table-summary">
+                <span>Subtotal</span>
+                <strong>{{ table.subtotal }}</strong>
+              </div>
+            </div>
+
+            <div class="subtable" *ngIf="table.lineRows.length > 0">
+              <div class="subtable-head">
+                <h4>Standard rows</h4>
+                <span>{{ table.lineRows.length }} items</span>
+              </div>
+              <table class="result-table">
+                <thead>
+                  <tr>
+                    <th>L</th>
+                    <th>Quantity</th>
+                    <th>Generic part number</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of table.lineRows">
+                    <td>{{ row.type }}</td>
+                    <td>{{ row.quantity }}</td>
+                    <td>{{ row.genericPartNumber }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="subtable" *ngIf="table.configuredRows.length > 0">
+              <div class="subtable-head">
+                <h4>Configured rows</h4>
+                <span>{{ table.configuredRows.length }} items</span>
+              </div>
+              <table class="result-table">
+                <thead>
+                  <tr>
+                    <th>C</th>
+                    <th>Generic part number</th>
+                    <th>Quantity</th>
+                    <th>Description</th>
+                    <th>Unit price</th>
+                    <th>Total price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of table.configuredRows">
+                    <td>{{ row.type }}</td>
+                    <td>{{ row.genericPartNumber }}</td>
+                    <td>{{ row.quantity }}</td>
+                    <td>{{ row.description }}</td>
+                    <td>{{ row.unitPrice }}</td>
+                    <td class="total-cell">{{ row.totalPrice }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </ng-container>
+      </mat-card>
     </section>
   `,
   styles: [`
@@ -152,7 +256,11 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
       gap: 16px;
-      align-items: start;
+      align-items: stretch;
+    }
+
+    .layout-grid--summary {
+      margin-bottom: 16px;
     }
 
     .panel {
@@ -165,6 +273,25 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
     .upload-panel,
     .result-panel {
       padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .upload-panel {
+      height: auto;
+      overflow: visible;
+    }
+
+    .result-panel {
+      height: auto;
+      align-self: start;
+    }
+
+    .upload-panel .dropzone,
+    .result-panel > .result-head,
+    .result-panel > .result-summary,
+    .result-panel > .result-empty-note {
+      flex: 0 0 auto;
     }
 
     .dropzone {
@@ -298,7 +425,7 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
 
     .result-summary {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 14px;
     }
@@ -326,20 +453,179 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
       word-break: break-word;
     }
 
-    .result-preview {
-      margin: 0;
-      padding: 16px;
-      min-height: 260px;
-      max-height: 60vh;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      border-radius: 18px;
-      background: #0f172a;
-      color: #e2e8f0;
-      border: 1px solid rgba(15, 23, 42, 0.18);
-      font-size: 12.5px;
+    .result-empty-note {
+      margin-top: 8px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(59, 130, 246, 0.08);
+      color: var(--app-text-muted);
+      font-size: 13px;
+      border: 1px solid rgba(59, 130, 246, 0.14);
+    }
+
+    .details-panel {
+      padding: 20px;
+    }
+
+    .details-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .details-head h2 {
+      font-size: 22px;
+      margin-top: 0;
+    }
+
+    .details-head p {
+      margin: 8px 0 0;
+      color: var(--app-text-muted);
       line-height: 1.55;
+      max-width: 900px;
+    }
+
+    .details-summary {
+      min-width: 180px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface);
+      display: grid;
+      gap: 4px;
+      justify-items: start;
+    }
+
+    .details-summary span {
+      color: var(--app-text-muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .details-summary strong {
+      color: var(--app-text);
+      font-size: 20px;
+    }
+
+    .table-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--app-border);
+      display: grid;
+      gap: 14px;
+    }
+
+    .table-section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .table-section-head h3 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--app-text);
+    }
+
+    .table-section-head p {
+      margin: 4px 0 0;
+      color: var(--app-text-muted);
+      font-size: 13px;
+    }
+
+    .eyebrow--soft {
+      margin-bottom: 4px;
+      color: #60a5fa;
+    }
+
+    .table-summary {
+      min-width: 140px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--app-border);
+      background: var(--app-surface);
+      display: grid;
+      gap: 4px;
+      justify-items: start;
+    }
+
+    .table-summary span {
+      color: var(--app-text-muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .table-summary strong {
+      color: var(--app-text);
+      font-size: 18px;
+    }
+
+    .subtable {
+      display: grid;
+      gap: 10px;
+    }
+
+    .subtable-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .subtable-head h4 {
+      margin: 0;
+      color: var(--app-text);
+      font-size: 15px;
+    }
+
+    .subtable-head span {
+      color: var(--app-text-muted);
+      font-size: 12px;
+    }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 16px;
+      background: var(--app-surface);
+      border: 1px solid var(--app-border);
+    }
+
+    .result-table thead th {
+      background: rgba(59, 130, 246, 0.08);
+      color: var(--app-text);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: left;
+      padding: 12px 14px;
+      white-space: nowrap;
+    }
+
+    .result-table tbody td {
+      padding: 12px 14px;
+      border-top: 1px solid var(--app-border);
+      color: var(--app-text);
+      vertical-align: top;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .result-table tbody tr:hover td {
+      background: rgba(59, 130, 246, 0.03);
+    }
+
+    .total-cell {
+      font-weight: 800;
+      color: var(--app-accent);
     }
 
     @media (max-width: 1024px) {
@@ -355,8 +641,19 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
         flex-direction: column;
       }
 
+      .details-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
       .upload-panel,
       .result-panel {
+        padding: 16px;
+        height: auto;
+        overflow: visible;
+      }
+
+      .details-panel {
         padding: 16px;
       }
 
@@ -365,7 +662,18 @@ import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.ser
       }
 
       .result-summary {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .table-section-head,
+      .subtable-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .result-table {
+        display: block;
+        overflow-x: auto;
       }
     }
   `]
@@ -376,7 +684,8 @@ export class EvolisDecryptorComponent {
   dragActive = false;
   processing = false;
   errorMessage = '';
-  result: { sourceFileName: string; downloadFileName: string; content: string } | null = null;
+  result: EvolisDecryptResponse | null = null;
+  presentation: EvolisPresentation | null = null;
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
@@ -409,6 +718,7 @@ export class EvolisDecryptorComponent {
     this.decryptorService.decrypt(this.selectedFile).subscribe({
       next: (response) => {
         this.result = response;
+        this.presentation = parseEvolisPresentation(response.content);
         this.processing = false;
       },
       error: (error) => {
@@ -450,6 +760,7 @@ export class EvolisDecryptorComponent {
   reset(): void {
     this.selectedFile = null;
     this.result = null;
+    this.presentation = null;
     this.errorMessage = '';
     this.processing = false;
 
@@ -465,6 +776,15 @@ export class EvolisDecryptorComponent {
 
     this.selectedFile = file;
     this.result = null;
+    this.presentation = null;
     this.errorMessage = '';
+  }
+
+  formatTableDate(value: string): string {
+    if (value.length !== 8) {
+      return value;
+    }
+
+    return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
   }
 }
