@@ -167,86 +167,110 @@ import { parseEvolisPresentation } from './evolis-parser';
         </div>
 
         <ng-container *ngIf="presentation">
-          <div class="table-section" *ngFor="let table of presentation.tables">
+          <div class="table-section" *ngFor="let table of presentation.tables; let i = index">
             <div class="table-section-head">
-              <div>
+              <div class="table-section-copy">
                 <div class="eyebrow eyebrow--soft">{{ table.title }}</div>
                 <h3>{{ table.idPanier }}</h3>
                 <p>{{ formatTableDate(table.date) }}</p>
+                <div class="table-section-metas">
+                  <span>{{ table.lineRows.length }} standard</span>
+                  <span>{{ table.configuredRows.length }} configured</span>
+                </div>
               </div>
-              <div class="table-summary">
-                <span>Subtotal</span>
-                <strong>{{ table.subtotal }}</strong>
+              <div class="table-section-actions">
+                <div class="table-summary">
+                  <span>Subtotal</span>
+                  <strong>{{ table.subtotal }}</strong>
+                </div>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="table-toggle"
+                  (click)="toggleTable(i)"
+                  [attr.aria-expanded]="isTableExpanded(i)"
+                  [attr.aria-controls]="'table-body-' + i">
+                  <mat-icon>{{ isTableExpanded(i) ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  {{ isTableExpanded(i) ? 'Hide rows' : 'Show rows' }}
+                </button>
               </div>
             </div>
 
-            <div class="subtable" *ngIf="table.lineRows.length > 0">
-              <div class="subtable-head">
-                <h4>Standard rows</h4>
-                <span>{{ table.lineRows.length }} items</span>
-              </div>
-                <div class="table-scroll">
-                  <table class="result-table result-table--standard">
-                    <colgroup>
-                      <col style="width: 6%" />
-                      <col style="width: 58%" />
-                      <col style="width: 36%" />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>L</th>
-                        <th>Generic part number</th>
-                        <th>Quantity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let row of table.lineRows">
-                        <td>{{ row.type }}</td>
-                        <td>{{ row.quantity }}</td>
-                        <td>{{ row.genericPartNumber }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+            <div class="table-section-body" [class.expanded]="isTableExpanded(i)" [attr.id]="'table-body-' + i">
+              <div class="table-section-body-inner">
+                <div class="subtable" *ngIf="table.lineRows.length > 0">
+                  <div class="subtable-head">
+                    <h4>Standard rows</h4>
+                    <span>{{ table.lineRows.length }} items</span>
+                  </div>
+                  <div class="table-scroll">
+                    <table class="result-table result-table--standard">
+                      <colgroup>
+                        <col style="width: 6%" />
+                        <col style="width: 58%" />
+                        <col style="width: 36%" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>L</th>
+                          <th>Generic part number</th>
+                          <th>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let row of table.lineRows">
+                          <td>{{ row.type }}</td>
+                          <td>{{ row.quantity }}</td>
+                          <td>{{ row.genericPartNumber }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-            </div>
 
-            <div class="subtable" *ngIf="table.configuredRows.length > 0">
-              <div class="subtable-head">
-                <h4>Configured rows</h4>
-                <span>{{ table.configuredRows.length }} items</span>
-              </div>
-                <div class="table-scroll">
-                  <table class="result-table result-table--configured">
-                    <colgroup>
-                      <col style="width: 4%" />
-                      <col style="width: 16%" />
-                      <col style="width: 8%" />
-                      <col style="width: 50%" />
-                      <col style="width: 11%" />
-                      <col style="width: 11%" />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>C</th>
-                        <th>Generic part number</th>
-                        <th>Quantity</th>
-                        <th>Description</th>
-                        <th>Unit price</th>
-                        <th>Total price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let row of table.configuredRows">
-                        <td>{{ row.type }}</td>
-                        <td>{{ row.genericPartNumber }}</td>
-                        <td>{{ row.quantity }}</td>
-                        <td>{{ row.description }}</td>
-                        <td>{{ row.unitPrice }}</td>
-                        <td class="total-cell">{{ row.totalPrice }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div class="subtable" *ngIf="table.configuredRows.length > 0">
+                  <div class="subtable-head">
+                    <h4>Configured rows</h4>
+                    <span>{{ table.configuredRows.length }} items</span>
+                  </div>
+                  <div class="table-scroll">
+                    <table class="result-table result-table--configured">
+                      <colgroup>
+                        <col style="width: 4%" />
+                        <col style="width: 16%" />
+                        <col style="width: 8%" />
+                        <col style="width: 50%" />
+                        <col style="width: 11%" />
+                        <col style="width: 11%" />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>C</th>
+                          <th>Generic part number</th>
+                          <th>Quantity</th>
+                          <th>Description</th>
+                          <th>Unit price</th>
+                          <th>Total price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let row of table.configuredRows">
+                          <td>{{ row.type }}</td>
+                          <td>{{ row.genericPartNumber }}</td>
+                          <td>{{ row.quantity }}</td>
+                          <td>{{ row.description }}</td>
+                          <td>{{ row.unitPrice }}</td>
+                          <td class="total-cell">{{ row.totalPrice }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+
+                <div class="table-empty-note" *ngIf="table.lineRows.length === 0 && table.configuredRows.length === 0">
+                  No detailed rows were detected for this table.
+                </div>
+              </div>
             </div>
           </div>
         </ng-container>
@@ -879,6 +903,7 @@ export class EvolisDecryptorComponent {
   presentation: EvolisPresentation | null = null;
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
+  private readonly expandedTables = new Set<number>();
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -910,6 +935,7 @@ export class EvolisDecryptorComponent {
       next: (response) => {
         this.result = response;
         this.presentation = parseEvolisPresentation(response.content);
+        this.expandedTables.clear();
         this.processing = false;
       },
       error: (error) => {
@@ -974,6 +1000,7 @@ export class EvolisDecryptorComponent {
     this.presentation = null;
     this.errorMessage = '';
     this.processing = false;
+    this.expandedTables.clear();
 
     if (this.fileInput?.nativeElement) {
       this.fileInput.nativeElement.value = '';
@@ -989,6 +1016,20 @@ export class EvolisDecryptorComponent {
     this.result = null;
     this.presentation = null;
     this.errorMessage = '';
+    this.expandedTables.clear();
+  }
+
+  isTableExpanded(index: number): boolean {
+    return this.expandedTables.has(index);
+  }
+
+  toggleTable(index: number): void {
+    if (this.expandedTables.has(index)) {
+      this.expandedTables.delete(index);
+      return;
+    }
+
+    this.expandedTables.add(index);
   }
 
   formatTableDate(value: string): string {

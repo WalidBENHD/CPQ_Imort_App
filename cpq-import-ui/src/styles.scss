@@ -390,20 +390,72 @@ html.theme-dark app-register .register-shell {
   box-shadow: 0 12px 28px rgba(37, 99, 235, 0.06);
 }
 
+.evolis-decryptor-page .table-section-copy {
+  min-width: 0;
+}
+
+.evolis-decryptor-page .table-section-metas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.evolis-decryptor-page .table-section-metas span {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.evolis-decryptor-page .table-section-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.evolis-decryptor-page .table-toggle {
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 14px;
+  font-weight: 800;
+  color: #475569 !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+  background: rgba(248, 250, 252, 0.98);
+}
+
+.evolis-decryptor-page .table-toggle mat-icon {
+  margin-right: 4px;
+}
+
+.evolis-decryptor-page .table-section-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 260ms ease, opacity 220ms ease, margin-top 260ms ease;
+}
+
+.evolis-decryptor-page .table-section-body.expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 16px;
+}
+
+.evolis-decryptor-page .table-section-body-inner {
+  overflow: hidden;
+  min-height: 0;
+  display: grid;
+  gap: 16px;
+}
+
 .evolis-decryptor-page .table-section::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
-}
-
-.evolis-decryptor-page .table-section:nth-of-type(2n)::before {
-  background: linear-gradient(90deg, #16a34a, #4ade80);
-}
-
-.evolis-decryptor-page .table-section:nth-of-type(3n)::before {
-  background: linear-gradient(90deg, #4f46e5, #818cf8);
+  background: linear-gradient(90deg, #64748b, #cbd5e1);
 }
 
 .evolis-decryptor-page .details-summary,
@@ -528,6 +580,37 @@ html.theme-dark app-register .register-shell {
 .evolis-decryptor-page .total-cell {
   font-weight: 850;
   color: #2563eb;
+}
+
+.evolis-decryptor-page .table-empty-note {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px dashed rgba(126, 162, 255, 0.26);
+  background: rgba(59, 130, 246, 0.04);
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .evolis-decryptor-page .table-section-head,
+  .evolis-decryptor-page .subtable-head {
+    width: 100%;
+  }
+
+  .evolis-decryptor-page .table-section-copy,
+  .evolis-decryptor-page .table-section-actions {
+    width: 100%;
+  }
+
+  .evolis-decryptor-page .table-section-actions {
+    justify-items: stretch;
+  }
+
+  .evolis-decryptor-page .table-summary,
+  .evolis-decryptor-page .table-toggle {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 html.theme-dark app-login .business-column,
@@ -1523,15 +1606,7 @@ html.theme-dark app-evolis-decryptor .table-section {
 }
 
 html.theme-dark app-evolis-decryptor .table-section::before {
-  background: linear-gradient(90deg, #60a5fa, #93c5fd);
-}
-
-html.theme-dark app-evolis-decryptor .table-section:nth-of-type(2n)::before {
-  background: linear-gradient(90deg, #22c55e, #86efac);
-}
-
-html.theme-dark app-evolis-decryptor .table-section:nth-of-type(3n)::before {
-  background: linear-gradient(90deg, #818cf8, #c4b5fd);
+  background: linear-gradient(90deg, #64748b, #94a3b8);
 }
 
 html.theme-dark app-evolis-decryptor .details-summary::before,
@@ -1642,6 +1717,29 @@ html.theme-dark app-evolis-decryptor .table-summary {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18) !important;
 }
 
+html.theme-dark app-evolis-decryptor .table-section-copy {
+  min-width: 0;
+}
+
+html.theme-dark app-evolis-decryptor .table-section-metas span {
+  background: rgba(100, 116, 139, 0.22) !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-evolis-decryptor .table-toggle {
+  background: rgba(100, 116, 139, 0.18) !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  color: #e2e8f0 !important;
+}
+
+html.theme-dark app-evolis-decryptor .table-section-body {
+  opacity: 0;
+}
+
+html.theme-dark app-evolis-decryptor .table-section-body.expanded {
+  opacity: 1;
+}
+
 html.theme-dark app-evolis-decryptor .subtable-head span {
   background: rgba(59, 130, 246, 0.16) !important;
   color: #cbd5e1 !important;
@@ -1667,6 +1765,12 @@ html.theme-dark app-evolis-decryptor .result-table tbody tr:hover td {
 
 html.theme-dark app-evolis-decryptor .total-cell {
   color: #93c5fd !important;
+}
+
+html.theme-dark app-evolis-decryptor .table-empty-note {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border-color: rgba(59, 130, 246, 0.24) !important;
+  color: #cbd5e1 !important;
 }
 
 html.theme-dark app-evolis-decryptor .overview-item-stats span {
