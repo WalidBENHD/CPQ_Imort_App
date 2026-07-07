@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CPQ Data Import">
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#2563eb"/>
+  <path d="M41 44H24.5a8.5 8.5 0 1 1 1.4-16.9A11.5 11.5 0 0 1 47.2 31 6.8 6.8 0 0 1 41 44Z" fill="#ffffff"/>
+  <path d="M32 40V28m0 0l-4.5 4.5M32 28l4.5 4.5" fill="none" stroke="#2563eb" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

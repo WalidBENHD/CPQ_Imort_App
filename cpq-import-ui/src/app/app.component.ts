@@ -125,18 +125,24 @@ import { ThemeService } from './core/services/theme.service';
 
           <div class="nav-group-label" *ngIf="isSidebarOpen">Settings</div>
 
-          <button
-            mat-button
-            class="side-link side-link--settings"
-            type="button"
-            [class.side-link--compact]="!isSidebarOpen"
-            [attr.aria-label]="themeTooltip"
-            [matTooltip]="!isSidebarOpen ? themeTooltip : ''"
-            (click)="toggleTheme()"
-          >
-            <mat-icon>{{ themeIcon }}</mat-icon>
-            <span *ngIf="isSidebarOpen">{{ themeLabel }}</span>
-          </button>
+          <div class="side-link side-link--settings theme-toggle-row" [class.side-link--compact]="!isSidebarOpen">
+            <mat-icon *ngIf="isSidebarOpen">{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon>
+            <span *ngIf="isSidebarOpen" class="theme-toggle-row__label">{{ themeLabel }}</span>
+
+            <button
+              class="theme-toggle-row__switch"
+              type="button"
+              [attr.aria-label]="themeSwitchAriaLabel"
+              [attr.aria-pressed]="isDarkTheme"
+              [matTooltip]="!isSidebarOpen ? themeSwitchAriaLabel : ''"
+              (click)="toggleTheme()"
+            >
+              <span class="theme-toggle-row__track" [class.theme-toggle-row__track--dark]="isDarkTheme">
+                <span class="theme-toggle-row__thumb" [class.theme-toggle-row__thumb--dark]="isDarkTheme"></span>
+                <mat-icon class="theme-toggle-row__thumb-icon" aria-hidden="true">{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon>
+              </span>
+            </button>
+          </div>
 
           <div class="side-nav-footer" *ngIf="auth.isAuthenticated">
             <div class="signature-card" [class.signature-card--collapsed]="!isSidebarOpen">
@@ -243,6 +249,7 @@ import { ThemeService } from './core/services/theme.service';
     .side-link {
       min-height: 42px;
       justify-content: flex-start;
+      align-items: center;
       border-radius: 12px;
       color: var(--app-text);
       display: inline-flex;
@@ -264,12 +271,116 @@ import { ThemeService } from './core/services/theme.service';
       padding: 0;
     }
 
-    .side-link--settings {
-      margin-top: 4px;
+    .side-link--compact mat-icon {
+      margin: 0;
     }
 
-    .side-link--settings mat-icon {
-      color: var(--app-accent);
+    .side-link--settings {
+      margin-top: 4px;
+      justify-content: flex-start;
+      gap: 10px;
+    }
+
+    .theme-toggle-row {
+      justify-content: flex-start;
+      gap: 10px;
+      margin-top: 4px;
+      min-height: 42px;
+    }
+
+    .side-link--compact.theme-toggle-row {
+      justify-content: center;
+      gap: 0;
+      padding: 0;
+    }
+
+    .theme-toggle-row__label {
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .theme-toggle-row__switch {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .theme-toggle-row__track {
+      position: relative;
+      width: 42px;
+      height: 22px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(37, 99, 235, 0.18), rgba(37, 99, 235, 0.10));
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.10);
+      transition: background-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .theme-toggle-row__track--dark {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(37, 99, 235, 0.16));
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.26);
+    }
+
+    .theme-toggle-row__thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+      transition: transform 0.25s ease, background-color 0.25s ease;
+    }
+
+    .theme-toggle-row__thumb-icon {
+      position: absolute;
+      top: 50%;
+      left: 5px;
+      transform: translateY(-50%);
+      width: 10px;
+      height: 10px;
+      font-size: 10px;
+      line-height: 10px;
+      color: #2563eb;
+      pointer-events: none;
+      transition: left 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+    }
+
+    .theme-toggle-row__thumb--dark {
+      transform: translateX(20px);
+      background: #93c5fd;
+    }
+
+    .theme-toggle-row__track--dark .theme-toggle-row__thumb-icon {
+      left: 25px;
+      color: #0f172a;
+    }
+
+    .side-link--compact .theme-toggle-row__switch {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    .side-link--compact .theme-toggle-row__track {
+      width: 38px;
+    }
+
+    .side-link--compact .theme-toggle-row__thumb-icon {
+      left: 4px;
+    }
+
+    .side-link--compact .theme-toggle-row__thumb--dark {
+      transform: translateX(16px);
+    }
+
+    .side-link--compact .theme-toggle-row__track--dark .theme-toggle-row__thumb-icon {
+      left: 22px;
     }
 
     .side-link--active {
@@ -518,6 +629,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get themeTooltip(): string {
     return this.themeService.currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+
+  get isDarkTheme(): boolean {
+    return this.themeService.currentTheme === 'dark';
+  }
+
+  get themeSwitchAriaLabel(): string {
+    return this.isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode';
   }
 
   get themeLabel(): string {
