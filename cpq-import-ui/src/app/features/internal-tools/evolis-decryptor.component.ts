@@ -313,7 +313,7 @@ import { parseEvolisPresentation } from './evolis-parser';
 
     .upload-panel,
     .result-panel {
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
     }
@@ -336,7 +336,11 @@ import { parseEvolisPresentation } from './evolis-parser';
 
     .upload-panel .dropzone {
       flex: 1 1 auto;
-      justify-content: space-between;
+      min-height: 260px;
+      justify-content: center;
+      align-content: center;
+      justify-items: center;
+      text-align: center;
     }
 
     .dropzone {
@@ -373,6 +377,7 @@ import { parseEvolisPresentation } from './evolis-parser';
       margin: 0;
       color: var(--app-text-muted);
       line-height: 1.55;
+      max-width: 460px;
     }
 
     .file-input {
@@ -383,6 +388,7 @@ import { parseEvolisPresentation } from './evolis-parser';
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
+      justify-content: center;
     }
 
     .actions button {
@@ -400,11 +406,12 @@ import { parseEvolisPresentation } from './evolis-parser';
       grid-template-columns: 32px minmax(0, 1fr);
       gap: 12px;
       align-items: center;
-      width: 100%;
+      width: min(100%, 420px);
       padding: 14px 16px;
       border-radius: 16px;
       background: var(--app-surface);
       border: 1px solid var(--app-border);
+      text-align: left;
     }
 
     .file-meta mat-icon {
@@ -426,13 +433,14 @@ import { parseEvolisPresentation } from './evolis-parser';
       display: flex;
       gap: 10px;
       align-items: center;
-      width: 100%;
+      width: min(100%, 420px);
       padding: 12px 14px;
       border-radius: 16px;
       background: rgba(239, 68, 68, 0.1);
       border: 1px solid rgba(239, 68, 68, 0.22);
       color: #b91c1c;
       font-weight: 600;
+      text-align: left;
     }
 
     .result-head {
@@ -453,7 +461,7 @@ import { parseEvolisPresentation } from './evolis-parser';
       display: grid;
       place-items: center;
       gap: 12px;
-      min-height: 240px;
+      min-height: 160px;
       text-align: center;
       border: 1px dashed var(--app-border);
       border-radius: 18px;
@@ -505,7 +513,7 @@ import { parseEvolisPresentation } from './evolis-parser';
     .result-overview-list {
       display: grid;
       gap: 10px;
-      max-height: 240px;
+      max-height: 160px;
       overflow: auto;
       padding-right: 4px;
     }
@@ -790,8 +798,8 @@ import { parseEvolisPresentation } from './evolis-parser';
 
       .upload-panel,
       .result-panel {
-        padding: 16px;
-        height: auto;
+        padding: 14px;
+        height: 100%;
         overflow: visible;
       }
 
