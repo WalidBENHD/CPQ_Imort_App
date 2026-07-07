@@ -12,7 +12,7 @@ import { parseEvolisPresentation } from './evolis-parser';
   standalone: true,
   imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule],
   template: `
-    <section class="page-shell">
+    <section class="page-shell evolis-decryptor-page">
       <header class="page-header">
         <div>
           <div class="eyebrow">Internal tools</div>
@@ -74,9 +74,9 @@ import { parseEvolisPresentation } from './evolis-parser';
               <div class="eyebrow">Result</div>
               <h2>Decrypted output</h2>
             </div>
-            <button mat-stroked-button type="button" [disabled]="!result" (click)="downloadResult()">
-              <mat-icon>download</mat-icon>
-              Download
+            <button mat-raised-button color="primary" type="button" [disabled]="!result" (click)="downloadResult()">
+              <mat-icon>picture_as_pdf</mat-icon>
+              Download PDF
             </button>
           </div>
 
@@ -91,19 +91,23 @@ import { parseEvolisPresentation } from './evolis-parser';
           </div>
 
           <div class="result-summary" *ngIf="result">
-            <div class="summary-item">
+            <div class="summary-item summary-item--source">
+              <div class="summary-item__icon"><mat-icon>description</mat-icon></div>
               <span class="label">Source</span>
               <span class="value">{{ result.sourceFileName }}</span>
             </div>
-            <div class="summary-item">
+            <div class="summary-item summary-item--total">
+              <div class="summary-item__icon"><mat-icon>paid</mat-icon></div>
               <span class="label">Grand total</span>
               <span class="value">{{ presentation?.grandTotal ?? '0.0000' }}</span>
             </div>
-            <div class="summary-item">
+            <div class="summary-item summary-item--output">
+              <div class="summary-item__icon"><mat-icon>picture_as_pdf</mat-icon></div>
               <span class="label">Output</span>
               <span class="value">{{ result.downloadFileName }}</span>
             </div>
-            <div class="summary-item">
+            <div class="summary-item summary-item--tables">
+              <div class="summary-item__icon"><mat-icon>table_chart</mat-icon></div>
               <span class="label">Tables</span>
               <span class="value">{{ presentation?.tables?.length ?? 0 }}</span>
             </div>
@@ -454,7 +458,6 @@ import { parseEvolisPresentation } from './evolis-parser';
     .result-head button {
       border-radius: 999px;
       min-height: 42px;
-      font-weight: 700;
     }
 
     .result-state {
@@ -479,7 +482,7 @@ import { parseEvolisPresentation } from './evolis-parser';
     .result-summary {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      gap: 14px;
       margin-bottom: 14px;
     }
 
@@ -519,10 +522,14 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .overview-item {
-      padding: 12px 14px;
-      border-radius: 16px;
-      border: 1px solid var(--app-border);
-      background: var(--app-surface);
+      position: relative;
+      overflow: hidden;
+      padding: 14px 15px 13px;
+      border-radius: 20px;
+      border: 1px solid rgba(126, 162, 255, 0.18);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96)),
+        var(--app-surface);
       display: grid;
       gap: 8px;
     }
@@ -536,13 +543,14 @@ import { parseEvolisPresentation } from './evolis-parser';
 
     .overview-item-head strong {
       color: var(--app-text);
-      font-size: 14px;
+      font-size: 15px;
+      line-height: 1.25;
       word-break: break-word;
     }
 
     .overview-item-head span {
-      color: var(--app-accent);
-      font-weight: 800;
+      color: #1d4ed8;
+      font-weight: 900;
       white-space: nowrap;
     }
 
@@ -556,24 +564,40 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .overview-item-stats span {
-      padding: 4px 8px;
+      padding: 5px 10px;
       border-radius: 999px;
-      background: rgba(59, 130, 246, 0.08);
-      color: var(--app-text);
-      font-weight: 700;
+      background: rgba(37, 99, 235, 0.09);
+      color: #1e293b;
+      font-weight: 800;
     }
 
     .summary-item {
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: var(--app-surface);
-      border: 1px solid var(--app-border);
+      position: relative;
+      overflow: hidden;
+      padding: 14px 14px 13px;
+      border-radius: 20px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 251, 255, 0.94)),
+        var(--app-surface);
+      border: 1px solid rgba(126, 162, 255, 0.18);
       display: grid;
-      gap: 4px;
+      gap: 5px;
+    }
+
+    .summary-item__icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(37, 99, 235, 0.1);
+      color: #2563eb;
+      margin-bottom: 3px;
     }
 
     .summary-item .label {
-      color: var(--app-text-muted);
+      color: #64748b;
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
@@ -581,8 +605,10 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .summary-item .value {
-      color: var(--app-text);
-      font-weight: 700;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 15px;
+      line-height: 1.35;
       word-break: break-word;
     }
 
@@ -640,7 +666,7 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .details-summary strong {
-      color: var(--app-text);
+      color: #0f172a;
       font-size: 20px;
     }
 
@@ -813,6 +839,14 @@ import { parseEvolisPresentation } from './evolis-parser';
 
       .result-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .summary-item {
+        min-height: 112px;
+      }
+
+      .overview-item {
+        padding: 13px 14px 12px;
       }
 
       .table-section-head,
