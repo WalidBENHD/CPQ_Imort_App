@@ -511,7 +511,7 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .result-overview {
-      margin-top: auto;
+      margin-top: 8px;
       display: grid;
       gap: 12px;
       min-height: 0;

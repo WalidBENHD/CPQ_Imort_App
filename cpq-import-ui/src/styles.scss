@@ -362,17 +362,18 @@ html.theme-dark app-register .register-shell {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96));
 }
 
-.evolis-decryptor-page .overview-item-head strong {
-  color: #0f172a;
-}
-
-.evolis-decryptor-page .overview-item-head span {
-  color: #2563eb;
+.evolis-decryptor-page .overview-item-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 2px;
+  justify-content: flex-end;
 }
 
 .evolis-decryptor-page .overview-item-stats span {
-  background: rgba(37, 99, 235, 0.09);
-  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .evolis-decryptor-page .details-panel {
@@ -1565,7 +1566,6 @@ html.theme-dark app-evolis-decryptor .result-head {
 
 html.theme-dark app-evolis-decryptor .result-head h2,
 html.theme-dark app-evolis-decryptor .details-head h2,
-html.theme-dark app-evolis-decryptor .overview-item-head strong,
 html.theme-dark app-evolis-decryptor .details-summary strong,
 html.theme-dark app-evolis-decryptor .table-summary strong,
 html.theme-dark app-evolis-decryptor .file-name {
@@ -1578,14 +1578,12 @@ html.theme-dark app-evolis-decryptor .dropzone p,
 html.theme-dark app-evolis-decryptor .file-size,
 html.theme-dark app-evolis-decryptor .result-state,
 html.theme-dark app-evolis-decryptor .result-overview-head span,
-html.theme-dark app-evolis-decryptor .overview-item-meta,
 html.theme-dark app-evolis-decryptor .table-section-head p {
   color: var(--app-text-muted) !important;
 }
 
 html.theme-dark app-evolis-decryptor .dropzone,
 html.theme-dark app-evolis-decryptor .result-state,
-html.theme-dark app-evolis-decryptor .overview-item,
 html.theme-dark app-evolis-decryptor .summary-item,
 html.theme-dark app-evolis-decryptor .details-summary,
 html.theme-dark app-evolis-decryptor .table-summary,
@@ -1681,15 +1679,6 @@ html.theme-dark app-evolis-decryptor .summary-item .value {
   color: #f8fafc !important;
 }
 
-html.theme-dark app-evolis-decryptor .overview-item {
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.92)) !important;
-  border-color: rgba(126, 162, 255, 0.2) !important;
-}
-
-html.theme-dark app-evolis-decryptor .overview-item-head span {
-  color: #93c5fd !important;
-}
-
 html.theme-dark app-evolis-decryptor .details-summary span,
 html.theme-dark app-evolis-decryptor .table-summary span,
 html.theme-dark app-evolis-decryptor .subtable-head span,
@@ -1773,15 +1762,36 @@ html.theme-dark app-evolis-decryptor .table-empty-note {
   color: #cbd5e1 !important;
 }
 
-html.theme-dark app-evolis-decryptor .overview-item-stats span {
-  background: rgba(59, 130, 246, 0.16) !important;
-  color: #cbd5e1 !important;
-}
-
 html.theme-dark app-evolis-decryptor .result-empty-note {
   background: rgba(59, 130, 246, 0.12) !important;
   color: #cbd5e1 !important;
   border-color: rgba(59, 130, 246, 0.28) !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item {
+  border-color: rgba(126, 162, 255, 0.2) !important;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.92)) !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-head strong {
+  color: #f8fafc !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-head span {
+  color: #93c5fd !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-meta {
+  color: #94a3b8 !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-stats {
+  justify-content: flex-end !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-stats span {
+  background: rgba(59, 130, 246, 0.16) !important;
+  color: #cbd5e1 !important;
 }
 
 html.theme-dark app-evolis-decryptor .result-head button {
@@ -1876,6 +1886,22 @@ html.theme-dark app-import-wizard .wizard-shell {
   border-color: var(--app-border) !important;
 }
 
+html.theme-dark app-import-wizard .page-header h1 {
+  color: #f8fafc !important;
+}
+
+html.theme-dark app-import-wizard .page-header a[mat-button] {
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-import-wizard .wizard-shell .mat-mdc-card-content,
+html.theme-dark app-import-wizard .wizard-shell .mat-stepper-horizontal,
+html.theme-dark app-import-wizard .wizard-shell .mat-stepper-vertical,
+html.theme-dark app-import-wizard .wizard-shell .mat-horizontal-stepper-content,
+html.theme-dark app-import-wizard .wizard-shell .mat-vertical-stepper-content {
+  background: transparent !important;
+}
+
 html.theme-dark app-import-wizard .mat-horizontal-stepper-wrapper,
 html.theme-dark app-import-wizard .mat-horizontal-content-container,
 html.theme-dark app-import-wizard .mat-vertical-content-container,
@@ -1908,7 +1934,7 @@ html.theme-dark app-import-wizard .mat-step-icon-state-edit {
 }
 
 html.theme-dark app-import-wizard .entity-card {
-  background: rgba(15, 23, 42, 0.6) !important;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.92)) !important;
   border-color: var(--app-border) !important;
 }
 html.theme-dark app-import-wizard .entity-card:hover {
@@ -1921,6 +1947,97 @@ html.theme-dark app-import-wizard .entity-card.selected {
 }
 html.theme-dark app-import-wizard .entity-label { color: var(--app-text); }
 html.theme-dark app-import-wizard .entity-desc { color: var(--app-text-muted); }
+
+html.theme-dark app-import-wizard .requirements-header h3,
+html.theme-dark app-import-wizard .requirements-name,
+html.theme-dark app-import-wizard .file-name,
+html.theme-dark app-import-wizard .notice-content h3,
+html.theme-dark app-import-wizard .page-header h1 {
+  color: #f8fafc !important;
+}
+
+html.theme-dark app-import-wizard .requirements-panel,
+html.theme-dark app-import-wizard .upload-hint,
+html.theme-dark app-import-wizard .drop-zone,
+html.theme-dark app-import-wizard .file-preview,
+html.theme-dark app-import-wizard .responsibility-notice {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 15, 30, 0.96)) !important;
+  border-color: var(--app-border) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22) !important;
+}
+
+html.theme-dark app-import-wizard .requirements-header p,
+html.theme-dark app-import-wizard .requirements-title,
+html.theme-dark app-import-wizard .requirements-meta,
+html.theme-dark app-import-wizard .requirements-example,
+html.theme-dark app-import-wizard .step-subtitle,
+html.theme-dark app-import-wizard .hint,
+html.theme-dark app-import-wizard .file-size,
+html.theme-dark app-import-wizard .notice-content p,
+html.theme-dark app-import-wizard .responsibility-checkbox {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-import-wizard .requirements-item {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-import-wizard .drop-zone {
+  border-color: rgba(148, 163, 184, 0.36) !important;
+}
+
+html.theme-dark app-import-wizard .drop-zone:hover,
+html.theme-dark app-import-wizard .drop-zone.drag-over {
+  border-color: var(--app-accent) !important;
+  background: rgba(126, 162, 255, 0.08) !important;
+}
+
+html.theme-dark app-import-wizard .drop-icon,
+html.theme-dark app-import-wizard .notice-icon {
+  color: #93c5fd !important;
+}
+
+html.theme-dark app-import-wizard .step-actions .mat-mdc-raised-button[disabled],
+html.theme-dark app-import-wizard .step-actions .mat-mdc-unelevated-button[disabled] {
+  --mdc-protected-button-container-color: rgba(126, 162, 255, 0.18);
+  --mdc-protected-button-label-text-color: #cbd5e1;
+  background-color: rgba(126, 162, 255, 0.18) !important;
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.theme-dark app-import-wizard .step-actions .mat-mdc-stroked-button[disabled] {
+  --mdc-outlined-button-disabled-outline-color: rgba(148, 163, 184, 0.28);
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+html.theme-dark app-import-wizard .upload-hint {
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-import-wizard .file-preview {
+  align-items: center;
+}
+
+html.theme-dark app-import-wizard .badge {
+  background: rgba(59, 130, 246, 0.16) !important;
+  border-color: rgba(59, 130, 246, 0.32) !important;
+  color: #93c5fd !important;
+}
+
+html.theme-dark app-import-wizard .badge-optional {
+  background: rgba(148, 163, 184, 0.16) !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-import-wizard .badge-warning {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border-color: rgba(245, 158, 11, 0.34) !important;
+  color: #fcd34d !important;
+}
 
 html.theme-dark app-import-wizard .requirements-panel {
   background: rgba(15, 23, 42, 0.6) !important;
