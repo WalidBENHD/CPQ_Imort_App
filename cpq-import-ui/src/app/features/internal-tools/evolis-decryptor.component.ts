@@ -540,22 +540,18 @@ import { parseEvolisPresentation } from './evolis-parser';
     .result-overview-list {
       display: grid;
       gap: 10px;
-      max-height: 160px;
-      overflow: auto;
-      padding-right: 4px;
+      overflow: visible;
     }
 
     .overview-item {
       position: relative;
       overflow: hidden;
-      padding: 14px 15px 13px;
+      padding: 12px 14px 11px;
       border-radius: 20px;
       border: 1px solid rgba(126, 162, 255, 0.18);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96)),
         var(--app-surface);
-      display: grid;
-      gap: 8px;
     }
 
     .overview-item-head {
@@ -582,17 +578,27 @@ import { parseEvolisPresentation } from './evolis-parser';
     .overview-item-stats {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px 14px;
+      gap: 8px 12px;
       color: var(--app-text-muted);
-      font-size: 12px;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .overview-item-meta {
+      align-self: center;
+    }
+
+    .overview-item-stats {
+      align-self: center;
+      justify-content: flex-end;
+      margin-top: 0;
     }
 
     .overview-item-stats span {
-      padding: 5px 10px;
+      padding: 4px 9px;
       border-radius: 999px;
-      background: rgba(37, 99, 235, 0.09);
-      color: #1e293b;
       font-weight: 800;
+      white-space: nowrap;
     }
 
     .summary-item {

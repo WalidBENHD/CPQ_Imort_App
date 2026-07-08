@@ -360,6 +360,29 @@ html.theme-dark app-register .register-shell {
 .evolis-decryptor-page .overview-item {
   border-color: rgba(126, 162, 255, 0.18);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 255, 0.96));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'head head'
+    'meta stats';
+  column-gap: 12px;
+  row-gap: 6px;
+  align-items: start;
+}
+
+.evolis-decryptor-page .overview-item-head {
+  grid-area: head;
+}
+
+.evolis-decryptor-page .overview-item-meta {
+  grid-area: meta;
+  align-self: center;
+}
+
+.evolis-decryptor-page .overview-item-stats {
+  grid-area: stats;
+  align-self: center;
+  justify-self: end;
 }
 
 .evolis-decryptor-page .overview-item-stats {
@@ -367,13 +390,30 @@ html.theme-dark app-register .register-shell {
   flex-wrap: wrap;
   gap: 8px 10px;
   margin-top: 2px;
+  align-items: center;
   justify-content: flex-end;
+  justify-self: end;
 }
 
 .evolis-decryptor-page .overview-item-stats span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.evolis-decryptor-page .overview-item-stats span:first-child {
+  background: rgba(37, 99, 235, 0.11);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  color: #1d4ed8;
+}
+
+.evolis-decryptor-page .overview-item-stats span:last-child {
+  background: rgba(16, 185, 129, 0.11);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  color: #047857;
 }
 
 .evolis-decryptor-page .details-panel {
@@ -1786,12 +1826,31 @@ html.theme-dark app-evolis-decryptor .overview-item-meta {
 }
 
 html.theme-dark app-evolis-decryptor .overview-item-stats {
+  align-items: center;
   justify-content: flex-end !important;
+  justify-self: end;
 }
 
 html.theme-dark app-evolis-decryptor .overview-item-stats span {
-  background: rgba(59, 130, 246, 0.16) !important;
-  color: #cbd5e1 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: none !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-stats span:first-child {
+  background: rgba(59, 130, 246, 0.24) !important;
+  border-color: rgba(96, 165, 250, 0.36) !important;
+  color: #dbeafe !important;
+}
+
+html.theme-dark app-evolis-decryptor .overview-item-stats span:last-child {
+  background: rgba(45, 212, 191, 0.18) !important;
+  border-color: rgba(45, 212, 191, 0.32) !important;
+  color: #ccfbf1 !important;
 }
 
 html.theme-dark app-evolis-decryptor .result-head button {
