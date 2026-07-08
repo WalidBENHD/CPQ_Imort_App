@@ -260,11 +260,21 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .page-header p { margin: 6px 0 0; color: #64748b; }
 
     .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .summary-card { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-top: 3px solid transparent; box-shadow: none; }
+    .summary-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px 14px;
+      border-top: 3px solid transparent;
+      box-shadow: none;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.95));
+      border: 1px solid rgba(126, 162, 255, 0.16);
+      border-radius: 14px;
+    }
     .summary-main { display: flex; align-items: center; gap: 10px; }
     .summary-card mat-icon { font-size: 22px; width: 22px; height: 22px; }
     .summary-card .value { font-size: 24px; line-height: 1; font-weight: 600; }
-    .summary-card .label { font-size: 12px; color: #475569; }
+    .summary-card .label { font-size: 12px; color: var(--app-text-muted); }
     .summary-card.pending { border-top-color: #f59e0b; }
     .summary-card.pending mat-icon { color: #d97706; }
     .summary-card.approved { border-top-color: #16a34a; }
@@ -274,15 +284,21 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .summary-card.total { border-top-color: #64748b; }
     .summary-card.total mat-icon { color: #475569; }
 
-    .panel { padding: 18px 20px; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
+    .panel {
+      padding: 18px 20px;
+      border: 1px solid rgba(126, 162, 255, 0.16);
+      border-radius: 16px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.95));
+    }
     .panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
-    .panel-header h2 { margin: 0; font-size: 23px; }
-    .muted { color: #64748b; margin: 4px 0 0; }
+    .panel-header h2 { margin: 0; font-size: 23px; color: var(--app-text); }
+    .muted { color: var(--app-text-muted); margin: 4px 0 0; }
 
     .count-pill {
-      background: #eef2ff;
-      color: #4338ca;
-      border: 1px solid #c7d2fe;
+      background: rgba(37, 99, 235, 0.08);
+      color: #1d4ed8;
+      border: 1px solid rgba(37, 99, 235, 0.16);
       border-radius: 999px;
       padding: 4px 10px;
       font-size: 12px;
@@ -295,10 +311,10 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       align-items: center;
       gap: 8px;
       padding: 12px;
-      color: #475569;
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
-      border-radius: 10px;
+      color: var(--app-text-muted);
+      background: rgba(248, 250, 255, 0.8);
+      border: 1px dashed rgba(126, 162, 255, 0.24);
+      border-radius: 12px;
     }
 
     .user-row {
@@ -307,16 +323,16 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       align-items: center;
       gap: 14px;
       padding: 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      background: #f8fafc;
+      border: 1px solid rgba(126, 162, 255, 0.16);
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 251, 255, 0.95));
       margin-bottom: 10px;
     }
     .user-row:last-child { margin-bottom: 0; }
 
     .identity { min-width: 0; }
-    .name { font-size: 18px; font-weight: 700; color: #0f172a; }
-    .meta { color: #64748b; font-size: 13px; margin-top: 2px; }
+    .name { font-size: 18px; font-weight: 700; color: var(--app-text); }
+    .meta { color: var(--app-text-muted); font-size: 13px; margin-top: 2px; }
 
     .presence-row {
       display: flex;
@@ -519,6 +535,10 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       display: grid;
       grid-template-columns: repeat(2, minmax(220px, 1fr));
       gap: 12px;
+      padding: 16px;
+      border: 1px solid rgba(126, 162, 255, 0.16);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 251, 255, 0.92));
     }
     .toggles {
       grid-column: 1 / -1;
@@ -539,6 +559,50 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     }
     .status.success { color: #166534; }
     .status.error { color: #b91c1c; }
+
+    :host-context(html.theme-dark) .summary-card,
+    :host-context(html.theme-dark) .panel,
+    :host-context(html.theme-dark) .user-row {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 15, 30, 0.98));
+      border-color: var(--app-border);
+      color: var(--app-text);
+    }
+
+    :host-context(html.theme-dark) .create-form {
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.52), rgba(8, 15, 30, 0.68));
+      border-color: rgba(126, 162, 255, 0.18);
+    }
+
+    :host-context(html.theme-dark) .summary-card .label,
+    :host-context(html.theme-dark) .muted,
+    :host-context(html.theme-dark) .meta,
+    :host-context(html.theme-dark) .empty {
+      color: #94a3b8;
+    }
+
+    :host-context(html.theme-dark) .count-pill {
+      background: rgba(59, 130, 246, 0.16);
+      color: #dbeafe;
+      border-color: rgba(96, 165, 250, 0.24);
+    }
+
+    :host-context(html.theme-dark) .empty {
+      background: rgba(15, 23, 42, 0.6);
+      border-color: rgba(126, 162, 255, 0.18);
+    }
+
+    :host-context(html.theme-dark) .summary-card.pending { border-top-color: #f59e0b; }
+    :host-context(html.theme-dark) .summary-card.approved { border-top-color: #16a34a; }
+    :host-context(html.theme-dark) .summary-card.admins { border-top-color: #2563eb; }
+    :host-context(html.theme-dark) .summary-card.total { border-top-color: #64748b; }
+
+    :host-context(html.theme-dark) .summary-card.pending mat-icon { color: #f59e0b; }
+    :host-context(html.theme-dark) .summary-card.approved mat-icon { color: #22c55e; }
+    :host-context(html.theme-dark) .summary-card.admins mat-icon { color: #60a5fa; }
+    :host-context(html.theme-dark) .summary-card.total mat-icon { color: #94a3b8; }
+
+    :host-context(html.theme-dark) .status.success { color: #86efac; }
+    :host-context(html.theme-dark) .status.error { color: #fca5a5; }
 
     @media (max-width: 900px) {
       .summary-cards { grid-template-columns: repeat(2, 1fr); }

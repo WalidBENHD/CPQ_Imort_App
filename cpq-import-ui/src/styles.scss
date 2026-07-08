@@ -1520,6 +1520,58 @@ html.theme-dark app-user-approval .summary-card .label {
   color: #94a3b8;
 }
 
+html.theme-dark app-user-approval .create-form {
+  background: rgba(15, 23, 42, 0.34);
+  border: 1px solid rgba(126, 162, 255, 0.14);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+html.theme-dark app-user-approval .create-form .mat-mdc-text-field-wrapper,
+html.theme-dark app-user-approval .create-form .mat-mdc-select-trigger {
+  background: rgba(15, 23, 42, 0.78) !important;
+}
+
+html.theme-dark app-user-approval .create-form .mat-mdc-input-element,
+html.theme-dark app-user-approval .create-form .mat-mdc-select-value-text,
+html.theme-dark app-user-approval .create-form .mat-mdc-floating-label,
+html.theme-dark app-user-approval .create-form .mat-mdc-form-field-label,
+html.theme-dark app-user-approval .create-form .mat-mdc-select-arrow {
+  color: #dbeafe !important;
+}
+
+html.theme-dark app-user-approval .create-form .mdc-notched-outline__leading,
+html.theme-dark app-user-approval .create-form .mdc-notched-outline__notch,
+html.theme-dark app-user-approval .create-form .mdc-notched-outline__trailing {
+  border-color: rgba(126, 162, 255, 0.24) !important;
+}
+
+html.theme-dark app-user-approval .create-form .mat-mdc-checkbox {
+  color: #dbeafe !important;
+}
+
+html.theme-dark app-user-approval .create-form .mat-mdc-checkbox .mdc-label {
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-user-approval .create-form .mat-mdc-checkbox .mdc-checkbox__background {
+  border-color: rgba(126, 162, 255, 0.34) !important;
+}
+
+html.theme-dark app-user-approval .create-form .form-actions button[mat-raised-button] {
+  --mdc-protected-button-container-color: #4055b7;
+  --mdc-protected-button-label-text-color: #ffffff;
+  background: linear-gradient(180deg, #4f67d8, #4055b7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22) !important;
+}
+
+html.theme-dark app-user-approval .create-form .form-actions button[mat-raised-button][disabled] {
+  background: rgba(148, 163, 184, 0.18) !important;
+  color: #94a3b8 !important;
+  box-shadow: none !important;
+}
+
 /* --- Import preview action buttons, boxes, table, mobile, messages --- */
 html.theme-dark app-import-preview .header-action-btn {
   background: rgba(148, 163, 184, 0.12) !important;
