@@ -15,23 +15,13 @@ public static class TemplateGenerator
     {
         [EntityType.Article] = (
             ["ArticleNumber", "Name", "Category", "Unit"],
-            ["ART-001", "Widget Pro", "Electronics", "PCS"],
-            "ProductMaster"
+            ["PDU-100245", "Industrial PDU", "Standard", "PC"],
+            "ArticleMaster"
         ),
         [EntityType.PriceList] = (
-            ["ArticleNumber", "Price", "Currency", "ValidFrom", "ValidTo"],
-            ["ART-001", "49.99", "EUR", "2024-01-01", "2024-12-31"],
-            "PricingConditions"
-        ),
-        [EntityType.Description] = (
-            ["ArticleNumber", "LanguageCode", "ShortDescription", "LongDescription"],
-            ["ART-001", "EN", "A compact widget", "The Widget Pro is a high-quality, compact device..."],
-            "ProductTexts"
-        ),
-        [EntityType.CurrencyRate] = (
-            ["FromCurrency", "ToCurrency", "Rate", "ValidFrom"],
-            ["USD", "EUR", "0.92", "2024-01-01"],
-            "ExchangeRates"
+            ["ArticleNumber", "UnitPrice", "Currency", "ValidFrom", "ValidTo"],
+            ["PDU-100245", "125.50", "EUR", "2026-01-01", "2026-12-31"],
+            "BasisPrice"
         )
     };
 
@@ -93,9 +83,7 @@ public static class TemplateGenerator
     private static string GetRequiredFields(EntityType entityType) => entityType switch
     {
         EntityType.Article => "ArticleNumber, Name",
-        EntityType.PriceList => "ArticleNumber, Price, Currency, ValidFrom",
-        EntityType.Description => "ArticleNumber, LanguageCode, ShortDescription",
-        EntityType.CurrencyRate => "FromCurrency, ToCurrency, Rate, ValidFrom",
+        EntityType.PriceList => "ArticleNumber, UnitPrice, Currency, ValidFrom",
         _ => "-"
     };
 }

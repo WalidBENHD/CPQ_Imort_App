@@ -56,7 +56,7 @@ public class PriceListCommitStrategy(IConfiguration config) : ICpqCommitStrategy
                 await conn.ExecuteAsync(sql, new
                 {
                     ArticleNumber = row.GetValueOrDefault("ArticleNumber"),
-                    Price = row.GetValueOrDefault("Price"),
+                    Price = row.GetValueOrDefault("UnitPrice") ?? row.GetValueOrDefault("Price"),
                     Currency = row.GetValueOrDefault("Currency"),
                     ValidFrom = row.GetValueOrDefault("ValidFrom"),
                     ValidTo = row.GetValueOrDefault("ValidTo")
@@ -132,7 +132,10 @@ public class PriceListCommitStrategy(IConfiguration config) : ICpqCommitStrategy
 
                 if (!decimal.TryParse(row.GetValueOrDefault("Price"), out var price))
                 {
-                    continue;
+                    if (!decimal.TryParse(row.GetValueOrDefault("UnitPrice"), out price))
+                    {
+                        continue;
+                    }
                 }
 
                 if (!DateTime.TryParse(row.GetValueOrDefault("ValidFrom"), out var validFrom))

@@ -73,14 +73,10 @@ else
 // ── File Parsers (one per entity type) ────────────────────────────────────────
 builder.Services.AddScoped<IFileParser, ArticleParser>();
 builder.Services.AddScoped<IFileParser, PriceListParser>();
-builder.Services.AddScoped<IFileParser, DescriptionParser>();
-builder.Services.AddScoped<IFileParser, CurrencyRateParser>();
 
 // ── Commit Strategies (one per entity type) ───────────────────────────────────
 builder.Services.AddScoped<ICpqCommitStrategy, ArticleCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, PriceListCommitStrategy>();
-builder.Services.AddScoped<ICpqCommitStrategy, DescriptionCommitStrategy>();
-builder.Services.AddScoped<ICpqCommitStrategy, CurrencyRateCommitStrategy>();
 builder.Services.AddScoped<LocalJwtTokenFactory>();
 builder.Services.AddScoped<IEvolisDecryptorService, EvolisDecryptorService>();
 builder.Services.AddScoped<EvolisWordDocumentBuilder>();

@@ -40,7 +40,7 @@ public class ImportsController(
         if (file is null || file.Length == 0)
             return BadRequest("No file provided.");
 
-        if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown)
+        if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown || !DatasetCatalog.IsSupported(et))
             return BadRequest($"Invalid dataset '{entityType}'. Valid datasets: {DatasetCatalog.GetValidDatasetList()}.");
 
         var allowedExtensions = new[] { ".xlsx", ".csv" };
@@ -116,7 +116,7 @@ public class ImportsController(
             parsedStatus = st;
 
         EntityType? parsedEntityType = null;
-        if (!string.IsNullOrWhiteSpace(entityType) && Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) && et != EntityType.Unknown)
+        if (!string.IsNullOrWhiteSpace(entityType) && Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) && et != EntityType.Unknown && DatasetCatalog.IsSupported(et))
             parsedEntityType = et;
 
         var (items, total) = await importService.GetJobsPagedAsync(page, pageSize, search, parsedStatus, parsedEntityType, ct);

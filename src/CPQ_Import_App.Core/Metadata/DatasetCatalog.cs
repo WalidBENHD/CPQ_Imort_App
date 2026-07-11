@@ -32,90 +32,48 @@ public static class DatasetCatalog
     {
         [EntityType.Article] = new(
             EntityType.Article,
-            "Product Master",
-            "Product Data Stewardship",
-            "Product Master Template",
+            "Article Master",
+            "Saint-Marcellin PDU Data Owner",
+            "Article Master Template",
             "Active",
-            "v3.2",
-            "Core product attributes used across CPQ updates and downstream sites.",
+            "v1.0",
+            "Governed article master data for the Saint-Marcellin PDU pilot.",
             "Product_Master",
             [
-                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Unique product identifier.", "A-100045"),
-                new DatasetColumnRequirement("Name", true, "Text", "Product display name.", "Hydraulic Pump"),
-                new DatasetColumnRequirement("Category", false, "Text", "Business category or family.", "Industrial"),
-                new DatasetColumnRequirement("Unit", false, "Text", "Sales or stocking unit.", "EA")
+                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Unique product identifier.", "PDU-100245"),
+                new DatasetColumnRequirement("Name", true, "Text", "Commercial article name.", "Industrial PDU"),
+                new DatasetColumnRequirement("Category", true, "Text", "Business category or family.", "Standard"),
+                new DatasetColumnRequirement("Unit", true, "Text", "Sales or stocking unit.", "PC")
             ],
             [
                 new DatasetValidationRule("ArticleNumber", "Required, max length 50 characters, and must not contain spaces."),
                 new DatasetValidationRule("Name", "Required and max length 255 characters."),
-                new DatasetValidationRule("Category", "Optional; max length 100 characters.", "Warning"),
-                new DatasetValidationRule("Unit", "Optional; max length 20 characters.", "Warning")
+                new DatasetValidationRule("Category", "Required; must be a valid business category."),
+                new DatasetValidationRule("Unit", "Required; must be a controlled unit code.")
             ]),
         [EntityType.PriceList] = new(
             EntityType.PriceList,
-            "Pricing Conditions",
-            "Pricing Operations",
-            "Pricing Conditions Template",
+            "Basis Price",
+            "Saint-Marcellin PDU Pricing Owner",
+            "Basis Price Template",
             "Active",
-            "v4.1",
-            "Commercial prices and validity windows controlled by the pricing team.",
-            "Pricing_Conditions",
+            "v1.0",
+            "Single unit price used by CPQ for the Saint-Marcellin PDU pilot.",
+            "Basis_Price",
             [
-                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Product identifier aligned with Product Master.", "A-100045"),
-                new DatasetColumnRequirement("Price", true, "Decimal", "Unit price value.", "149.99"),
-                new DatasetColumnRequirement("Currency", true, "Text", "ISO 4217 currency code.", "USD"),
-                new DatasetColumnRequirement("ValidFrom", true, "Date", "Price validity start date.", "2026-07-01"),
+                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Product identifier aligned with Article Master.", "PDU-100245"),
+                new DatasetColumnRequirement("UnitPrice", true, "Decimal", "Price per unit used by CPQ.", "125.50"),
+                new DatasetColumnRequirement("Currency", true, "Text", "ISO 4217 currency code.", "EUR"),
+                new DatasetColumnRequirement("ValidFrom", true, "Date", "Price validity start date.", "2026-01-01"),
                 new DatasetColumnRequirement("ValidTo", false, "Date", "Price validity end date.", "2026-12-31")
             ],
             [
                 new DatasetValidationRule("ArticleNumber", "Required and must not contain spaces."),
-                new DatasetValidationRule("Price", "Required and must be a valid decimal number."),
-                new DatasetValidationRule("Currency", "Required; must be a 3-letter ISO 4217 code (e.g., USD)."),
+                new DatasetValidationRule("UnitPrice", "Required and must be a valid decimal number."),
+                new DatasetValidationRule("Currency", "Required; must be a 3-letter ISO 4217 code (e.g., EUR)."),
                 new DatasetValidationRule("ValidFrom", "Required and must be a valid date."),
                 new DatasetValidationRule("ValidTo", "Optional; when provided, must be a valid date.", "Warning")
             ]),
-        [EntityType.Description] = new(
-            EntityType.Description,
-            "Product Texts",
-            "Localization Team",
-            "Product Texts Template",
-            "Active",
-            "v2.5",
-            "Localized descriptions and content aligned across all international sites.",
-            "Product_Texts",
-            [
-                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Product identifier aligned with Product Master.", "A-100045"),
-                new DatasetColumnRequirement("LanguageCode", true, "Text", "Locale or language code.", "en-US"),
-                new DatasetColumnRequirement("ShortDescription", true, "Text", "Short product description.", "Hydraulic pump 2.2kW"),
-                new DatasetColumnRequirement("LongDescription", false, "Text", "Long-form product description.", "Industrial hydraulic pump suitable for...")
-            ],
-            [
-                new DatasetValidationRule("ArticleNumber", "Required and must not contain spaces."),
-                new DatasetValidationRule("LanguageCode", "Required; max length 10 characters."),
-                new DatasetValidationRule("ShortDescription", "Required; max length 255 characters."),
-                new DatasetValidationRule("LongDescription", "Optional; max length 4000 characters.", "Warning")
-            ]),
-        [EntityType.CurrencyRate] = new(
-            EntityType.CurrencyRate,
-            "Exchange Rates",
-            "Finance Operations",
-            "Exchange Rates Template",
-            "Monitored",
-            "v1.8",
-            "Currency conversion references used for international pricing updates.",
-            "Exchange_Rates",
-            [
-                new DatasetColumnRequirement("FromCurrency", true, "Text", "Source ISO 4217 currency code.", "EUR"),
-                new DatasetColumnRequirement("ToCurrency", true, "Text", "Target ISO 4217 currency code.", "USD"),
-                new DatasetColumnRequirement("Rate", true, "Decimal", "Conversion factor from source to target.", "1.0845"),
-                new DatasetColumnRequirement("ValidFrom", true, "Date", "Date from which the rate is effective.", "2026-07-01")
-            ],
-            [
-                new DatasetValidationRule("FromCurrency", "Required; must be a 3-letter ISO 4217 code."),
-                new DatasetValidationRule("ToCurrency", "Required; must be a 3-letter ISO 4217 code."),
-                new DatasetValidationRule("Rate", "Required; must be a decimal number greater than zero."),
-                new DatasetValidationRule("ValidFrom", "Required and must be a valid date.")
-            ])
     };
 
     public static IReadOnlyList<DatasetDefinition> All =>
@@ -135,6 +93,9 @@ public static class DatasetCatalog
                 entityType.ToString(),
                 [],
                 []);
+
+    public static bool IsSupported(EntityType entityType)
+        => Definitions.ContainsKey(entityType);
 
     public static IReadOnlyList<string> GetDisplayNames()
         => All.Select(d => d.DisplayName).ToList();

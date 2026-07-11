@@ -126,6 +126,15 @@ export class LocalAuthService {
     );
   }
 
+  resetDevData(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/admin/maintenance/reset-dev-data`, {}).pipe(
+      tap(() => {
+        this.toast.success('Development data reset completed.');
+        this.notificationService.pollNow().subscribe();
+      })
+    );
+  }
+
   createUser(payload: {
     userName: string;
     displayName: string;

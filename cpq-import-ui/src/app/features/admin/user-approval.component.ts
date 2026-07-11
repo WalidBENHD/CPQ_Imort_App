@@ -122,6 +122,31 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
         </form>
       </mat-card>
 
+      <mat-card class="panel maintenance-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Maintenance</h2>
+            <p class="muted">Clear demo data while keeping the test users used for sign-in and approvals.</p>
+          </div>
+          <span class="danger-pill">Danger zone</span>
+        </div>
+
+        <div class="maintenance-grid">
+          <div class="maintenance-copy">
+            <div class="maintenance-title">Reset development data</div>
+            <p>
+              This removes import history, staging rows, notifications, audit activity and CPQ data.
+              The local user accounts remain untouched.
+            </p>
+          </div>
+
+          <button mat-stroked-button color="warn" type="button" class="reset-button" (click)="openResetDialog()">
+            <mat-icon>delete_forever</mat-icon>
+            Reset Dev Data
+          </button>
+        </div>
+      </mat-card>
+
       <mat-card class="panel">
         <div class="panel-header">
           <div>
@@ -540,6 +565,53 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       border-radius: 16px;
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 251, 255, 0.92));
     }
+    .maintenance-panel {
+      border-top: 4px solid #f59e0b;
+    }
+    .maintenance-grid {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 0 2px;
+    }
+    .maintenance-copy {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 700px;
+    }
+    .maintenance-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--app-text);
+      margin-bottom: 4px;
+    }
+    .maintenance-copy p {
+      margin: 0;
+      color: var(--app-text-muted);
+      line-height: 1.55;
+      max-width: 760px;
+    }
+    .danger-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(245, 158, 11, 0.28);
+      background: rgba(245, 158, 11, 0.12);
+      color: #b45309;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .reset-button {
+      min-width: 178px;
+      white-space: nowrap;
+      align-self: center;
+    }
     .toggles {
       grid-column: 1 / -1;
       display: flex;
@@ -573,9 +645,20 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       border-color: rgba(126, 162, 255, 0.18);
     }
 
+    :host-context(html.theme-dark) .maintenance-panel {
+      border-top-color: #f59e0b;
+    }
+
+    :host-context(html.theme-dark) .danger-pill {
+      background: rgba(245, 158, 11, 0.14);
+      color: #fdba74;
+      border-color: rgba(245, 158, 11, 0.24);
+    }
+
     :host-context(html.theme-dark) .summary-card .label,
     :host-context(html.theme-dark) .muted,
     :host-context(html.theme-dark) .meta,
+    :host-context(html.theme-dark) .maintenance-copy p,
     :host-context(html.theme-dark) .empty {
       color: #94a3b8;
     }
@@ -661,6 +744,8 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .summary-cards { grid-template-columns: 1fr; }
       .actions { grid-template-columns: 1fr; }
       .actions button { justify-content: flex-start; }
+      .maintenance-grid { flex-direction: column; align-items: stretch; }
+      .reset-button { width: 100%; }
     }
   `]
 })
@@ -956,6 +1041,36 @@ export class UserApprovalComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.errorMessage = err?.error?.error ?? 'Unable to delete user.';
+        }
+      });
+    });
+  }
+
+  openResetDialog(): void {
+    const dialogRef = this.dialog.open(ResetDevDataDialogComponent, {
+      width: '520px',
+      maxWidth: '95vw',
+      disableClose: true,
+      data: {
+        confirmPhrase: 'RESET'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.successMessage = '';
+      this.errorMessage = '';
+
+      this.auth.resetDevData().subscribe({
+        next: () => {
+          this.successMessage = 'Development data cleared. Test users were preserved.';
+          this.reload();
+        },
+        error: (err) => {
+          this.errorMessage = err?.error?.error ?? 'Unable to reset development data.';
         }
       });
     });
@@ -1314,6 +1429,113 @@ interface RejectUserDialogData {
 export class RejectUserDialogComponent {
   readonly data = inject<RejectUserDialogData>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject(MatDialogRef<RejectUserDialogComponent, boolean>);
+
+  close(result: boolean): void {
+    this.dialogRef.close(result);
+  }
+}
+
+interface ResetDevDataDialogData {
+  confirmPhrase: string;
+}
+
+@Component({
+  selector: 'app-reset-dev-data-dialog',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, MatButtonModule, MatIconModule, MatDialogModule, MatFormFieldModule, MatInputModule],
+  template: `
+    <div class="dialog-shell reset-dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-icon-wrap reset-icon-wrap">
+          <mat-icon>warning</mat-icon>
+        </div>
+        <div>
+          <h2 mat-dialog-title>Reset Development Data</h2>
+          <p class="dialog-subtitle">This action clears test data and cannot be undone.</p>
+        </div>
+      </div>
+
+      <mat-dialog-content class="dialog-content">
+        <p class="lead-text">
+          This will delete import jobs, rows, audit activity, notifications and CPQ data.
+          Local users will stay in place.
+        </p>
+
+        <div class="impact-note">
+          <mat-icon class="note-icon">lock</mat-icon>
+          Test accounts are preserved so you can keep signing in after the reset.
+        </div>
+
+        <mat-form-field appearance="outline" class="confirm-field">
+          <mat-label>Type {{ data.confirmPhrase }} to confirm</mat-label>
+          <input matInput [formControl]="confirmControl" autocomplete="off" />
+        </mat-form-field>
+      </mat-dialog-content>
+
+      <mat-dialog-actions align="end" class="action-row">
+        <button mat-stroked-button type="button" (click)="close(false)">Cancel</button>
+        <button
+          mat-flat-button
+          color="warn"
+          type="button"
+          [disabled]="confirmControl.value.trim().toLowerCase() !== data.confirmPhrase.toLowerCase()"
+          (click)="close(true)"
+        >
+          <mat-icon>delete_forever</mat-icon>
+          Reset Data
+        </button>
+      </mat-dialog-actions>
+    </div>
+  `,
+  styles: [`
+    .reset-dialog-shell { padding: 18px 20px 16px; overflow: hidden; }
+    .reset-icon-wrap {
+      background: #fff1f2;
+      color: #b91c1c;
+    }
+    .confirm-field {
+      width: 100%;
+      margin-top: 16px;
+    }
+    .confirm-field input {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .impact-note {
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+      color: #9f1239;
+      font-size: 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .note-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    :host-context(html.theme-dark) .reset-icon-wrap {
+      background: rgba(244, 63, 94, 0.16);
+      color: #fca5a5;
+    }
+    :host-context(html.theme-dark) .impact-note {
+      border-color: rgba(244, 63, 94, 0.3);
+      background: rgba(127, 29, 29, 0.28);
+      color: #fecdd3;
+    }
+  `]
+})
+export class ResetDevDataDialogComponent {
+  readonly data = inject<ResetDevDataDialogData>(MAT_DIALOG_DATA);
+  readonly confirmControl = new FormBuilder().nonNullable.control('');
+  private readonly dialogRef = inject(MatDialogRef<ResetDevDataDialogComponent, boolean>);
 
   close(result: boolean): void {
     this.dialogRef.close(result);

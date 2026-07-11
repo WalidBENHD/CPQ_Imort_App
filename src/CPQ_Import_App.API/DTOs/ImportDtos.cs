@@ -113,3 +113,9 @@ public record DatasetRequirementDto(
     string Description,
     IReadOnlyList<DatasetColumnRequirementDto> Columns,
     IReadOnlyList<DatasetValidationRuleDto> ValidationRules);
+
+public record DataResetResponseDto(
+    string Message,
+    string PreservedTable,
+    IReadOnlyList<string> ClearedImportTables,
+    IReadOnlyList<string> ClearedCpqTables);

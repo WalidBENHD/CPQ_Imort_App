@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType } from '../../core/models/import.models';
+import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 
 @Component({
@@ -15,15 +15,29 @@ import { ImportService } from '../../core/services/import.service';
     <div class="page-header">
       <div>
         <div class="eyebrow">Dataset governance</div>
-        <h1>Dataset Management</h1>
+        <h1>Pilot Dataset Management</h1>
         <p class="page-intro">
-          Manage the dataset portfolio, ownership, template standards and current version for each business stream.
+          Manage the pilot dataset portfolio, ownership, template standards and current version for Saint-Marcellin PDU.
         </p>
       </div>
       <button mat-raised-button color="primary" routerLink="/import/new">
-        <mat-icon>add</mat-icon> New Dataset Import
+        <mat-icon>add</mat-icon> New Annual Submission
       </button>
     </div>
+
+    <mat-card class="pilot-scope-card">
+      <div>
+        <div class="eyebrow">Pilot scope</div>
+        <h2>{{ pilotScope.site }} - {{ pilotScope.productFamily }}</h2>
+        <p>
+          Two logical datasets are in scope: {{ pilotScope.dataDomains.join(' + ') }}.
+          The process stays focused on one annual full snapshot, one category, and a required currency.
+        </p>
+      </div>
+      <div class="pilot-scope-badges">
+        <span class="pilot-chip" *ngFor="let chip of pilotChips">{{ chip }}</span>
+      </div>
+    </mat-card>
 
     <section class="portfolio-grid">
       <mat-card class="dataset-card" *ngFor="let dataset of datasetCatalog">
@@ -127,6 +141,48 @@ import { ImportService } from '../../core/services/import.service';
       max-width: 760px;
       color: #475569;
       line-height: 1.55;
+    }
+    .pilot-scope-card {
+      margin-bottom: 16px;
+      border: 1px solid #dbe4f0;
+      box-shadow: none;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+    }
+    .pilot-scope-card h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .pilot-scope-card p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.5;
+      max-width: 760px;
+    }
+    .pilot-scope-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .pilot-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #dbe4f0;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
     }
     .portfolio-grid {
       display: grid;
@@ -305,6 +361,12 @@ import { ImportService } from '../../core/services/import.service';
         flex-direction: column;
         align-items: flex-start;
       }
+      .pilot-scope-card {
+        flex-direction: column;
+      }
+      .pilot-scope-badges {
+        justify-content: flex-start;
+      }
       .portfolio-grid,
       .dataset-meta {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -340,6 +402,14 @@ export class DatasetsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly importService = inject(ImportService);
 
+  readonly pilotScope = PILOT_SCOPE;
+  readonly pilotChips = [
+    PILOT_SCOPE.site,
+    PILOT_SCOPE.productFamily,
+    ...PILOT_SCOPE.dataDomains,
+    PILOT_SCOPE.submissionType,
+    `Currency: ${PILOT_SCOPE.currency}`
+  ];
   readonly datasetCatalog: DatasetDefinition[] = DATASET_CATALOG;
   requirementsByType: Partial<Record<EntityType, DatasetRequirement>> = {};
 

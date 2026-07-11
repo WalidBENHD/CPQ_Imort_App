@@ -1094,3 +1094,104 @@ The recommended next business deliverables are:
 - A prioritized feature backlog
 - A detailed MVP process flow
 - A pilot plan for one site and one product family
+
+## 20. Current Application Fit and Phased Delivery
+
+At this stage, the current app satisfies the scope in a partial but meaningful way: it already delivers the user-facing entry points for login, role-aware access, dataset selection, upload, validation preview, row correction, approval/rejection, dashboards, and operational visibility, which means the core submission journey is demonstrable and usable for a pilot; however, it still only covers the business scope at an estimated 40-50% because the governed back end is not yet complete, and the portal still needs a real data ownership model, baseline comparison against the previous approved version, authoritative version history, controlled publication, and rollback. The recommended phase plan is: **Phase 1 - Governance foundation** to finalize roles, scope, templates, reference data, and validation rules; **Phase 2 - Controlled submission MVP** to implement upload, validation, comparison, approval, and publication for one site and one product family; **Phase 3 - Traceability and risk reduction** to add history, effective dates, change reasons, and rollback; and **Phase 4 - Adoption and scale** to expand to more sites, dashboards, reminders, and operational reporting once the pilot is stable. For the pilot, the business scope is two logical datasets managed in one workflow: **Article Master** and **Basis Price**. The price dataset is intentionally framed as a **unit price** dataset: the file stores the monetary amount as `UnitPrice`, and the article master provides the unit of measure so users can read the value as "price per unit" without ambiguity.
+
+### Phase 1 - Detailed Workplan
+
+To work on Phase 1 in a controlled way, I would start with the business definitions before any technical implementation:
+
+1. Confirm the pilot scope: one site, one product family, two logical datasets, one annual cycle, and a limited approver group.
+2. Define the governance model: contributor, data owner, approver, CPQ admin, and system administrator, including who can submit, approve, reject, and publish.
+3. Freeze the standard data structure for the pilot: required fields, optional fields, naming conventions, dates, units, currency, and status values.
+4. Build the data dictionary: clear field definitions, business meaning, validation expectations, and ownership of each field.
+5. Define the reference lists: approved sites, product families, units, and change-reason categories.
+6. Write the validation rules: blocking errors, warnings, duplicate logic, missing-data handling, currency rules, and effective-date rules.
+7. Agree the confirmation text and approval wording: contributor responsibility statement and approver attestation.
+8. Produce the pilot-ready submission template and process flow so the business can test the same path every time.
+9. Review the package with the business and CPQ team, then sign off the minimum foundation before moving into the upload and comparison MVP.
+
+### Pilot Template - Article Master + Basis Price
+
+For the Saint-Marcellin / PDU pilot, the first submission template should stay focused on the business-critical fields that matter most for governance and publication.
+
+| Field | Required | Meaning | Validation rule | Example |
+|---|---|---|---|---|
+| Article Number | Yes | Unique commercial item identifier | Must not be empty and must be unique in scope | `PDU-100245` |
+| Site | Yes | Site responsible for the data | Must be one of the approved sites | `Saint-Marcellin` |
+| Product Family | Yes | Business family of the article | Must match the approved product family list | `PDU` |
+| Article Category | Yes | Article classification | Must be a valid reference value | `Standard` |
+| Status | Yes | Commercial lifecycle state | Must be a valid status code | `Active` |
+| Default Unit | Yes | Main unit of measure | Must be an approved unit | `PC` |
+| Effective From | Yes | Start date of validity | Must be a valid date and cannot be empty | `2026-01-01` |
+| Effective To | No | End date of validity | Must be after Effective From if filled | `2026-12-31` |
+| Replacement Article | No | Superseding article if discontinued | If filled, must exist in scope or reference list | `PDU-100300` |
+| Basis Price | Yes | Reference unit price value used by CPQ | Must be numeric and non-negative | `125.50` |
+| Currency | Yes | Price currency | Must be an approved currency | `EUR` |
+| Price Basis | Yes | Basis for the price | Must be a valid business value and align with the article unit | `Per piece` |
+| Unit | Yes | Unit applied to the price | Must be consistent with price basis | `PC` |
+| Data Owner | Yes | Business owner accountable for accuracy | Must be a valid user or role assignment | `Jean Dupont` |
+| Contributor | Yes | Person preparing the submission | Must be a valid user | `Marie Martin` |
+| Approver | Yes | Person approving the data | Must be a valid user with approval rights | `Claire Bernard` |
+| Submission Type | Yes | Full snapshot or delta update | Must be `Full` or `Delta` | `Full` |
+| Submission Reason | No | Why the submission is being made | Recommended for traceability | `Annual update` |
+| Change Reason | No | Why a row changed | Recommended for audited changes | `Price increase` |
+| Source File Name | Yes | Original uploaded file name | Auto-captured by the system | `PDU_2026_Update.xlsx` |
+
+#### Blocking rules for the pilot
+
+The following should block submission because they prevent the portal from reliably governing the data:
+
+- Missing Article Number
+- Missing Site or Product Family
+- Missing Basis Price, Currency, or Price Basis
+- Unknown unit
+- Duplicate Article Number in the same scope
+- Invalid Effective From date
+- Missing Data Owner or Approver
+- Negative price
+- Invalid Replacement Article
+
+#### Warning rules for the pilot
+
+The following should raise warnings first, rather than blocking the submission immediately:
+
+- Effective To missing
+- Change Reason missing
+- Large price increase
+- Unit changed
+- Many new articles in one file
+
+#### Recommended pilot position
+
+For the Saint-Marcellin / PDU pilot, the first release should stay focused on:
+
+- Article Master
+- Basis Price
+- One site
+- One product family
+- One full snapshot upload
+- Blocking validation on critical fields only
+
+This keeps the pilot small enough to deliver quickly, but strong enough to demonstrate real governance value.
+
+## 21. Annual Update Use Case Flow
+
+The annual update should work as a governed full-scope refresh for the pilot:
+
+1. The site opens a new annual submission for Saint-Marcellin and PDU.
+2. The portal loads the last approved baseline for the same scope.
+3. The user prepares the source file using the controlled template.
+4. The file is uploaded into the portal.
+5. The system validates the structure, currency, dates, units, and ownership fields.
+6. The portal compares the new file against the previous approved version.
+7. Each row is classified as new, changed, unchanged, or missing.
+8. The user corrects small issues directly or cancels the request and reuploads a corrected file if the issues are widespread.
+9. The contributor confirms the submission.
+10. The approver reviews only the exceptions and relevant changes.
+11. The portal publishes the approved version into CPQ.
+12. The system stores the version history, publication log, and rollback reference.
+
+In business terms, the annual update should not feel like a manual file exchange. It should feel like a controlled submission, comparison, approval, and publication process with clear ownership and traceability.

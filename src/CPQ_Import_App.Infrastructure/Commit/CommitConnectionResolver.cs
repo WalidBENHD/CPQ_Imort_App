@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace CPQ_Import_App.Infrastructure.Commit;
 
-internal static class CommitConnectionResolver
+public static class CommitConnectionResolver
 {
     public static bool ShouldUsePostgres(IConfiguration config)
     {

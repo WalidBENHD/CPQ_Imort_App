@@ -20,7 +20,7 @@ public class TemplatesController(IImportService importService) : ControllerBase
     [HttpGet("requirements/{entityType}")]
     public ActionResult<DatasetRequirementDto> GetDatasetRequirement(string entityType)
     {
-        if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown)
+        if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown || !DatasetCatalog.IsSupported(et))
             return BadRequest($"Invalid dataset. Valid datasets: {DatasetCatalog.GetValidDatasetList()}.");
 
         return Ok(DatasetCatalog.Get(et).ToDto());
@@ -30,7 +30,7 @@ public class TemplatesController(IImportService importService) : ControllerBase
     [HttpGet("{entityType}")]
     public async Task<IActionResult> DownloadTemplate(string entityType, CancellationToken ct)
     {
-        if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown)
+        if (!Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) || et == EntityType.Unknown || !DatasetCatalog.IsSupported(et))
             return BadRequest($"Invalid dataset. Valid datasets: {DatasetCatalog.GetValidDatasetList()}.");
 
         var bytes = await importService.GenerateTemplateAsync(et, ct);

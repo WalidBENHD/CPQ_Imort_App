@@ -14,6 +14,15 @@ export interface DatasetDefinition {
   fileNameFragment: string;
 }
 
+export interface PilotScope {
+  site: string;
+  productFamily: string;
+  dataDomains: string[];
+  submissionType: string;
+  category: string;
+  currency: string;
+}
+
 export interface DatasetColumnRequirement {
   name: string;
   required: boolean;
@@ -141,50 +150,37 @@ export interface DashboardOverview {
   recentSubmissions: ImportJob[];
 }
 
+export const PILOT_SCOPE: PilotScope = {
+  site: 'Saint-Marcellin',
+  productFamily: 'PDU',
+  dataDomains: ['Article Master', 'Basis Price'],
+  submissionType: 'Annual full snapshot',
+  category: 'Standard',
+  currency: 'EUR'
+};
+
 export const DATASET_CATALOG: DatasetDefinition[] = [
   {
     key: 'Article',
-    name: 'Product Master',
-    description: 'Core product attributes used across CPQ updates and downstream sites.',
-    owner: 'Product Data Stewardship',
-    template: 'Product Master Template',
+    name: 'Article Master',
+    description: 'Governed article master data for the Saint-Marcellin PDU pilot.',
+    owner: 'Saint-Marcellin PDU data owner',
+    template: 'Article Master Template',
     status: 'Active',
-    currentVersion: 'v3.2',
+    currentVersion: 'v1.0',
     icon: 'inventory_2',
-    fileNameFragment: 'Product_Master'
+    fileNameFragment: 'Article_Master'
   },
   {
     key: 'PriceList',
-    name: 'Pricing Conditions',
-    description: 'Commercial prices and validity windows controlled by the pricing team.',
-    owner: 'Pricing Operations',
-    template: 'Pricing Conditions Template',
+    name: 'Basis Price',
+    description: 'Single unit price used by CPQ for the Saint-Marcellin PDU pilot.',
+    owner: 'Saint-Marcellin PDU pricing owner',
+    template: 'Basis Price Template',
     status: 'Active',
-    currentVersion: 'v4.1',
-    icon: 'price_change',
-    fileNameFragment: 'Pricing_Conditions'
-  },
-  {
-    key: 'Description',
-    name: 'Product Texts',
-    description: 'Localized descriptions and content aligned across all international sites.',
-    owner: 'Localization Team',
-    template: 'Product Texts Template',
-    status: 'Active',
-    currentVersion: 'v2.5',
-    icon: 'translate',
-    fileNameFragment: 'Product_Texts'
-  },
-  {
-    key: 'CurrencyRate',
-    name: 'Exchange Rates',
-    description: 'Currency conversion references used for international pricing updates.',
-    owner: 'Finance Operations',
-    template: 'Exchange Rates Template',
-    status: 'Monitored',
-    currentVersion: 'v1.8',
-    icon: 'currency_exchange',
-    fileNameFragment: 'Exchange_Rates'
+    currentVersion: 'v1.0',
+    icon: 'payments',
+    fileNameFragment: 'Basis_Price'
   }
 ];
 

@@ -10,7 +10,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
 import { isLocalAuthMode } from '../../core/auth/auth-mode';
 import { LocalAuthService } from '../../core/auth/local-auth.service';
 import { AuthUser } from '../../core/models/auth.models';
-import { DashboardAttentionItem, DashboardOverview, ImportJob } from '../../core/models/import.models';
+import { DashboardAttentionItem, DashboardOverview, ImportJob, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 
@@ -33,12 +33,23 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
         <div>
           <div class="eyebrow">Operational workspace</div>
           <h1>Dashboard</h1>
-          <p class="page-intro">A compact view of current queue status, exceptions and recent uploads.</p>
+          <p class="page-intro">A compact view of current queue status, exceptions and recent uploads for the pilot scope.</p>
         </div>
 
         <div class="header-actions">
         </div>
       </div>
+
+      <mat-card class="pilot-scope-strip">
+        <div class="pilot-scope-copy">
+          <span class="eyebrow eyebrow--soft">Pilot scope</span>
+          <strong>{{ pilotScope.site }} - {{ pilotScope.productFamily }}</strong>
+          <span>{{ pilotScope.submissionType }} for {{ pilotScope.dataDomains.join(' + ') }}.</span>
+        </div>
+        <div class="pilot-scope-chips">
+          <span class="pilot-chip" *ngFor="let chip of pilotChips">{{ chip }}</span>
+        </div>
+      </mat-card>
 
       <ng-container *ngIf="overview; else loadingState">
         <div
@@ -186,6 +197,36 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
     .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .header-actions button { border-radius: 999px; min-height: 40px; font-weight: 700; }
     .header-actions mat-icon { margin-right: 4px; }
+    .pilot-scope-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      border: 1px solid #dbe4f0;
+      box-shadow: none;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      padding: 14px 16px;
+    }
+    .pilot-scope-copy {
+      display: grid;
+      gap: 4px;
+      color: #0f172a;
+    }
+    .pilot-scope-copy strong { font-size: 16px; font-weight: 800; }
+    .pilot-scope-copy span { color: #475569; }
+    .pilot-scope-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .pilot-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #dbe4f0;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
     .dashboard-grid {
       display: grid;
       gap: 16px;
@@ -401,6 +442,8 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       .page-header { flex-direction: column; align-items: flex-start; }
       .header-actions { width: 100%; }
       .header-actions button { width: 100%; justify-content: center; }
+      .pilot-scope-strip { flex-direction: column; }
+      .pilot-scope-chips { justify-content: flex-start; }
       .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .dashboard-grid--admin,
       .dashboard-grid--solo { grid-template-columns: 1fr; }
@@ -453,6 +496,14 @@ export class DashboardComponent implements OnInit {
   private readonly localAuth = inject(LocalAuthService);
   private readonly router = inject(Router);
 
+  readonly pilotScope = PILOT_SCOPE;
+  readonly pilotChips = [
+    PILOT_SCOPE.site,
+    PILOT_SCOPE.productFamily,
+    ...PILOT_SCOPE.dataDomains,
+    PILOT_SCOPE.submissionType,
+    `Currency: ${PILOT_SCOPE.currency}`
+  ];
   overview: DashboardOverview | null = null;
   loading = false;
   users: AuthUser[] = [];

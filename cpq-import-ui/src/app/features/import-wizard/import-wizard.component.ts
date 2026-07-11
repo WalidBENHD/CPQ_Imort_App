@@ -11,7 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
-import { DATASET_CATALOG, DatasetRequirement, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition } from '../../core/models/import.models';
+import { DATASET_CATALOG, DatasetRequirement, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 
 @Component({
@@ -25,12 +25,33 @@ import { ImportService } from '../../core/services/import.service';
     <div class="page-header">
       <div>
         <div class="eyebrow">Dataset submission</div>
-        <h1>New Dataset Import</h1>
+        <h1>New Annual Submission</h1>
+        <p class="page-intro">
+          Saint-Marcellin PDU annual update for Article Master and Basis Price, including a clear unit price for each article, controlled through one governed workflow.
+        </p>
       </div>
       <a mat-button routerLink="/dashboard">
         <mat-icon>arrow_back</mat-icon> Back to Datasets
       </a>
     </div>
+
+    <mat-card class="pilot-scope-card">
+      <div class="pilot-scope-copy">
+        <div class="eyebrow">Pilot scope</div>
+        <h2>{{ pilotScope.site }} - {{ pilotScope.productFamily }}</h2>
+        <p>
+          {{ pilotScope.submissionType }} with {{ pilotScope.dataDomains.join(' + ') }}.
+          Category stays {{ pilotScope.category }}, and currency is required.
+        </p>
+      </div>
+      <div class="pilot-scope-chips">
+        <span class="scope-chip">{{ pilotScope.site }}</span>
+        <span class="scope-chip">{{ pilotScope.productFamily }}</span>
+        <span class="scope-chip" *ngFor="let domain of pilotScope.dataDomains">{{ domain }}</span>
+        <span class="scope-chip">{{ pilotScope.submissionType }}</span>
+        <span class="scope-chip">Currency: {{ pilotScope.currency }}</span>
+      </div>
+    </mat-card>
 
     <mat-card class="wizard-shell">
       <mat-card-content>
@@ -39,7 +60,7 @@ import { ImportService } from '../../core/services/import.service';
           <!-- Step 1: Choose dataset -->
           <mat-step label="Select Dataset" [completed]="!!selectedType">
             <div class="step-content">
-              <p class="step-subtitle">Choose the dataset you want to update.</p>
+              <p class="step-subtitle">Choose the pilot dataset you want to update.</p>
               <div class="entity-grid">
                 <div
                   *ngFor="let opt of entityOptions"
@@ -110,7 +131,7 @@ import { ImportService } from '../../core/services/import.service';
             <div class="step-content">
               <p class="step-subtitle">Upload your filled Excel (.xlsx) or CSV (.csv) file for the selected dataset.</p>
 
-              <div class="upload-hint" *ngIf="selectedRequirement as req">
+                <div class="upload-hint" *ngIf="selectedRequirement as req">
                 Required columns for {{ req.displayName }}:
                 <strong>{{ requiredColumnsHint(req) }}</strong>
               </div>
@@ -210,6 +231,55 @@ import { ImportService } from '../../core/services/import.service';
       margin-bottom: 6px;
     }
     h1 { margin: 0; font-size: 28px; font-weight: 700; color: #0f172a; }
+    .page-intro {
+      margin: 8px 0 0;
+      color: #475569;
+      line-height: 1.55;
+      max-width: 760px;
+    }
+
+    .pilot-scope-card {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      border: 1px solid #dbe4f0;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      box-shadow: none;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .pilot-scope-copy h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .pilot-scope-copy p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.5;
+      max-width: 740px;
+    }
+    .pilot-scope-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .scope-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #dbe4f0;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
 
     .wizard-shell { border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: none; }
     .step-content { padding: 24px 0; }
@@ -370,6 +440,13 @@ import { ImportService } from '../../core/services/import.service';
     @media (max-width: 768px) {
       .page-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
       h1 { font-size: 22px; }
+      .pilot-scope-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .pilot-scope-chips {
+        justify-content: flex-start;
+      }
       .wizard-shell { overflow: visible; }
       :host ::ng-deep .wizard-shell .mat-mdc-card-content { overflow: visible; }
       :host ::ng-deep .wizard-shell .mat-stepper-vertical { overflow: visible; }
@@ -412,6 +489,7 @@ export class ImportWizardComponent {
   uploadedJobId: string | null = null;
   acknowledgedResponsibility = false;
   requirementsByType: Partial<Record<EntityType, DatasetRequirement>> = {};
+  readonly pilotScope = PILOT_SCOPE;
 
   get isMobile(): boolean {
     return typeof window !== 'undefined' && window.innerWidth <= 768;
@@ -422,7 +500,15 @@ export class ImportWizardComponent {
       return undefined;
     }
 
-    return this.requirementsByType[this.selectedType];
+    const requirement = this.requirementsByType[this.selectedType];
+    if (!requirement) {
+      return undefined;
+    }
+
+    return {
+      ...requirement,
+      displayName: getDatasetDefinition(this.selectedType).name
+    };
   }
 
   constructor() {
@@ -431,6 +517,8 @@ export class ImportWizardComponent {
     const dataset = this.route.snapshot.queryParamMap.get('dataset') as EntityType | null;
     if (dataset && DATASET_CATALOG.some(item => item.key === dataset)) {
       this.setSelectedType(dataset);
+    } else {
+      this.setSelectedType('Article');
     }
   }
 

@@ -6,11 +6,11 @@ namespace CPQ_Import_App.Infrastructure.Parsers;
 
 /// <summary>
 /// Parses price list import files.
-/// Expected columns: ArticleNumber, Price, Currency, ValidFrom, ValidTo
+/// Expected columns: ArticleNumber, UnitPrice, Currency, ValidFrom, ValidTo
 /// </summary>
 public class PriceListParser : IFileParser
 {
-    private static readonly string[] ExpectedHeaders = ["ArticleNumber", "Price", "Currency", "ValidFrom", "ValidTo"];
+    private static readonly string[] ExpectedHeaders = ["ArticleNumber", "UnitPrice", "Currency", "ValidFrom", "ValidTo"];
 
     public EntityType SupportedEntityType => EntityType.PriceList;
 
@@ -25,7 +25,14 @@ public class PriceListParser : IFileParser
     {
         var (headers, rawRows) = await RawFileReader.ReadAsync(fileStream, fileName, ct);
 
-        var missingHeaders = ExpectedHeaders.Except(headers, StringComparer.OrdinalIgnoreCase).ToList();
+        var missingHeaders = ExpectedHeaders
+            .Where(header => !headers.Any(h => string.Equals(h, header, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (headers.Any(h => string.Equals(h, "Price", StringComparison.OrdinalIgnoreCase)))
+        {
+            missingHeaders.RemoveAll(header => string.Equals(header, "UnitPrice", StringComparison.OrdinalIgnoreCase));
+        }
+
         if (missingHeaders.Count > 0)
             throw new InvalidDataException(
                 $"Missing required columns: {string.Join(", ", missingHeaders)}. " +
@@ -44,13 +51,15 @@ public class PriceListParser : IFileParser
 
     private static List<ValidationMessage> Validate(Dictionary<string, string?> fields)
     {
+        NormalizePriceField(fields);
+
         var msgs = new List<ValidationMessage>();
         RowValidator.RequireField(fields, "ArticleNumber", msgs);
         RowValidator.NoWhitespace(fields, "ArticleNumber", msgs);
-        RowValidator.RequireField(fields, "Price", msgs);
+        RowValidator.RequireField(fields, "UnitPrice", msgs);
         RowValidator.RequireField(fields, "Currency", msgs);
         RowValidator.RequireField(fields, "ValidFrom", msgs);
-        RowValidator.RequireDecimal(fields, "Price", msgs);
+        RowValidator.RequireDecimal(fields, "UnitPrice", msgs);
         RowValidator.RequireDate(fields, "ValidFrom", msgs);
         RowValidator.RequireDate(fields, "ValidTo", msgs);
         RowValidator.MaxLength(fields, "Currency", 3, msgs);
@@ -67,5 +76,18 @@ public class PriceListParser : IFileParser
         }
 
         return msgs;
+    }
+
+    private static void NormalizePriceField(Dictionary<string, string?> fields)
+    {
+        if (fields.TryGetValue("UnitPrice", out var unitPrice) && !string.IsNullOrWhiteSpace(unitPrice))
+        {
+            return;
+        }
+
+        if (fields.TryGetValue("Price", out var legacyPrice) && !string.IsNullOrWhiteSpace(legacyPrice))
+        {
+            fields["UnitPrice"] = legacyPrice;
+        }
     }
 }
