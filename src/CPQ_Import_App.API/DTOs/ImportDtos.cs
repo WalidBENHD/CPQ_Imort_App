@@ -66,6 +66,7 @@ public record ComparisonMissingItemDto(
 
 public record ImportComparisonDto(
     Guid JobId,
+    Guid BaselineJobId,
     EntityType EntityType,
     string EntityTypeLabel,
     bool HasBaseline,

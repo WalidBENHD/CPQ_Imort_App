@@ -61,14 +61,14 @@ public static class DatasetCatalog
             "Single unit price used by CPQ for the Saint-Marcellin PDU pilot.",
             "Basis_Price",
             [
-                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Product identifier aligned with Article Master.", "PDU-100245"),
+                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Product identifier that must already exist in Article Master.", "PDU-100245"),
                 new DatasetColumnRequirement("UnitPrice", true, "Decimal", "Price per unit used by CPQ.", "125.50"),
                 new DatasetColumnRequirement("Currency", true, "Text", "ISO 4217 currency code.", "EUR"),
                 new DatasetColumnRequirement("ValidFrom", true, "Date", "Price validity start date.", "2026-01-01"),
                 new DatasetColumnRequirement("ValidTo", false, "Date", "Price validity end date.", "2026-12-31")
             ],
             [
-                new DatasetValidationRule("ArticleNumber", "Required and must not contain spaces."),
+                new DatasetValidationRule("ArticleNumber", "Required, must not contain spaces, and must already exist in Article Master."),
                 new DatasetValidationRule("UnitPrice", "Required and must be a valid decimal number."),
                 new DatasetValidationRule("Currency", "Required; must be a 3-letter ISO 4217 code (e.g., EUR)."),
                 new DatasetValidationRule("ValidFrom", "Required and must be a valid date."),

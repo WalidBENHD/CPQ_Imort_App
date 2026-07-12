@@ -22,6 +22,7 @@ public sealed record ComparisonMissingItem(
 
 public sealed record ImportComparisonResult(
     Guid JobId,
+    Guid BaselineJobId,
     EntityType EntityType,
     string EntityTypeLabel,
     bool HasBaseline,

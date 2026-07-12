@@ -1214,6 +1214,21 @@ app-import-preview .comparison-header h3 {
   color: #0f172a;
 }
 
+app-import-preview .baseline-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin: 2px 0 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  width: fit-content;
+}
+
 app-import-preview .comparison-header p {
   margin: 0;
   color: #475569;
@@ -1936,6 +1951,11 @@ html.theme-dark app-import-preview .annual-banner-loading {
 html.theme-dark app-import-preview .comparison-header h3,
 html.theme-dark app-import-preview .comparison-stat strong {
   color: var(--app-text) !important;
+}
+html.theme-dark app-import-preview .baseline-chip {
+  background: rgba(59, 130, 246, 0.14) !important;
+  border-color: rgba(59, 130, 246, 0.34) !important;
+  color: #93c5fd !important;
 }
 html.theme-dark app-import-preview .comparison-header p,
 html.theme-dark app-import-preview .comparison-stat span,

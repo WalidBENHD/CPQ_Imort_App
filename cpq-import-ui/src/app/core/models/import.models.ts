@@ -124,6 +124,7 @@ export interface ComparisonMissingItem {
 
 export interface ImportComparison {
   jobId: string;
+  baselineJobId: string;
   entityType: EntityType;
   entityTypeLabel: string;
   hasBaseline: boolean;

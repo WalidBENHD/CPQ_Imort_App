@@ -86,6 +86,7 @@ public static class DtoMapper
 
     public static ImportComparisonDto ToDto(this ImportComparisonResult comparison) => new(
         comparison.JobId,
+        comparison.BaselineJobId,
         comparison.EntityType,
         comparison.EntityTypeLabel,
         comparison.HasBaseline,

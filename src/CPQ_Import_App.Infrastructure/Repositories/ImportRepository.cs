@@ -145,6 +145,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
             return new ImportComparisonResult(
                 job.Id,
+                job.Id,
                 job.EntityType,
                 DatasetCatalog.Get(job.EntityType).DisplayName,
                 false,
@@ -203,6 +204,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
         return new ImportComparisonResult(
             job.Id,
+            baselineSnapshot.Value.JobId,
             job.EntityType,
             DatasetCatalog.Get(job.EntityType).DisplayName,
             true,

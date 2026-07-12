@@ -146,6 +146,9 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
                   ? 'Compared against the latest approved baseline'
                   : 'This submission establishes the approved baseline' }}
               </h3>
+              <div class="baseline-chip" *ngIf="comparison?.hasBaseline && comparison?.baselineJobId === job?.id">
+                {{ comparisonBaselineLabel() }}
+              </div>
               <p *ngIf="comparison?.hasBaseline; else noBaselineMessage">
                 This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
                 Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
@@ -815,6 +818,10 @@ export class ImportPreviewComponent implements OnInit {
       default:
         return 'help';
     }
+  }
+
+  comparisonBaselineLabel(): string {
+    return 'Active baseline';
   }
 
   getMobileColumns(row: StagingRow): string[] {
