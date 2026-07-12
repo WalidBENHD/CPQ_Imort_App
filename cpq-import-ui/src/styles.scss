@@ -1337,6 +1337,36 @@ app-import-preview .comparison-loading {
   font-weight: 600;
 }
 
+app-import-preview .field-cell,
+app-import-preview .mobile-field-value-wrap {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+app-import-preview .field-cell--changed,
+app-import-preview .mobile-field-value-wrap.changed-field-cell {
+  padding: 3px 8px;
+  margin: -3px -8px;
+  border-radius: 8px;
+  background: #fffaf2;
+  box-shadow: inset 0 0 0 1px #f4c08a;
+}
+
+app-import-preview .field-value,
+app-import-preview .mobile-field-value {
+  min-width: 0;
+  word-break: break-word;
+}
+
+html.theme-dark app-import-preview .field-cell--changed,
+html.theme-dark app-import-preview .mobile-field-value-wrap.changed-field-cell {
+  background: rgba(251, 146, 60, 0.08) !important;
+  box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.28) !important;
+}
+
 html.theme-dark app-import-preview .comparison-loading {
   background: rgba(59, 130, 246, 0.12) !important;
   border-color: rgba(59, 130, 246, 0.34) !important;

@@ -265,27 +265,37 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
     private async Task<(Guid JobId, IReadOnlyList<Dictionary<string, string?>> Rows)?> LoadBaselineSnapshotAsync(ImportJob currentJob, CancellationToken ct)
     {
-        var baselineJob = await db.ImportJobs.AsNoTracking()
+        var latestCommittedJob = await db.ImportJobs.AsNoTracking()
             .Where(j => j.EntityType == currentJob.EntityType
                 && j.Status == ImportStatus.Committed
-                && j.CommittedAt.HasValue
-                && j.Id != currentJob.Id)
+                && j.CommittedAt.HasValue)
             .OrderByDescending(j => j.CommittedAt)
             .ThenByDescending(j => j.CreatedAt)
             .FirstOrDefaultAsync(ct);
 
-        if (baselineJob is null)
+        if (latestCommittedJob is null)
         {
             return null;
         }
 
+        if (currentJob.Status == ImportStatus.Committed && latestCommittedJob.Id == currentJob.Id)
+        {
+            var committedRows = await db.StagingRows
+                .AsNoTracking()
+                .Where(r => r.ImportJobId == currentJob.Id)
+                .OrderBy(r => r.RowNumber)
+                .ToListAsync(ct);
+
+            return (currentJob.Id, committedRows.Select(row => Deserialize(row.RawData)).ToList());
+        }
+
         var baselineRows = await db.StagingRows
             .AsNoTracking()
-            .Where(r => r.ImportJobId == baselineJob.Id)
+            .Where(r => r.ImportJobId == latestCommittedJob.Id)
             .OrderBy(r => r.RowNumber)
             .ToListAsync(ct);
 
-        return (baselineJob.Id, baselineRows.Select(row => Deserialize(row.RawData)).ToList());
+        return (latestCommittedJob.Id, baselineRows.Select(row => Deserialize(row.RawData)).ToList());
     }
 
     private static Dictionary<string, Dictionary<string, string?>> BuildBaselineLookup(

@@ -17,7 +17,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from '../../core/services/import.service';
-import { ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
+import { ComparisonFieldChange, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
@@ -61,46 +61,6 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     </div>
 
     <ng-container *ngIf="job">
-      <mat-card class="annual-banner" *ngIf="comparison || comparisonLoading">
-        <mat-card-content>
-          <div class="annual-banner-copy">
-            <div class="eyebrow">{{ comparison?.hasBaseline ? 'Annual refresh' : 'Initial baseline' }}</div>
-            <h2>
-              {{ comparison?.hasBaseline
-                ? 'New submission compared to the approved baseline'
-                : 'First approved submission becomes the baseline' }}
-            </h2>
-            <p *ngIf="comparison?.hasBaseline; else initialBaselineCopy">
-              The portal keeps the annual update visible as a change review, not just another upload.
-              Approvers can focus on new, modified, and missing records before approving the refresh.
-            </p>
-          </div>
-          <div class="annual-banner-stats" *ngIf="comparison as cmp; else bannerLoading">
-            <div class="annual-banner-stat banner-new">
-              <span>New</span>
-              <strong>{{ cmp.newRows }}</strong>
-            </div>
-            <div class="annual-banner-stat banner-modified">
-              <span>Modified</span>
-              <strong>{{ cmp.modifiedRows }}</strong>
-            </div>
-            <div class="annual-banner-stat banner-missing">
-              <span>Missing</span>
-              <strong>{{ cmp.missingBaselineRows }}</strong>
-            </div>
-          </div>
-          <ng-template #bannerLoading>
-            <div class="annual-banner-loading">
-              <mat-icon>hourglass_empty</mat-icon>
-              <span>Loading comparison against the current baseline...</span>
-            </div>
-          </ng-template>
-          <ng-template #initialBaselineCopy>
-            The first approved upload for a dataset creates the baseline that future annual submissions will compare against.
-          </ng-template>
-        </mat-card-content>
-      </mat-card>
-
       <!-- Job summary -->
       <mat-card class="summary-card">
         <mat-card-content>
@@ -377,7 +337,11 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
 
               <ng-container *ngFor="let col of dynamicColumns" [matColumnDef]="col">
                 <th mat-header-cell *matHeaderCellDef>{{ col }}</th>
-                <td mat-cell *matCellDef="let row">{{ row.fields[col] }}</td>
+                <td mat-cell *matCellDef="let row" [class.changed-field-cell]="isFieldChanged(row, col)">
+                  <div class="field-cell" [class.field-cell--changed]="isFieldChanged(row, col)">
+                    <span class="field-value">{{ row.fields[col] || '-' }}</span>
+                  </div>
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="messages">
@@ -444,7 +408,9 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
                 <div class="mobile-fields" *ngIf="getMobileColumns(row).length > 0">
                   <div class="mobile-field" *ngFor="let col of getMobileColumns(row)">
                     <span class="mobile-field-label">{{ col }}</span>
-                    <span class="mobile-field-value">{{ row.fields[col] || '-' }}</span>
+                    <div class="mobile-field-value-wrap" [class.changed-field-cell]="isFieldChanged(row, col)">
+                      <span class="mobile-field-value">{{ row.fields[col] || '-' }}</span>
+                    </div>
                   </div>
                   <div class="mobile-more" *ngIf="remainingFieldCount(row) > 0">
                     +{{ remainingFieldCount(row) }} more fields in desktop table
@@ -702,7 +668,6 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     .mobile-fields { display: grid; gap: 6px; margin-bottom: 8px; }
     .mobile-field { display: grid; gap: 2px; }
     .mobile-field-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; }
-    .mobile-field-value { font-size: 14px; color: #0f172a; word-break: break-word; }
     .mobile-more { font-size: 11px; color: #475569; }
     .mobile-validation { border-top: 1px solid #e2e8f0; padding-top: 8px; }
     .mobile-actions { margin-top: 10px; display: flex; }
@@ -824,6 +789,19 @@ export class ImportPreviewComponent implements OnInit {
 
   comparisonForRow(row: StagingRow): ComparisonRow | null {
     return this.comparisonMap.get(row.id) ?? null;
+  }
+
+  comparisonChangeForField(row: StagingRow, field: string): ComparisonFieldChange | null {
+    const comparisonRow = this.comparisonForRow(row);
+    if (!comparisonRow || comparisonRow.comparisonStatus !== 'Modified') {
+      return null;
+    }
+
+    return comparisonRow.changes.find(change => change.field.toLowerCase() === field.toLowerCase() && change.isDifferent) ?? null;
+  }
+
+  isFieldChanged(row: StagingRow, field: string): boolean {
+    return this.comparisonChangeForField(row, field) !== null;
   }
 
   comparisonIcon(status: ComparisonRow['comparisonStatus']): string {
