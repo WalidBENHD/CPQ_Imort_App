@@ -141,6 +141,7 @@ public class ImportsController(
         Guid id,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
+        [FromQuery] string? search = null,
         [FromQuery] string? status = null,
         [FromQuery] string? comparisonStatus = null,
         CancellationToken ct = default)
@@ -156,7 +157,7 @@ public class ImportsController(
         if (!string.IsNullOrWhiteSpace(comparisonStatus) && Enum.TryParse<ComparisonStatus>(comparisonStatus, ignoreCase: true, out var cs))
             parsedComparisonStatus = cs;
 
-        var (items, total) = await importService.GetStagingRowsAsync(id, page, pageSize, filterStatus, parsedComparisonStatus, ct);
+        var (items, total) = await importService.GetStagingRowsAsync(id, page, pageSize, search, filterStatus, parsedComparisonStatus, ct);
         return Ok(new PagedResult<StagingRowDto>(items.Select(r => r.ToDto()).ToList(), total, page, pageSize));
     }
 

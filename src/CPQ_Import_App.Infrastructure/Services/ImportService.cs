@@ -136,8 +136,8 @@ public class ImportService(
         => repository.GetJobsPagedAsync(page, pageSize, search, status, entityType, ct);
 
     public Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
-        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
-        => repository.GetStagingRowsPagedAsync(jobId, page, pageSize, filterStatus, comparisonStatus, ct);
+        Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
+        => repository.GetStagingRowsPagedAsync(jobId, page, pageSize, search, filterStatus, comparisonStatus, ct);
 
     public async Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default)
@@ -194,7 +194,7 @@ public class ImportService(
         int page = 1;
         while (true)
         {
-            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, null, null, ct);
+            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, null, null, null, ct);
             allRows.AddRange(items.Where(r => r.Status != RowStatus.Error));
             if (allRows.Count >= total || items.Count == 0) break;
             page++;
@@ -297,7 +297,7 @@ public class ImportService(
         int page = 1;
         while (true)
         {
-            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, RowStatus.Error, null, ct);
+            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, null, RowStatus.Error, null, ct);
             errorRows.AddRange(items);
             if (errorRows.Count >= total || items.Count == 0) break;
             page++;
@@ -370,7 +370,7 @@ public class ImportService(
         int page = 1;
         while (true)
         {
-            var (items, total) = await repository.GetStagingRowsPagedAsync(job.Id, page, 500, null, null, ct);
+            var (items, total) = await repository.GetStagingRowsPagedAsync(job.Id, page, 500, null, null, null, ct);
             allRows.AddRange(items);
             if (allRows.Count >= total || items.Count == 0)
                 break;

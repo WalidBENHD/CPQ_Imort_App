@@ -36,8 +36,9 @@ export class ImportService {
     return this.http.get<ImportJob>(`${this.base}/${id}`);
   }
 
-  getRows(jobId: string, page = 1, pageSize = 50, status?: RowStatus, comparisonStatus?: ComparisonStatus): Observable<PagedResult<StagingRow>> {
+  getRows(jobId: string, page = 1, pageSize = 50, search?: string | null, status?: RowStatus, comparisonStatus?: ComparisonStatus): Observable<PagedResult<StagingRow>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (search) params = params.set('search', search);
     if (status) params = params.set('status', status);
     if (comparisonStatus) params = params.set('comparisonStatus', comparisonStatus);
     return this.http.get<PagedResult<StagingRow>>(`${this.base}/${jobId}/rows`, { params });

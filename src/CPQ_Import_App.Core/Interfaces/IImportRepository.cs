@@ -12,7 +12,7 @@ public interface IImportRepository
     Task UpdateJobAsync(ImportJob job, CancellationToken ct = default);
     Task AddStagingRowsAsync(IEnumerable<StagingRow> rows, CancellationToken ct = default);
     Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsPagedAsync(
-        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default);
+        Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default);
     Task<StagingRow?> GetStagingRowAsync(Guid jobId, Guid rowId, CancellationToken ct = default);
     Task UpdateStagingRowAsync(StagingRow row, CancellationToken ct = default);
     Task AddAuditLogAsync(AuditLog entry, CancellationToken ct = default);

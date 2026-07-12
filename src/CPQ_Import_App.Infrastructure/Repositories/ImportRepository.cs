@@ -63,13 +63,38 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     }
 
     public async Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsPagedAsync(
-        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
+        Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
     {
         var query = db.StagingRows.AsNoTracking().Where(r => r.ImportJobId == jobId);
         if (filterStatus.HasValue)
             query = query.Where(r => r.Status == filterStatus.Value);
 
         var items = await query.OrderBy(r => r.RowNumber).ToListAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            items = items.Where(r =>
+            {
+                if (r.RowNumber.ToString(CultureInfo.InvariantCulture).Contains(term, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                var fields = Deserialize(r.RawData);
+                if (fields.Values.Any(value => !string.IsNullOrWhiteSpace(value) && value!.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(r.ValidationMessages) && r.ValidationMessages.Contains(term, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                return false;
+            }).ToList();
+        }
 
         if (comparisonStatus.HasValue)
         {

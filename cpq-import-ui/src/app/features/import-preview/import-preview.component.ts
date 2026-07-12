@@ -1,7 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+﻿import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,21 +15,24 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from '../../core/services/import.service';
 import { ComparisonFieldChange, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
+import { debounceTime } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-import-preview',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink, FormsModule,
+  imports: [CommonModule, DatePipe, RouterLink, FormsModule, ReactiveFormsModule,
     MatCardModule, MatButtonModule, MatIconModule, MatTableModule,
     MatChipsModule, MatProgressSpinnerModule, MatPaginatorModule,
     MatTabsModule, MatDialogModule, MatSnackBarModule, MatTooltipModule,
-    MatFormFieldModule, MatInputModule, MatDividerModule, StatusBadgeComponent],
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule, StatusBadgeComponent],
   template: `
     <div class="page-header">
       <div>
@@ -130,7 +133,7 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
             <mat-icon style="color:#2e7d32">check_circle</mat-icon>
             <div>
               <strong>Committed by {{ job.committedBy }}</strong> on {{ job.committedAt | date:'dd/MM/yyyy HH:mm' }}
-              — {{ job.committedRows }} rows written to database.
+              â€” {{ job.committedRows }} rows written to database.
             </div>
           </div>
         </mat-card-content>
@@ -298,35 +301,47 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
       <mat-card class="rows-card">
         <mat-card-header class="rows-header">
           <mat-card-title>Data Preview</mat-card-title>
-          <div class="filter-chips">
-            <button mat-stroked-button [class.active-filter]="!rowFilter" (click)="setFilter(null)">All ({{ job.totalRows }})</button>
-            <button mat-stroked-button [class.active-filter]="rowFilter === 'Valid'" (click)="setFilter('Valid')">
-              ✓ Valid ({{ job.validRows }})
-            </button>
-            <button mat-stroked-button [class.active-filter]="rowFilter === 'Warning'" (click)="setFilter('Warning')">
-              ⚠ Warnings ({{ job.warningRows }})
-            </button>
-            <button mat-stroked-button color="warn" [class.active-filter]="rowFilter === 'Error'" (click)="setFilter('Error')">
-              ✗ Errors ({{ job.errorRows }})
-            </button>
-          </div>
-          <div class="filter-chips comparison-filters" *ngIf="comparison">
-            <button mat-stroked-button [class.active-filter]="!comparisonFilter" (click)="setComparisonFilter(null)">
-              All comparisons ({{ rows?.total ?? job.totalRows }})
-            </button>
-            <button mat-stroked-button [class.active-filter]="comparisonFilter === 'New'" (click)="setComparisonFilter('New')">
-              New ({{ comparison.newRows }})
-            </button>
-            <button mat-stroked-button [class.active-filter]="comparisonFilter === 'Modified'" (click)="setComparisonFilter('Modified')">
-              Modified ({{ comparison.modifiedRows }})
-            </button>
-            <button mat-stroked-button [class.active-filter]="comparisonFilter === 'Unchanged'" (click)="setComparisonFilter('Unchanged')">
-              Unchanged ({{ comparison.unchangedRows }})
-            </button>
-          </div>
+          <div class="list-meta">{{ rows?.total ?? job.totalRows }} matching rows</div>
         </mat-card-header>
 
         <mat-card-content>
+          <mat-card class="filters-card">
+            <form class="filters-toolbar" [formGroup]="filtersForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+                <mat-label>Search</mat-label>
+                <input matInput formControlName="search" placeholder="Row value, field, or error text" />
+                <mat-icon matSuffix>search</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="select-field">
+                <mat-label>Status</mat-label>
+                <mat-select formControlName="status">
+                  <mat-option value="">All statuses</mat-option>
+                  <mat-option *ngFor="let status of rowStatusOptions" [value]="status.value">
+                    {{ status.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="select-field" *ngIf="comparison">
+                <mat-label>Comparison</mat-label>
+                <mat-select formControlName="comparison">
+                  <mat-option value="">All comparisons</mat-option>
+                  <mat-option *ngFor="let option of comparisonStatusOptions" [value]="option.value">
+                    {{ option.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <div class="filter-actions">
+                <button mat-button type="button" (click)="clearFilters()">
+                  <mat-icon>filter_alt_off</mat-icon>
+                  Clear
+                </button>
+              </div>
+            </form>
+          </mat-card>
+
           <div class="loading-container" *ngIf="rowsLoading">
             <mat-spinner diameter="32"></mat-spinner>
           </div>
@@ -633,22 +648,11 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
       margin: 0;
       line-height: 1.25;
     }
-    .rows-card .mat-mdc-card-content {
-      padding: 0 16px 12px !important;
-    }
     .rows-header {
       margin-bottom: 8px;
       padding-bottom: 6px;
       border-bottom: 1px solid #e2e8f0;
     }
-    .filter-chips {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 2px;
-    }
-    .comparison-filters { margin-top: 8px; }
-    .active-filter { background: #e8eaf6 !important; border-color: #3f51b5 !important; color: #3f51b5; }
     .table-wrapper { overflow-x: auto; width: 100%; }
     .desktop-rows { display: block; }
     .mobile-rows { display: none; }
@@ -729,20 +733,6 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
         align-items: stretch;
         row-gap: 10px;
       }
-      .filter-chips {
-        width: 100%;
-        margin-top: 6px;
-        padding-bottom: 2px;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-      }
-      .comparison-filters { margin-top: 10px; }
-      .filter-chips button {
-        width: 100%;
-        justify-content: center;
-        min-height: 36px;
-      }
       .header-actions { grid-template-columns: 1fr; gap: 6px; }
       .header-action-btn { width: 100%; justify-content: center; min-height: 38px; border-radius: 10px; }
       .action-info {
@@ -798,8 +788,6 @@ export class ImportPreviewComponent implements OnInit {
   loading = false;
   comparisonLoading = false;
   rowsLoading = false;
-  rowFilter: RowStatus | null = null;
-  comparisonFilter: ComparisonStatus | null = null;
   rowPage = 1;
   rowPageSize = 50;
   committing = false;
@@ -808,6 +796,26 @@ export class ImportPreviewComponent implements OnInit {
   rejectionReason = '';
   private readonly expandedRows = new Set<number>();
   private readonly comparisonMap = new Map<string, ComparisonRow>();
+  private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly rowStatusOptions: { value: RowStatus; label: string }[] = [
+    { value: 'Valid', label: 'Valid' },
+    { value: 'Warning', label: 'Warnings' },
+    { value: 'Error', label: 'Errors' }
+  ];
+
+  readonly comparisonStatusOptions: { value: ComparisonStatus; label: string }[] = [
+    { value: 'New', label: 'New' },
+    { value: 'Modified', label: 'Modified' },
+    { value: 'Unchanged', label: 'Unchanged' }
+  ];
+
+  readonly filtersForm = this.fb.nonNullable.group({
+    search: [''],
+    status: [''],
+    comparison: ['']
+  });
 
   dynamicColumns: string[] = [];
   get allColumns() { return ['rowNum', 'status', 'comparison', ...this.dynamicColumns, 'messages', 'actions']; }
@@ -890,7 +898,9 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   showErrorRows(): void {
-    this.setFilter('Error');
+    this.filtersForm.setValue({ search: '', status: 'Error', comparison: '' });
+    this.rowPage = 1;
+    this.loadRows();
   }
 
   canCancelJob(): boolean {
@@ -903,6 +913,13 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.filtersForm.valueChanges
+      .pipe(debounceTime(250), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.rowPage = 1;
+        this.loadRows();
+      });
+
     this.route.paramMap.subscribe(params => {
       const id = params.get('id');
       if (!id) {
@@ -931,8 +948,7 @@ export class ImportPreviewComponent implements OnInit {
     this.rows = null;
     this.comparisonMap.clear();
     this.rowPage = 1;
-    this.rowFilter = null;
-    this.comparisonFilter = null;
+    this.filtersForm.reset({ search: '', status: '', comparison: '' }, { emitEvent: false });
     this.expandedRows.clear();
   }
 
@@ -973,7 +989,15 @@ export class ImportPreviewComponent implements OnInit {
   loadRows() {
     if (!this.job) return;
     this.rowsLoading = true;
-    this.importService.getRows(this.job.id, this.rowPage, this.rowPageSize, this.rowFilter ?? undefined, this.comparisonFilter ?? undefined).subscribe({
+    const { search, status, comparison } = this.filtersForm.getRawValue();
+    this.importService.getRows(
+      this.job.id,
+      this.rowPage,
+      this.rowPageSize,
+      search.trim() || undefined,
+      (status || undefined) as RowStatus | undefined,
+      (comparison || undefined) as ComparisonStatus | undefined
+    ).subscribe({
       next: r => {
         this.rows = r;
         this.expandedRows.clear();
@@ -985,8 +1009,9 @@ export class ImportPreviewComponent implements OnInit {
     });
   }
 
-  setFilter(f: RowStatus | null) { this.rowFilter = f; this.rowPage = 1; this.loadRows(); }
-  setComparisonFilter(f: ComparisonStatus | null) { this.comparisonFilter = f; this.rowPage = 1; this.loadRows(); }
+  clearFilters(): void {
+    this.filtersForm.reset({ search: '', status: '', comparison: '' });
+  }
 
   onRowPage(e: PageEvent) { this.rowPage = e.pageIndex + 1; this.rowPageSize = e.pageSize; this.loadRows(); }
 
@@ -1136,3 +1161,4 @@ export class ImportPreviewComponent implements OnInit {
     });
   }
 }
+

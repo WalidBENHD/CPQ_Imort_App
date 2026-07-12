@@ -1216,6 +1216,161 @@ app-import-preview .metric-unchanged .comparison-metric__value { color: #166534;
 app-import-preview .metric-missing { border-color: #fecaca; border-top-color: #dc2626; background: #fef2f2; }
 app-import-preview .metric-missing .comparison-metric__value { color: #b91c1c; }
 
+app-import-preview .rows-card .mat-mdc-card-content {
+  padding: 0 16px 12px !important;
+}
+
+app-import-preview .rows-header {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+app-import-preview .rows-header .mat-mdc-card-title {
+  margin: 0;
+  line-height: 1.25;
+}
+
+app-import-preview .list-meta {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+app-import-preview .filters-card {
+  margin-bottom: 12px;
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  box-shadow: none;
+  padding: 14px;
+}
+
+app-import-preview .filters-card .mat-mdc-form-field {
+  --mdc-outlined-text-field-container-shape: 16px;
+  --mdc-outlined-text-field-label-text-color: var(--app-text-muted);
+  --mdc-outlined-text-field-focus-label-text-color: var(--app-accent);
+  --mdc-outlined-text-field-input-text-color: var(--app-text);
+  --mdc-outlined-text-field-input-text-placeholder-color: var(--app-text-muted);
+  --mdc-outlined-text-field-caret-color: var(--app-accent);
+}
+
+app-import-preview .filters-card .mat-mdc-text-field-wrapper {
+  background: transparent;
+}
+
+app-import-preview .filters-card .mat-mdc-form-field-infix {
+  min-height: 48px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+app-import-preview .filters-card .mat-mdc-form-field-icon-suffix .mat-icon {
+  color: var(--app-accent);
+}
+
+app-import-preview .filters-card .mat-mdc-form-field-label,
+app-import-preview .filters-card .mat-mdc-select-value,
+app-import-preview .filters-card .mat-mdc-input-element {
+  color: var(--app-text) !important;
+}
+
+app-import-preview .filters-card .mat-mdc-select-arrow {
+  color: var(--app-text-muted);
+}
+
+app-import-preview .filters-card .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+app-import-preview .filters-toolbar {
+  display: grid;
+  grid-template-columns: 2fr repeat(2, minmax(150px, 1fr)) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+app-import-preview .search-field,
+app-import-preview .select-field {
+  width: 100%;
+}
+
+app-import-preview .filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 56px;
+}
+
+app-import-preview .filter-actions button {
+  border-radius: 999px;
+  min-height: 38px;
+  font-weight: 700;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+app-import-preview .filter-actions button mat-icon {
+  margin-right: 4px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+}
+
+app-import-preview .filter-actions button:hover {
+  background: #dbeafe;
+}
+
+@media (max-width: 900px) {
+  app-import-preview .filters-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  app-import-preview .search-field {
+    grid-column: 1 / -1;
+  }
+
+  app-import-preview .filter-actions {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 640px) {
+  app-import-preview .rows-card .mat-mdc-card-content {
+    padding: 0 12px 10px !important;
+  }
+
+  app-import-preview .rows-header {
+    align-items: stretch;
+    row-gap: 10px;
+  }
+
+  app-import-preview .list-meta {
+    margin-left: 0;
+  }
+
+  app-import-preview .filters-toolbar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  app-import-preview .filter-actions {
+    grid-column: 1 / -1;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    justify-self: stretch;
+    min-height: auto;
+  }
+
+  app-import-preview .filter-actions button {
+    width: 100%;
+  }
+}
+
 app-import-preview .annual-banner {
   margin-bottom: 16px;
   border: 1px solid #bfdbfe;
@@ -2006,6 +2161,47 @@ html.theme-dark app-import-preview .action-cancel {
   background: rgba(245, 158, 11, 0.16) !important;
   border-color: rgba(245, 158, 11, 0.42) !important;
   color: #fcd34d !important;
+}
+html.theme-dark app-import-preview .rows-card .mat-mdc-card-content {
+  padding: 0 12px 10px !important;
+}
+html.theme-dark app-import-preview .rows-header {
+  border-bottom-color: var(--app-border);
+}
+html.theme-dark app-import-preview .filters-card {
+  background: var(--app-surface-elevated) !important;
+  border-color: var(--app-border) !important;
+}
+html.theme-dark app-import-preview .filters-card .mat-mdc-form-field {
+  --mdc-outlined-text-field-label-text-color: var(--app-text-muted);
+  --mdc-outlined-text-field-focus-label-text-color: var(--app-accent);
+  --mdc-outlined-text-field-input-text-color: var(--app-text);
+  --mdc-outlined-text-field-input-text-placeholder-color: var(--app-text-muted);
+  --mdc-outlined-text-field-caret-color: var(--app-accent);
+}
+html.theme-dark app-import-preview .filters-card .mat-mdc-text-field-wrapper,
+html.theme-dark app-import-preview .filters-card .mat-mdc-select-trigger {
+  background: rgba(15, 23, 42, 0.72) !important;
+}
+html.theme-dark app-import-preview .filters-card .mat-mdc-form-field-label,
+html.theme-dark app-import-preview .filters-card .mat-mdc-select-value,
+html.theme-dark app-import-preview .filters-card .mat-mdc-input-element,
+html.theme-dark app-import-preview .filters-card .mat-mdc-select-arrow {
+  color: #dbeafe !important;
+}
+html.theme-dark app-import-preview .filters-card .mat-mdc-form-field-icon-suffix .mat-icon {
+  color: #93c5fd !important;
+}
+html.theme-dark app-import-preview .filter-actions button {
+  background: rgba(37, 99, 235, 0.18) !important;
+  border-color: rgba(96, 165, 250, 0.38) !important;
+  color: #dbeafe !important;
+}
+html.theme-dark app-import-preview .filter-actions button:hover {
+  background: rgba(37, 99, 235, 0.28) !important;
+}
+html.theme-dark app-import-preview .list-meta {
+  color: var(--app-text-muted) !important;
 }
 html.theme-dark app-import-preview .comparison-card {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 15, 30, 0.96)) !important;
