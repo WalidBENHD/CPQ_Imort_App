@@ -46,6 +46,37 @@ public record UpdateRowRequest(Dictionary<string, string?> Fields);
 
 public record CommitResultDto(Guid JobId, int CommittedRows, string Message);
 
+public record ComparisonFieldChangeDto(
+    string Field,
+    string? CurrentValue,
+    string? BaselineValue,
+    bool IsDifferent);
+
+public record ComparisonRowDto(
+    Guid RowId,
+    int RowNumber,
+    string Key,
+    string ComparisonStatus,
+    int ChangedFieldCount,
+    IReadOnlyList<ComparisonFieldChangeDto> Changes);
+
+public record ComparisonMissingItemDto(
+    string Key,
+    IReadOnlyDictionary<string, string?> BaselineValues);
+
+public record ImportComparisonDto(
+    Guid JobId,
+    EntityType EntityType,
+    string EntityTypeLabel,
+    bool HasBaseline,
+    int ComparedRows,
+    int NewRows,
+    int ModifiedRows,
+    int UnchangedRows,
+    int MissingBaselineRows,
+    IReadOnlyList<ComparisonRowDto> Rows,
+    IReadOnlyList<ComparisonMissingItemDto> MissingRows);
+
 public record DashboardSummaryDto(
     int AwaitingApproval,
     int CommittedToday,

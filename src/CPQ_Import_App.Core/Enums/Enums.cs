@@ -28,6 +28,13 @@ public enum RowStatus
     Error = 2
 }
 
+public enum ComparisonStatus
+{
+    New = 0,
+    Modified = 1,
+    Unchanged = 2
+}
+
 public enum NotificationType
 {
     // Import notifications

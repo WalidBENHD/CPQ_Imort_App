@@ -11,13 +11,15 @@ public interface IImportService
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
     Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
-        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default);
+        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default);
     Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CommitAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CancelAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> RejectAsync(Guid jobId, string userId, string userDisplayName,
         string reason, CancellationToken ct = default);
+    Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default);
+    Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default);
     Task<byte[]?> GetOriginalFileAsync(Guid jobId, CancellationToken ct = default);
     Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default);
     Task<byte[]> GenerateErrorReportAsync(Guid jobId, CancellationToken ct = default);

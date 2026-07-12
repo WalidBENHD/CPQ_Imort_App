@@ -1,6 +1,7 @@
 export type EntityType = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
 export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'NeedsCorrection' | 'Committed' | 'Rejected' | 'Failed' | 'Cancelled';
 export type RowStatus = 'Valid' | 'Warning' | 'Error';
+export type ComparisonStatus = 'New' | 'Modified' | 'Unchanged';
 
 export interface DatasetDefinition {
   key: EntityType;
@@ -98,6 +99,41 @@ export interface CommitResult {
   jobId: string;
   committedRows: number;
   message: string;
+}
+
+export interface ComparisonFieldChange {
+  field: string;
+  currentValue: string | null;
+  baselineValue: string | null;
+  isDifferent: boolean;
+}
+
+export interface ComparisonRow {
+  rowId: string;
+  rowNumber: number;
+  key: string;
+  comparisonStatus: ComparisonStatus;
+  changedFieldCount: number;
+  changes: ComparisonFieldChange[];
+}
+
+export interface ComparisonMissingItem {
+  key: string;
+  baselineValues: Record<string, string | null>;
+}
+
+export interface ImportComparison {
+  jobId: string;
+  entityType: EntityType;
+  entityTypeLabel: string;
+  hasBaseline: boolean;
+  comparedRows: number;
+  newRows: number;
+  modifiedRows: number;
+  unchangedRows: number;
+  missingBaselineRows: number;
+  rows: ComparisonRow[];
+  missingRows: ComparisonMissingItem[];
 }
 
 export interface DashboardSummary {

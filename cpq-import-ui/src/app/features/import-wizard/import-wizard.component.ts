@@ -53,6 +53,22 @@ import { ImportService } from '../../core/services/import.service';
       </div>
     </mat-card>
 
+    <mat-card class="annual-flow-card">
+      <div class="annual-flow-copy">
+        <div class="eyebrow">Annual review path</div>
+        <h3>Compare each new submission with the approved baseline</h3>
+        <p>
+          This pilot treats the upload as a governed annual refresh. The portal will highlight new articles,
+          modified prices, and missing rows so approvers review exceptions instead of re-reading every line.
+        </p>
+      </div>
+      <div class="annual-flow-chips">
+        <span class="flow-chip">Baseline comparison</span>
+        <span class="flow-chip">Exception review</span>
+        <span class="flow-chip">Annual refresh</span>
+      </div>
+    </mat-card>
+
     <mat-card class="wizard-shell">
       <mat-card-content>
         <mat-stepper linear #stepper [orientation]="isMobile ? 'vertical' : 'horizontal'">
@@ -77,7 +93,7 @@ import { ImportService } from '../../core/services/import.service';
                 <div class="requirements-header">
                   <div>
                     <h3>Template Requirements</h3>
-                    <p>Review required columns and validation checks before uploading your file.</p>
+                    <p>Review the governed field dictionary and validation expectations before uploading your file.</p>
                   </div>
                   <button mat-stroked-button (click)="downloadTemplate()">
                     <mat-icon>download</mat-icon>
@@ -85,31 +101,31 @@ import { ImportService } from '../../core/services/import.service';
                   </button>
                 </div>
 
-                <div class="requirements-grid">
-                  <div>
-                    <div class="requirements-title">Columns</div>
-                    <div class="requirements-item" *ngFor="let col of req.columns">
-                      <div class="requirements-name">
-                        {{ col.name }}
-                        <span class="badge" [class.badge-optional]="!col.required">
-                          {{ col.required ? 'Required' : 'Optional' }}
-                        </span>
-                      </div>
-                      <div class="requirements-meta">{{ col.dataType }} - {{ col.description }}</div>
-                      <div class="requirements-example" *ngIf="col.example">Example: {{ col.example }}</div>
-                    </div>
+                <div class="requirements-table">
+                  <div class="requirements-table-head">
+                    <span>Field</span>
+                    <span>Definition</span>
+                    <span>Validation</span>
                   </div>
-
-                  <div>
-                    <div class="requirements-title">Validation Rules</div>
-                    <div class="requirements-item" *ngFor="let rule of req.validationRules">
+                  <div class="requirements-table-row" *ngFor="let row of requirementRows(req)">
+                    <div class="requirements-field">
                       <div class="requirements-name">
-                        {{ rule.field }}
-                        <span class="badge" [class.badge-warning]="rule.severity.toLowerCase() !== 'error'">
-                          {{ rule.severity }}
+                        {{ row.name }}
+                        <span class="badge" [class.badge-optional]="!row.required">
+                          {{ row.required ? 'Required' : 'Optional' }}
                         </span>
                       </div>
-                      <div class="requirements-meta">{{ displayRule(rule.field, rule.rule) }}</div>
+                      <div class="requirements-example" *ngIf="row.example">Example: {{ row.example }}</div>
+                    </div>
+                    <div class="requirements-definition">
+                      <span class="requirements-type">{{ row.dataType }}</span>
+                      <span class="requirements-meta">{{ row.description }}</span>
+                    </div>
+                    <div class="requirements-validation">
+                      <span class="badge" [class.badge-warning]="row.severity.toLowerCase() !== 'error'">
+                        {{ row.severity }}
+                      </span>
+                      <div class="requirements-meta">{{ row.rule }}</div>
                     </div>
                   </div>
                 </div>
@@ -268,6 +284,48 @@ import { ImportService } from '../../core/services/import.service';
       justify-content: flex-end;
       gap: 8px;
     }
+    .annual-flow-card {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      border: 1px solid #dbe4f0;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #f8fbff, #ffffff);
+      box-shadow: none;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .annual-flow-copy h3 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .annual-flow-copy p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.5;
+      max-width: 760px;
+    }
+    .annual-flow-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .flow-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #dbe4f0;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
     .scope-chip {
       display: inline-flex;
       align-items: center;
@@ -346,29 +404,47 @@ import { ImportService } from '../../core/services/import.service';
       font-size: 13px;
     }
 
-    .requirements-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+    .requirements-table {
+      border: 1px solid #dbe4f0;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #ffffff;
     }
 
-    .requirements-title {
+    .requirements-table-head,
+    .requirements-table-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.1fr) minmax(240px, 1.4fr) minmax(220px, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .requirements-table-head {
+      padding: 12px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid #dbe4f0;
       font-size: 11px;
       font-weight: 800;
-      color: #64748b;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      margin-bottom: 8px;
+      color: #64748b;
     }
 
-    .requirements-item {
-      border: 1px solid #e2e8f0;
-      background: #ffffff;
-      border-radius: 10px;
-      padding: 8px 10px;
-      margin-bottom: 8px;
+    .requirements-table-row {
+      padding: 14px 16px;
+      border-bottom: 1px solid #edf2f7;
+    }
+
+    .requirements-table-row:last-child {
+      border-bottom: 0;
+    }
+
+    .requirements-field,
+    .requirements-definition,
+    .requirements-validation {
       display: grid;
-      gap: 4px;
+      gap: 6px;
+      min-width: 0;
     }
 
     .requirements-name {
@@ -378,13 +454,28 @@ import { ImportService } from '../../core/services/import.service';
       color: #0f172a;
       font-size: 13px;
       font-weight: 700;
+      flex-wrap: wrap;
+    }
+
+    .requirements-type {
+      display: inline-flex;
+      width: fit-content;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .requirements-meta,
     .requirements-example {
       font-size: 12px;
       color: #475569;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .badge {
@@ -409,6 +500,10 @@ import { ImportService } from '../../core/services/import.service';
       border-color: #fde68a;
       background: #fffbeb;
       color: #92400e;
+    }
+
+    .requirements-validation .requirements-meta {
+      color: #334155;
     }
 
     .drop-zone {
@@ -447,6 +542,13 @@ import { ImportService } from '../../core/services/import.service';
       .pilot-scope-chips {
         justify-content: flex-start;
       }
+      .annual-flow-card {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .annual-flow-chips {
+        justify-content: flex-start;
+      }
       .wizard-shell { overflow: visible; }
       :host ::ng-deep .wizard-shell .mat-mdc-card-content { overflow: visible; }
       :host ::ng-deep .wizard-shell .mat-stepper-vertical { overflow: visible; }
@@ -455,14 +557,27 @@ import { ImportService } from '../../core/services/import.service';
       }
       .step-content { padding: 12px 0; }
       .entity-grid { grid-template-columns: 1fr; gap: 10px; }
-      .requirements-header,
-      .requirements-grid {
+      .requirements-table-head {
+        display: none;
+      }
+      .requirements-table-row {
         grid-template-columns: 1fr;
-        display: grid;
+        gap: 8px;
+      }
+      .requirements-table-row:not(:last-child) {
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .requirements-field,
+      .requirements-definition,
+      .requirements-validation {
+        gap: 4px;
       }
       .requirements-header {
         display: flex;
         flex-direction: column;
+      }
+      .requirements-table {
+        border-radius: 12px;
       }
       .drop-zone { padding: 24px 12px; min-height: 130px; }
       .drop-icon { font-size: 38px; height: 38px; width: 38px; }
@@ -509,6 +624,29 @@ export class ImportWizardComponent {
       ...requirement,
       displayName: getDatasetDefinition(this.selectedType).name
     };
+  }
+
+  requirementRows(requirement: DatasetRequirement): Array<{
+    name: string;
+    required: boolean;
+    dataType: string;
+    description: string;
+    example: string | null;
+    rule: string;
+    severity: string;
+  }> {
+    return requirement.columns.map(column => {
+      const rule = requirement.validationRules.find(item => item.field.toLowerCase() === column.name.toLowerCase());
+      return {
+        name: column.name,
+        required: column.required,
+        dataType: column.dataType,
+        description: column.description,
+        example: column.example,
+        rule: rule ? this.displayRule(rule.field, rule.rule) : 'No additional validation rule defined.',
+        severity: rule?.severity ?? (column.required ? 'Error' : 'Info')
+      };
+    });
   }
 
   constructor() {

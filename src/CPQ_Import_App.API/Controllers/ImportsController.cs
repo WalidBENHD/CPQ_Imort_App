@@ -98,6 +98,18 @@ public class ImportsController(
         return job is null ? NotFound() : Ok(job.ToDto());
     }
 
+    /// <summary>Get a comparison summary between the upload and the current baseline.</summary>
+    [HttpGet("{id:guid}/comparison")]
+    public async Task<ActionResult<ImportComparisonDto>> GetComparison(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var comparison = await importService.GetComparisonAsync(id, ct);
+            return Ok(comparison.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+    }
+
     /// <summary>Get paginated list of import jobs.</summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<ImportJobDto>>> GetJobs(
@@ -130,6 +142,7 @@ public class ImportsController(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
         [FromQuery] string? status = null,
+        [FromQuery] string? comparisonStatus = null,
         CancellationToken ct = default)
     {
         if (page < 1) page = 1;
@@ -139,7 +152,11 @@ public class ImportsController(
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<RowStatus>(status, ignoreCase: true, out var rs))
             filterStatus = rs;
 
-        var (items, total) = await importService.GetStagingRowsAsync(id, page, pageSize, filterStatus, ct);
+        ComparisonStatus? parsedComparisonStatus = null;
+        if (!string.IsNullOrWhiteSpace(comparisonStatus) && Enum.TryParse<ComparisonStatus>(comparisonStatus, ignoreCase: true, out var cs))
+            parsedComparisonStatus = cs;
+
+        var (items, total) = await importService.GetStagingRowsAsync(id, page, pageSize, filterStatus, parsedComparisonStatus, ct);
         return Ok(new PagedResult<StagingRowDto>(items.Select(r => r.ToDto()).ToList(), total, page, pageSize));
     }
 

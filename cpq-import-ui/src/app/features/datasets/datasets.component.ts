@@ -69,40 +69,6 @@ import { ImportService } from '../../core/services/import.service';
           </div>
         </div>
 
-        <div class="dataset-requirements" *ngIf="getRequirement(dataset.key) as requirement">
-          <div class="requirements-grid">
-            <div>
-              <div class="requirements-title">Required Columns</div>
-              <ul class="requirements-list">
-                <li *ngFor="let col of requirement.columns">
-                  <span>
-                    <strong>{{ col.name }}</strong>
-                    <span class="badge" [class.badge-optional]="!col.required">
-                      {{ col.required ? 'Required' : 'Optional' }}
-                    </span>
-                  </span>
-                  <small>{{ col.dataType }} - {{ col.description }}</small>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <div class="requirements-title">Validation Rules</div>
-              <ul class="requirements-list">
-                <li *ngFor="let rule of requirement.validationRules">
-                  <span>
-                    <strong>{{ rule.field }}</strong>
-                    <span class="badge" [class.badge-warning]="rule.severity.toLowerCase() !== 'error'">
-                      {{ rule.severity }}
-                    </span>
-                  </span>
-                  <small>{{ displayRule(rule.field, rule.rule) }}</small>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
         <div class="dataset-actions">
           <button mat-stroked-button (click)="startImport(dataset)">
             <mat-icon>publish</mat-icon> Import version
@@ -111,6 +77,51 @@ import { ImportService } from '../../core/services/import.service';
             <mat-icon>download</mat-icon> Download template
           </button>
         </div>
+
+        <details class="dataset-details" *ngIf="getRequirement(dataset.key) as requirement">
+          <summary>
+            <span>View structure</span>
+            <mat-icon>expand_more</mat-icon>
+          </summary>
+
+          <div class="dataset-details-copy">
+            The field dictionary below shows the governed structure, validation expectation and rule severity for this dataset.
+          </div>
+
+          <div class="dataset-field-list">
+            <div class="dataset-field-card" *ngFor="let row of structureRows(dataset.key)">
+              <div class="dataset-field-card-head">
+                <div>
+                  <div class="dataset-field-name">
+                    {{ row.name }}
+                    <span class="badge" [class.badge-optional]="!row.required">
+                      {{ row.required ? 'Required' : 'Optional' }}
+                    </span>
+                  </div>
+                  <div class="dataset-example" *ngIf="row.example">Example: {{ row.example }}</div>
+                </div>
+
+                <div class="dataset-field-pills">
+                  <span class="dataset-type">{{ row.dataType }}</span>
+                  <span class="badge" [class.badge-warning]="row.severity.toLowerCase() !== 'error'">
+                    {{ row.severity }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="dataset-field-body">
+                <div class="dataset-field-body-item">
+                  <span class="dataset-field-label">Meaning</span>
+                  <span class="dataset-meta-text">{{ row.description }}</span>
+                </div>
+                <div class="dataset-field-body-item">
+                  <span class="dataset-field-label">Validation</span>
+                  <span class="dataset-meta-text">{{ row.rule }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
       </mat-card>
     </section>
   `,
@@ -188,18 +199,23 @@ import { ImportService } from '../../core/services/import.service';
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
+      align-items: start;
     }
     .dataset-card {
       border: 1px solid #dbe4f0;
       box-shadow: none;
       padding: 16px;
+      display: grid;
+      gap: 14px;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      align-self: start;
+      height: fit-content;
     }
     .dataset-top {
       display: grid;
       grid-template-columns: auto 1fr auto;
       gap: 14px;
       align-items: start;
-      margin-bottom: 16px;
     }
     .dataset-icon {
       width: 44px;
@@ -272,58 +288,131 @@ import { ImportService } from '../../core/services/import.service';
       flex-wrap: wrap;
     }
 
-    .dataset-requirements {
-      margin-bottom: 16px;
-      border: 1px solid #e2e8f0;
+    .dataset-details {
+      border: 1px solid #dbe4f0;
+      border-radius: 14px;
       background: #ffffff;
-      border-radius: 12px;
-      padding: 12px;
+      overflow: hidden;
     }
 
-    .requirements-grid {
+    .dataset-details[open] {
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .dataset-details summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      font-weight: 800;
+      color: #1d4ed8;
+      background: linear-gradient(180deg, #eff6ff, #ffffff);
+    }
+
+    .dataset-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .dataset-details summary mat-icon {
+      transition: transform 0.2s ease;
+    }
+
+    .dataset-details[open] summary mat-icon {
+      transform: rotate(180deg);
+    }
+
+    .dataset-details-copy {
+      padding: 0 14px 10px;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .dataset-field-list {
+      border-top: 1px solid #e2e8f0;
+      padding: 12px;
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .dataset-field-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: #f8fafc;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .dataset-field-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       gap: 12px;
     }
 
-    .requirements-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: #64748b;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
-
-    .requirements-list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
+    .dataset-field-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
       gap: 8px;
     }
 
-    .requirements-list li {
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 8px 10px;
+    .dataset-field-body {
       display: grid;
-      gap: 4px;
-      background: #f8fafc;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
     }
 
-    .requirements-list li > span {
+    .dataset-field-body-item {
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .dataset-field-name {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-wrap: wrap;
       color: #0f172a;
       font-size: 13px;
+      font-weight: 700;
     }
 
-    .requirements-list li small {
+    .dataset-field-label {
+      display: block;
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .dataset-example,
+    .dataset-meta-text {
       color: #475569;
-      line-height: 1.4;
       font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .dataset-type {
+      display: inline-flex;
+      width: fit-content;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .badge {
@@ -368,7 +457,8 @@ import { ImportService } from '../../core/services/import.service';
         justify-content: flex-start;
       }
       .portfolio-grid,
-      .dataset-meta {
+      .dataset-meta,
+      .dataset-field-body {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -376,10 +466,8 @@ import { ImportService } from '../../core/services/import.service';
     @media (max-width: 640px) {
       h1 { font-size: 22px; }
       .portfolio-grid,
-      .dataset-meta {
-        grid-template-columns: 1fr;
-      }
-      .requirements-grid {
+      .dataset-meta,
+      .dataset-field-body {
         grid-template-columns: 1fr;
       }
       .dataset-card { padding: 14px; }
@@ -394,6 +482,15 @@ import { ImportService } from '../../core/services/import.service';
       .dataset-actions button {
         width: 100%;
         justify-content: center;
+      }
+      .dataset-details summary {
+        font-size: 14px;
+      }
+      .dataset-field-card-head {
+        flex-direction: column;
+      }
+      .dataset-field-pills {
+        justify-content: flex-start;
       }
     }
   `]
@@ -426,6 +523,34 @@ export class DatasetsComponent implements OnInit {
 
   getRequirement(type: EntityType): DatasetRequirement | undefined {
     return this.requirementsByType[type];
+  }
+
+  structureRows(type: EntityType): Array<{
+    name: string;
+    required: boolean;
+    dataType: string;
+    description: string;
+    example: string | null;
+    rule: string;
+    severity: string;
+  }> {
+    const requirement = this.getRequirement(type);
+    if (!requirement) {
+      return [];
+    }
+
+    return requirement.columns.map(column => {
+      const rule = requirement.validationRules.find(item => item.field.toLowerCase() === column.name.toLowerCase());
+      return {
+        name: column.name,
+        required: column.required,
+        dataType: column.dataType,
+        description: column.description,
+        example: column.example,
+        rule: rule ? this.displayRule(rule.field, rule.rule) : 'No additional validation rule defined.',
+        severity: rule?.severity ?? (column.required ? 'Error' : 'Info')
+      };
+    });
   }
 
   displayRule(field: string, rule: string): string {

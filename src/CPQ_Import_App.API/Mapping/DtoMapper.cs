@@ -66,6 +66,37 @@ public static class DtoMapper
             : []
     );
 
+    public static ComparisonFieldChangeDto ToDto(this ComparisonFieldChange change) => new(
+        change.Field,
+        change.CurrentValue,
+        change.BaselineValue,
+        change.IsDifferent);
+
+    public static ComparisonRowDto ToDto(this ComparisonRowResult row) => new(
+        row.RowId,
+        row.RowNumber,
+        row.Key,
+        row.ComparisonStatus,
+        row.ChangedFieldCount,
+        row.Changes.Select(x => x.ToDto()).ToList());
+
+    public static ComparisonMissingItemDto ToDto(this ComparisonMissingItem item) => new(
+        item.Key,
+        item.BaselineValues);
+
+    public static ImportComparisonDto ToDto(this ImportComparisonResult comparison) => new(
+        comparison.JobId,
+        comparison.EntityType,
+        comparison.EntityTypeLabel,
+        comparison.HasBaseline,
+        comparison.ComparedRows,
+        comparison.NewRows,
+        comparison.ModifiedRows,
+        comparison.UnchangedRows,
+        comparison.MissingBaselineRows,
+        comparison.Rows.Select(x => x.ToDto()).ToList(),
+        comparison.MissingRows.Select(x => x.ToDto()).ToList());
+
     public static ActivityEventDto ToDto(this ActivityEvent activity) => new(
         activity.Id,
         activity.OccurredAtUtc,

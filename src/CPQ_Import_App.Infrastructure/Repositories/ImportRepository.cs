@@ -2,7 +2,9 @@ using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Data;
+using CPQ_Import_App.Core.Metadata;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace CPQ_Import_App.Infrastructure.Repositories;
 
@@ -61,14 +63,30 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     }
 
     public async Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsPagedAsync(
-        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default)
+        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
     {
-        var query = db.StagingRows.Where(r => r.ImportJobId == jobId);
+        var query = db.StagingRows.AsNoTracking().Where(r => r.ImportJobId == jobId);
         if (filterStatus.HasValue)
             query = query.Where(r => r.Status == filterStatus.Value);
-        query = query.OrderBy(r => r.RowNumber);
-        var total = await query.CountAsync(ct);
-        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+
+        var items = await query.OrderBy(r => r.RowNumber).ToListAsync(ct);
+
+        if (comparisonStatus.HasValue)
+        {
+            var comparison = await GetComparisonAsync(jobId, ct);
+            var matchingRowIds = comparison.Rows
+                .Where(r => Enum.TryParse<ComparisonStatus>(r.ComparisonStatus, ignoreCase: true, out var parsed) && parsed == comparisonStatus.Value)
+                .Select(r => r.RowId)
+                .ToHashSet();
+
+            items = items.Where(r => matchingRowIds.Contains(r.Id)).ToList();
+        }
+
+        var total = items.Count;
+        items = items
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
         return (items, total);
     }
 
@@ -87,6 +105,145 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var job = await db.ImportJobs.AsNoTracking().FirstOrDefaultAsync(j => j.Id == jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        var stagingRows = await db.StagingRows
+            .AsNoTracking()
+            .Where(r => r.ImportJobId == jobId)
+            .OrderBy(r => r.RowNumber)
+            .ToListAsync(ct);
+
+        var currentRows = stagingRows.Select(row =>
+            new ComparisonRowSource(
+                row,
+                Deserialize(row.RawData),
+                NormalizeJobKey(job.EntityType, Deserialize(row.RawData))))
+            .ToList();
+
+        var baselineSnapshot = await LoadBaselineSnapshotAsync(job, ct);
+        var baselineLookup = BuildBaselineLookup(job.EntityType, baselineSnapshot);
+        var matchedBaselineKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var comparisonRows = new List<ComparisonRowResult>();
+        int newRows = 0;
+        int modifiedRows = 0;
+        int unchangedRows = 0;
+
+        if (baselineLookup.Count == 0)
+        {
+            var allNewRows = currentRows.Select(current =>
+                new ComparisonRowResult(
+                    current.Row.Id,
+                    current.Row.RowNumber,
+                    current.Key,
+                    "New",
+                    0,
+                    BuildChanges(current.Fields, null))).ToList();
+
+            return new ImportComparisonResult(
+                job.Id,
+                job.EntityType,
+                DatasetCatalog.Get(job.EntityType).DisplayName,
+                false,
+                currentRows.Count,
+                currentRows.Count,
+                0,
+                0,
+                0,
+                allNewRows,
+                []);
+        }
+
+        foreach (var current in currentRows)
+        {
+            baselineLookup.TryGetValue(current.Key, out var baseline);
+            if (baseline is null)
+            {
+                newRows++;
+                comparisonRows.Add(new ComparisonRowResult(
+                    current.Row.Id,
+                    current.Row.RowNumber,
+                    current.Key,
+                    "New",
+                    0,
+                    BuildChanges(current.Fields, null)));
+                continue;
+            }
+
+            matchedBaselineKeys.Add(current.Key);
+
+            var changes = BuildChanges(current.Fields, baseline);
+            var changedCount = changes.Count(change => change.IsDifferent);
+            var status = changedCount == 0 ? "Unchanged" : "Modified";
+            if (changedCount == 0)
+            {
+                unchangedRows++;
+            }
+            else
+            {
+                modifiedRows++;
+            }
+
+            comparisonRows.Add(new ComparisonRowResult(
+                current.Row.Id,
+                current.Row.RowNumber,
+                current.Key,
+                status,
+                changedCount,
+                changes));
+        }
+
+        var missingRows = baselineLookup
+            .Where(pair => !matchedBaselineKeys.Contains(pair.Key))
+            .Select(pair => new ComparisonMissingItem(pair.Key, pair.Value))
+            .ToList();
+
+        return new ImportComparisonResult(
+            job.Id,
+            job.EntityType,
+            DatasetCatalog.Get(job.EntityType).DisplayName,
+            true,
+            comparisonRows.Count,
+            newRows,
+            modifiedRows,
+            unchangedRows,
+            missingRows.Count,
+            comparisonRows,
+            missingRows);
+    }
+
+    public async Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default)
+    {
+        var articleJob = await db.ImportJobs.AsNoTracking()
+            .Where(j => j.EntityType == EntityType.Article && j.Status == ImportStatus.Committed)
+            .OrderByDescending(j => j.CommittedAt)
+            .ThenByDescending(j => j.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (articleJob is null)
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var rows = await db.StagingRows
+            .AsNoTracking()
+            .Where(r => r.ImportJobId == articleJob.Id)
+            .Select(r => r.RawData)
+            .ToListAsync(ct);
+
+        var articleNumbers = rows
+            .Select(Deserialize)
+            .Select(fields => fields.TryGetValue("ArticleNumber", out var value) ? value?.Trim() : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return articleNumbers;
+    }
+
     public async Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default)
     {
         var file = await db.UploadedFiles.FindAsync([jobId], ct);
@@ -99,4 +256,141 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         db.UploadedFiles.Add(file);
         await db.SaveChangesAsync(ct);
     }
+
+    private static Dictionary<string, string?> Deserialize(string rawData)
+        => string.IsNullOrWhiteSpace(rawData)
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string?>>(rawData)
+              ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+    private async Task<(Guid JobId, IReadOnlyList<Dictionary<string, string?>> Rows)?> LoadBaselineSnapshotAsync(ImportJob currentJob, CancellationToken ct)
+    {
+        var baselineJob = await db.ImportJobs.AsNoTracking()
+            .Where(j => j.EntityType == currentJob.EntityType
+                && j.Status == ImportStatus.Committed
+                && j.CommittedAt.HasValue
+                && j.Id != currentJob.Id)
+            .OrderByDescending(j => j.CommittedAt)
+            .ThenByDescending(j => j.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (baselineJob is null)
+        {
+            return null;
+        }
+
+        var baselineRows = await db.StagingRows
+            .AsNoTracking()
+            .Where(r => r.ImportJobId == baselineJob.Id)
+            .OrderBy(r => r.RowNumber)
+            .ToListAsync(ct);
+
+        return (baselineJob.Id, baselineRows.Select(row => Deserialize(row.RawData)).ToList());
+    }
+
+    private static Dictionary<string, Dictionary<string, string?>> BuildBaselineLookup(
+        EntityType entityType,
+        (Guid JobId, IReadOnlyList<Dictionary<string, string?>> Rows)? baselineSnapshot)
+    {
+        if (baselineSnapshot is null)
+        {
+            return new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var baselineRows = baselineSnapshot.Value.Rows;
+        return entityType switch
+        {
+            EntityType.Article => baselineRows
+                .Where(row => row.ContainsKey("ArticleNumber"))
+                .GroupBy(row => row["ArticleNumber"] ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .Where(group => !string.IsNullOrWhiteSpace(group.Key))
+                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First()), StringComparer.OrdinalIgnoreCase),
+            EntityType.PriceList => baselineRows
+                .Where(row => row.ContainsKey("ArticleNumber"))
+                .GroupBy(row => row["ArticleNumber"] ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .Where(group => !string.IsNullOrWhiteSpace(group.Key))
+                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First()), StringComparer.OrdinalIgnoreCase),
+            _ => new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase)
+        };
+    }
+
+    private static Dictionary<string, string?> NormalizeBaselineRow(EntityType entityType, Dictionary<string, string?> row)
+    {
+        var normalized = new Dictionary<string, string?>(row, StringComparer.OrdinalIgnoreCase);
+
+        if (entityType == EntityType.PriceList && normalized.TryGetValue("Price", out var price))
+        {
+            normalized["UnitPrice"] = price;
+        }
+
+        return normalized;
+    }
+
+    private static List<ComparisonFieldChange> BuildChanges(
+        IReadOnlyDictionary<string, string?> current,
+        IReadOnlyDictionary<string, string?>? baseline)
+    {
+        var keys = current.Keys
+            .Concat(baseline?.Keys ?? Array.Empty<string>())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k, StringComparer.OrdinalIgnoreCase);
+
+        var changes = new List<ComparisonFieldChange>();
+        foreach (var key in keys)
+        {
+            current.TryGetValue(key, out var currentValue);
+            var baselineValue = default(string?);
+            baseline?.TryGetValue(key, out baselineValue);
+            var isDifferent = !ValuesEqual(currentValue, baselineValue);
+            changes.Add(new ComparisonFieldChange(key, currentValue, baselineValue, isDifferent));
+        }
+
+        return changes;
+    }
+
+    private static bool ValuesEqual(string? currentValue, string? baselineValue)
+    {
+        static string Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+        return string.Equals(Normalize(currentValue), Normalize(baselineValue), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, string?> ToDictionary(object row)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (row is IDictionary<string, object?> dict)
+        {
+            foreach (var pair in dict)
+            {
+                result[pair.Key] = ConvertValue(pair.Value);
+            }
+        }
+
+        return result;
+    }
+
+    private static string? ConvertValue(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            DateTime dt => dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            decimal dec => dec.ToString(CultureInfo.InvariantCulture),
+            double dbl => dbl.ToString(CultureInfo.InvariantCulture),
+            float fl => fl.ToString(CultureInfo.InvariantCulture),
+            _ => Convert.ToString(value, CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static string NormalizeJobKey(EntityType entityType, IReadOnlyDictionary<string, string?> fields)
+    {
+        var articleNumber = fields.TryGetValue("ArticleNumber", out var art) ? art?.Trim() : string.Empty;
+        return articleNumber ?? string.Empty;
+    }
+
+    private sealed record ComparisonRowSource(StagingRow Row, IReadOnlyDictionary<string, string?> Fields, string Key);
 }

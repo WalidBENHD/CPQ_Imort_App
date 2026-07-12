@@ -17,7 +17,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from '../../core/services/import.service';
-import { DatasetRequirement, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
+import { ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
@@ -61,6 +61,46 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     </div>
 
     <ng-container *ngIf="job">
+      <mat-card class="annual-banner" *ngIf="comparison || comparisonLoading">
+        <mat-card-content>
+          <div class="annual-banner-copy">
+            <div class="eyebrow">{{ comparison?.hasBaseline ? 'Annual refresh' : 'Initial baseline' }}</div>
+            <h2>
+              {{ comparison?.hasBaseline
+                ? 'New submission compared to the approved baseline'
+                : 'First approved submission becomes the baseline' }}
+            </h2>
+            <p *ngIf="comparison?.hasBaseline; else initialBaselineCopy">
+              The portal keeps the annual update visible as a change review, not just another upload.
+              Approvers can focus on new, modified, and missing records before approving the refresh.
+            </p>
+          </div>
+          <div class="annual-banner-stats" *ngIf="comparison as cmp; else bannerLoading">
+            <div class="annual-banner-stat banner-new">
+              <span>New</span>
+              <strong>{{ cmp.newRows }}</strong>
+            </div>
+            <div class="annual-banner-stat banner-modified">
+              <span>Modified</span>
+              <strong>{{ cmp.modifiedRows }}</strong>
+            </div>
+            <div class="annual-banner-stat banner-missing">
+              <span>Missing</span>
+              <strong>{{ cmp.missingBaselineRows }}</strong>
+            </div>
+          </div>
+          <ng-template #bannerLoading>
+            <div class="annual-banner-loading">
+              <mat-icon>hourglass_empty</mat-icon>
+              <span>Loading comparison against the current baseline...</span>
+            </div>
+          </ng-template>
+          <ng-template #initialBaselineCopy>
+            The first approved upload for a dataset creates the baseline that future annual submissions will compare against.
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Job summary -->
       <mat-card class="summary-card">
         <mat-card-content>
@@ -136,6 +176,71 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
         </mat-card-content>
       </mat-card>
 
+      <mat-card class="comparison-card">
+        <mat-card-content>
+          <div class="comparison-header">
+            <div>
+              <div class="label">{{ comparison?.hasBaseline ? 'Annual update comparison' : 'Initial baseline submission' }}</div>
+              <h3>
+                {{ comparison?.hasBaseline
+                  ? 'Compared against the latest approved baseline'
+                  : 'This submission establishes the approved baseline' }}
+              </h3>
+              <p *ngIf="comparison?.hasBaseline; else noBaselineMessage">
+                This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
+                Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
+              </p>
+            </div>
+            <ng-container *ngIf="comparison as cmp; else comparisonStatus">
+              <div class="comparison-stats">
+                <div class="comparison-stat stat-new">
+                  <span>New</span>
+                  <strong>{{ cmp.newRows }}</strong>
+                </div>
+                <div class="comparison-stat stat-modified">
+                  <span>Modified</span>
+                  <strong>{{ cmp.modifiedRows }}</strong>
+                </div>
+                <div class="comparison-stat stat-unchanged">
+                  <span>Unchanged</span>
+                  <strong>{{ cmp.unchangedRows }}</strong>
+                </div>
+                <div class="comparison-stat stat-missing">
+                  <span>Missing</span>
+                  <strong>{{ cmp.missingBaselineRows }}</strong>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+
+          <ng-template #comparisonStatus>
+            <div class="comparison-loading" *ngIf="comparisonLoading">
+              <mat-icon>hourglass_empty</mat-icon>
+              <span>Loading baseline comparison...</span>
+            </div>
+            <div class="comparison-loading" *ngIf="!comparisonLoading">
+              <mat-icon>info</mat-icon>
+              <span>
+                The comparison summary is not available yet. The upload will still be treated as an annual baseline review.
+              </span>
+            </div>
+          </ng-template>
+
+          <ng-template #noBaselineMessage>
+            This is the first approved submission for this dataset. It will become the baseline for future annual submissions.
+          </ng-template>
+
+          <div class="comparison-missing" *ngIf="comparison?.missingRows?.length">
+            <div class="comparison-missing-title">Missing from this upload</div>
+            <div class="comparison-missing-list">
+              <span class="comparison-missing-item" *ngFor="let missing of comparison!.missingRows">
+                {{ missing.key }}
+              </span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <mat-card class="correction-card" *ngIf="job.statusLabel === 'NeedsCorrection' || (job.statusLabel === 'AwaitingApproval' && job.errorRows > 0)">
         <div class="correction-copy">
           <mat-icon>error_outline</mat-icon>
@@ -166,13 +271,19 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
             <div class="action-info">
               <mat-icon color="primary">info</mat-icon>
               <span>
-                {{ job.validRows + job.warningRows }} rows are ready to commit
-                <span *ngIf="job.errorRows > 0"> ({{ job.errorRows }} error rows will be skipped)</span>.
+                <ng-container *ngIf="comparison; else actionFallback">
+                  {{ comparison.newRows + comparison.modifiedRows + comparison.unchangedRows }} rows are compared with the baseline.
+                  {{ comparison.newRows }} new, {{ comparison.modifiedRows }} modified, and {{ comparison.missingBaselineRows }} missing rows need attention.
+                </ng-container>
+                <ng-template #actionFallback>
+                  {{ job.validRows + job.warningRows }} rows are ready to commit
+                  <span *ngIf="job.errorRows > 0"> ({{ job.errorRows }} error rows will be skipped)</span>.
+                </ng-template>
               </span>
             </div>
             <div class="action-buttons">
               <button mat-raised-button color="primary" class="btn-commit" (click)="commit()" [disabled]="committing">
-                <mat-icon>check</mat-icon> {{ committing ? 'Committing...' : 'Approve & Commit' }}
+                <mat-icon>check</mat-icon> {{ committing ? 'Committing...' : 'Approve annual update' }}
               </button>
               <button mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
                 <mat-icon>close</mat-icon> Reject
@@ -214,6 +325,20 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
               ✗ Errors ({{ job.errorRows }})
             </button>
           </div>
+          <div class="filter-chips comparison-filters" *ngIf="comparison">
+            <button mat-stroked-button [class.active-filter]="!comparisonFilter" (click)="setComparisonFilter(null)">
+              All comparisons ({{ rows?.total ?? job.totalRows }})
+            </button>
+            <button mat-stroked-button [class.active-filter]="comparisonFilter === 'New'" (click)="setComparisonFilter('New')">
+              New ({{ comparison.newRows }})
+            </button>
+            <button mat-stroked-button [class.active-filter]="comparisonFilter === 'Modified'" (click)="setComparisonFilter('Modified')">
+              Modified ({{ comparison.modifiedRows }})
+            </button>
+            <button mat-stroked-button [class.active-filter]="comparisonFilter === 'Unchanged'" (click)="setComparisonFilter('Unchanged')">
+              Unchanged ({{ comparison.unchangedRows }})
+            </button>
+          </div>
         </mat-card-header>
 
         <mat-card-content>
@@ -232,6 +357,21 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
                 <th mat-header-cell *matHeaderCellDef>Status</th>
                 <td mat-cell *matCellDef="let row">
                   <app-status-badge [status]="row.statusLabel" [small]="true" />
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="comparison">
+                <th mat-header-cell *matHeaderCellDef>Comparison</th>
+                <td mat-cell *matCellDef="let row">
+                  <ng-container *ngIf="comparisonForRow(row) as comparisonRow">
+                    <div class="comparison-pill" [ngClass]="'cmp-' + comparisonRow.comparisonStatus.toLowerCase()">
+                      <mat-icon>{{ comparisonIcon(comparisonRow.comparisonStatus) }}</mat-icon>
+                      <span>{{ comparisonRow.comparisonStatus }}</span>
+                    </div>
+                    <div class="comparison-detail" *ngIf="comparisonRow.changedFieldCount > 0">
+                      {{ comparisonRow.changedFieldCount }} changed field{{ comparisonRow.changedFieldCount === 1 ? '' : 's' }}
+                    </div>
+                  </ng-container>
                 </td>
               </ng-container>
 
@@ -290,6 +430,11 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
                   </div>
                   <div class="mobile-row-right">
                     <app-status-badge [status]="row.statusLabel" [small]="true" />
+                    <ng-container *ngIf="comparisonForRow(row) as comparisonRow">
+                      <div class="comparison-pill mobile-comparison-pill" [ngClass]="'cmp-' + comparisonRow.comparisonStatus.toLowerCase()">
+                        <span>{{ comparisonRow.comparisonStatus }}</span>
+                      </div>
+                    </ng-container>
                     <mat-icon class="expand-icon" [class.expanded]="isRowExpanded(row.rowNumber)">expand_more</mat-icon>
                   </div>
                 </div>
@@ -511,11 +656,12 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
       flex-wrap: wrap;
       margin-top: 2px;
     }
+    .comparison-filters { margin-top: 8px; }
     .active-filter { background: #e8eaf6 !important; border-color: #3f51b5 !important; color: #3f51b5; }
     .table-wrapper { overflow-x: auto; width: 100%; }
     .desktop-rows { display: block; }
     .mobile-rows { display: none; }
-    table { width: 100%; min-width: 900px; }
+    table { width: 100%; min-width: 980px; }
     .desktop-rows th.mat-mdc-header-cell,
     .desktop-rows td.mat-mdc-cell {
       vertical-align: top;
@@ -565,7 +711,6 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
     .msg-error { color: #c62828; }
     .msg-warning { color: #f57f17; }
     .msg-info { color: #1565c0; }
-
     @media (max-width: 900px) {
       .page-header { flex-direction: column; gap: 10px; }
       .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -602,6 +747,7 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 6px;
       }
+      .comparison-filters { margin-top: 10px; }
       .filter-chips button {
         width: 100%;
         justify-content: center;
@@ -657,10 +803,13 @@ export class ImportPreviewComponent implements OnInit {
 
   job: ImportJob | null = null;
   datasetRequirement: DatasetRequirement | null = null;
+  comparison: ImportComparison | null = null;
   rows: PagedResult<StagingRow> | null = null;
   loading = false;
+  comparisonLoading = false;
   rowsLoading = false;
   rowFilter: RowStatus | null = null;
+  comparisonFilter: ComparisonStatus | null = null;
   rowPage = 1;
   rowPageSize = 50;
   committing = false;
@@ -668,9 +817,27 @@ export class ImportPreviewComponent implements OnInit {
   showRejectPanel = false;
   rejectionReason = '';
   private readonly expandedRows = new Set<number>();
+  private readonly comparisonMap = new Map<string, ComparisonRow>();
 
   dynamicColumns: string[] = [];
-  get allColumns() { return ['rowNum', 'status', ...this.dynamicColumns, 'messages', 'actions']; }
+  get allColumns() { return ['rowNum', 'status', 'comparison', ...this.dynamicColumns, 'messages', 'actions']; }
+
+  comparisonForRow(row: StagingRow): ComparisonRow | null {
+    return this.comparisonMap.get(row.id) ?? null;
+  }
+
+  comparisonIcon(status: ComparisonRow['comparisonStatus']): string {
+    switch (status) {
+      case 'New':
+        return 'add_circle';
+      case 'Modified':
+        return 'swap_horiz';
+      case 'Unchanged':
+        return 'check_circle';
+      default:
+        return 'help';
+    }
+  }
 
   getMobileColumns(row: StagingRow): string[] {
     return Object.keys(row.fields).slice(0, 3);
@@ -728,6 +895,7 @@ export class ImportPreviewComponent implements OnInit {
         this.job = j;
         this.loading = false;
         this.loadDatasetRequirement(j.entityTypeLabel);
+        this.loadComparison();
         this.loadRows();
       },
       error: () => { this.loading = false; }
@@ -745,10 +913,33 @@ export class ImportPreviewComponent implements OnInit {
     });
   }
 
+  private loadComparison(): void {
+    if (!this.job) {
+      return;
+    }
+
+    this.comparisonLoading = true;
+    this.importService.getComparison(this.job.id).subscribe({
+      next: comparison => {
+        this.comparison = comparison;
+        this.comparisonMap.clear();
+        for (const row of comparison.rows) {
+          this.comparisonMap.set(row.rowId, row);
+        }
+        this.comparisonLoading = false;
+      },
+      error: () => {
+        this.comparison = null;
+        this.comparisonMap.clear();
+        this.comparisonLoading = false;
+      }
+    });
+  }
+
   loadRows() {
     if (!this.job) return;
     this.rowsLoading = true;
-    this.importService.getRows(this.job.id, this.rowPage, this.rowPageSize, this.rowFilter ?? undefined).subscribe({
+    this.importService.getRows(this.job.id, this.rowPage, this.rowPageSize, this.rowFilter ?? undefined, this.comparisonFilter ?? undefined).subscribe({
       next: r => {
         this.rows = r;
         this.expandedRows.clear();
@@ -761,6 +952,7 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   setFilter(f: RowStatus | null) { this.rowFilter = f; this.rowPage = 1; this.loadRows(); }
+  setComparisonFilter(f: ComparisonStatus | null) { this.comparisonFilter = f; this.rowPage = 1; this.loadRows(); }
 
   onRowPage(e: PageEvent) { this.rowPage = e.pageIndex + 1; this.rowPageSize = e.pageSize; this.loadRows(); }
 

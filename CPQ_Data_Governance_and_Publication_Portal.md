@@ -1113,6 +1113,47 @@ To work on Phase 1 in a controlled way, I would start with the business definiti
 8. Produce the pilot-ready submission template and process flow so the business can test the same path every time.
 9. Review the package with the business and CPQ team, then sign off the minimum foundation before moving into the upload and comparison MVP.
 
+### Phase 1 - Work Completed So Far
+
+The app has already been adjusted to reflect the pilot foundations described above. The work completed so far includes:
+
+- Narrowing the pilot scope to one site, one product family, and two logical datasets: **Article Master** and **Basis Price**
+- Removing the extra dataset variants that are outside the pilot scope so the application feels focused and easier to govern
+- Aligning the import wizard, dataset catalog, and dashboard wording with the Saint-Marcellin / PDU pilot
+- Updating the price dataset so it is clearly treated as a **unit price** flow rather than a generic price field
+- Adding the article unit of measure so the business can understand what the price applies to
+- Updating the upload template and validation rules to use `UnitPrice` and to keep the pricing meaning explicit
+- Keeping compatibility with older price files that still use `Price`, so the pilot can move forward without blocking existing test data
+- Improving the role and admin experience so the app supports a more realistic governance workflow
+- Adding a safe maintenance/reset path for development and test environments so the pilot can be replayed easily
+- Reworking the datasets page into a cleaner portfolio view with one concise metadata block per dataset and a collapsible governed structure section
+- Replacing repeated dataset requirements cards with a single field dictionary layout so the structure is easier to scan and less repetitive
+- Refining the import wizard requirements area into a compact governed field dictionary with a single row per field and clearer validation messaging
+- Aligning the datasets and import wizard dark-mode presentation so both views stay readable and consistent in the enterprise theme
+- Updating the scope document itself so the business direction, pilot assumptions, and implementation choices stay synchronized
+
+In practical terms, Phase 1 is now no longer only a planning exercise: the app already reflects the chosen pilot structure, the governed template shape, the clearer pricing meaning that the business asked for, and a more polished portfolio presentation for datasets and template structure.
+
+### Phase 2 - Work Completed So Far
+
+The second phase has focused on turning the pilot into a real controlled submission experience rather than a simple upload screen. The work completed so far includes:
+
+- Adding a dataset-level baseline comparison for each approved import, so Article Master and Basis Price are compared against their own latest committed version
+- Making the preview treat the first approved upload as an **Initial baseline** and later uploads as an **Annual refresh** against that baseline
+- Showing the reconciliation summary directly in the preview with counts for **New**, **Modified**, **Unchanged**, and **Missing** rows
+- Adding a row-level comparison column so users can see the status of every row alongside the validation outcome
+- Adding a dedicated comparison filter so users can filter the preview by **New**, **Modified**, or **Unchanged** rows
+- Keeping the validation filter and the comparison filter separate, so users can manage data quality and baseline change review independently
+- Updating the approver action wording to reflect an annual review instead of a generic upload approval
+- Improving the preview messaging so the user understands when an upload creates the first baseline and when it is being compared to a previous approved version
+- Wiring the comparison logic through the backend, API contract, and frontend preview so the annual-update flow is visible end to end
+- Simplifying the datasets page so each governed dataset has a compact card, a single metadata block, and an expandable structure section instead of repeated summary blocks
+- Converting the dataset structure into a field-card dictionary so the requirements are readable without forcing a wide, cut-off table layout
+- Adding a stable card height behavior so expanding one dataset does not visually stretch the neighboring card
+- Extending the same enterprise styling language to the datasets page and import wizard so the portal feels visually consistent across the pilot journey
+
+In practical terms, Phase 2 now gives the pilot a governed comparison workflow: the user can upload a new version, see what changed against the approved baseline, filter the rows by comparison status, correct data where required, and approve the annual refresh with clear business context, while the surrounding dataset pages and wizard now present that process in a cleaner governed portal style.
+
 ### Pilot Template - Article Master + Basis Price
 
 For the Saint-Marcellin / PDU pilot, the first submission template should stay focused on the business-critical fields that matter most for governance and publication.

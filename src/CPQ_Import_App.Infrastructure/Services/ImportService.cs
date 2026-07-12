@@ -49,15 +49,42 @@ public class ImportService(
         {
             ms.Position = 0;
             var parsed = await parser.ParseAsync(ms, fileName, ct);
-            stagingRows = parsed.Select(r => new StagingRow
+            if (entityType == EntityType.PriceList)
             {
-                ImportJobId = job.Id,
-                RowNumber = r.RowNumber,
-                Status = r.Status,
-                RawData = JsonSerializer.Serialize(r.Fields, JsonOpts),
-                ValidationMessages = r.Messages.Count > 0
-                    ? JsonSerializer.Serialize(r.Messages, JsonOpts)
-                    : null
+                var approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
+                foreach (var row in parsed)
+                {
+                    var articleNumber = row.Fields.TryGetValue("ArticleNumber", out var value) ? value?.Trim() : null;
+                    if (string.IsNullOrWhiteSpace(articleNumber))
+                    {
+                        continue;
+                    }
+
+                    if (!approvedArticles.Contains(articleNumber))
+                    {
+                        row.Messages.Add(new ValidationMessage
+                        {
+                            Field = "ArticleNumber",
+                            Message = $"Article '{articleNumber}' does not exist in the approved Article Master baseline.",
+                            Severity = ValidationSeverity.Error
+                        });
+                    }
+                }
+            }
+
+            stagingRows = parsed.Select(r =>
+            {
+                var status = RowValidator.DeriveStatus(r.Messages);
+                return new StagingRow
+                {
+                    ImportJobId = job.Id,
+                    RowNumber = r.RowNumber,
+                    Status = status,
+                    RawData = JsonSerializer.Serialize(r.Fields, JsonOpts),
+                    ValidationMessages = r.Messages.Count > 0
+                        ? JsonSerializer.Serialize(r.Messages, JsonOpts)
+                        : null
+                };
             }).ToList();
         }
         catch (Exception ex)
@@ -109,8 +136,8 @@ public class ImportService(
         => repository.GetJobsPagedAsync(page, pageSize, search, status, entityType, ct);
 
     public Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
-        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, CancellationToken ct = default)
-        => repository.GetStagingRowsPagedAsync(jobId, page, pageSize, filterStatus, ct);
+        Guid jobId, int page, int pageSize, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
+        => repository.GetStagingRowsPagedAsync(jobId, page, pageSize, filterStatus, comparisonStatus, ct);
 
     public async Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default)
@@ -167,7 +194,7 @@ public class ImportService(
         int page = 1;
         while (true)
         {
-            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, null, ct);
+            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, null, null, ct);
             allRows.AddRange(items.Where(r => r.Status != RowStatus.Error));
             if (allRows.Count >= total || items.Count == 0) break;
             page++;
@@ -249,6 +276,12 @@ public class ImportService(
         return job;
     }
 
+    public Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default)
+        => repository.GetComparisonAsync(jobId, ct);
+
+    public Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default)
+        => repository.GetLatestApprovedArticleNumbersAsync(ct);
+
     public Task<byte[]?> GetOriginalFileAsync(Guid jobId, CancellationToken ct = default)
         => repository.GetUploadedFileAsync(jobId, ct);
 
@@ -264,7 +297,7 @@ public class ImportService(
         int page = 1;
         while (true)
         {
-            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, RowStatus.Error, ct);
+            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, RowStatus.Error, null, ct);
             errorRows.AddRange(items);
             if (errorRows.Count >= total || items.Count == 0) break;
             page++;
@@ -337,7 +370,7 @@ public class ImportService(
         int page = 1;
         while (true)
         {
-            var (items, total) = await repository.GetStagingRowsPagedAsync(job.Id, page, 500, null, ct);
+            var (items, total) = await repository.GetStagingRowsPagedAsync(job.Id, page, 500, null, null, ct);
             allRows.AddRange(items);
             if (allRows.Count >= total || items.Count == 0)
                 break;

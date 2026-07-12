@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "CPQ_Import_App.Core/1.0.0": {
+        "runtime": {
+          "CPQ_Import_App.Core.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "CPQ_Import_App.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  CommitResult, DashboardOverview, DatasetRequirement, EntityType, ImportJob, PagedResult, RowStatus, StagingRow
+  CommitResult, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, EntityType, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -36,9 +36,10 @@ export class ImportService {
     return this.http.get<ImportJob>(`${this.base}/${id}`);
   }
 
-  getRows(jobId: string, page = 1, pageSize = 50, status?: RowStatus): Observable<PagedResult<StagingRow>> {
+  getRows(jobId: string, page = 1, pageSize = 50, status?: RowStatus, comparisonStatus?: ComparisonStatus): Observable<PagedResult<StagingRow>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
     if (status) params = params.set('status', status);
+    if (comparisonStatus) params = params.set('comparisonStatus', comparisonStatus);
     return this.http.get<PagedResult<StagingRow>>(`${this.base}/${jobId}/rows`, { params });
   }
 
@@ -66,6 +67,10 @@ export class ImportService {
     return this.http.post<CommitResult>(`${this.base}/${jobId}/commit`, {}).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
     );
+  }
+
+  getComparison(jobId: string): Observable<ImportComparison> {
+    return this.http.get<ImportComparison>(`${this.base}/${jobId}/comparison`);
   }
 
   reject(jobId: string, reason: string): Observable<ImportJob> {

@@ -873,8 +873,8 @@ html.theme-dark app-datasets .dataset-status {
 html.theme-dark app-datasets .dataset-icon,
 html.theme-dark app-datasets .dataset-status,
 html.theme-dark app-datasets .dataset-meta-item,
-html.theme-dark app-datasets .dataset-requirements,
-html.theme-dark app-datasets .requirements-list li {
+html.theme-dark app-datasets .dataset-details,
+html.theme-dark app-datasets .dataset-field-card {
   background: rgba(15, 23, 42, 0.9) !important;
   border-color: var(--app-border) !important;
 }
@@ -887,6 +887,46 @@ html.theme-dark app-datasets .dataset-status--active {
   background: rgba(34, 197, 94, 0.18) !important;
   color: #86efac !important;
   border-color: rgba(34, 197, 94, 0.42) !important;
+}
+
+html.theme-dark app-datasets .dataset-details-copy,
+html.theme-dark app-datasets .dataset-field-name,
+html.theme-dark app-datasets .dataset-meta-text,
+html.theme-dark app-datasets .dataset-example {
+  color: var(--app-text-muted) !important;
+}
+
+html.theme-dark app-datasets .dataset-field-name,
+html.theme-dark app-datasets .dataset-details summary {
+  color: var(--app-text) !important;
+}
+
+html.theme-dark app-datasets .dataset-details summary {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.88)) !important;
+  border-bottom: 1px solid var(--app-border);
+}
+
+html.theme-dark app-datasets .dataset-field-list {
+  background: rgba(15, 23, 42, 0.86) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-datasets .dataset-field-card {
+  background: rgba(15, 23, 42, 0.78) !important;
+}
+
+html.theme-dark app-datasets .dataset-field-body-item {
+  border-top-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+html.theme-dark app-datasets .dataset-field-label {
+  color: #94a3b8 !important;
+}
+
+html.theme-dark app-datasets .dataset-type {
+  background: rgba(59, 130, 246, 0.16) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
 }
 
 /* Datasets badges keep their semantic colours in dark mode */
@@ -904,6 +944,11 @@ html.theme-dark app-datasets .badge-warning {
   background: rgba(245, 158, 11, 0.18) !important;
   color: #fcd34d !important;
   border-color: rgba(245, 158, 11, 0.42) !important;
+}
+
+html.theme-dark app-datasets .dataset-actions .mat-mdc-stroked-button,
+html.theme-dark app-datasets .dataset-actions .mat-mdc-button {
+  color: #cbd5e1 !important;
 }
 
 html.theme-dark app-datasets .dataset-description,
@@ -1068,6 +1113,235 @@ html.theme-dark .theme-toggle-fab {
 .status-chip-committed         { background: #e8f5e9; color: #2e7d32; }
 .status-chip-rejected          { background: #ffebee; color: #c62828; }
 .status-chip-failed            { background: #fce4ec; color: #880e4f; }
+
+app-import-preview .comparison-card {
+  margin-bottom: 16px;
+  border: 1px solid #dbeafe;
+  box-shadow: none;
+  background: linear-gradient(180deg, #f8fbff, #ffffff);
+}
+
+app-import-preview .annual-banner {
+  margin-bottom: 16px;
+  border: 1px solid #bfdbfe;
+  box-shadow: none;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+}
+
+app-import-preview .annual-banner mat-card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+app-import-preview .annual-banner-copy h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+app-import-preview .annual-banner-copy p {
+  margin: 0;
+  color: #475569;
+  max-width: 760px;
+  line-height: 1.5;
+}
+
+app-import-preview .annual-banner-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  gap: 10px;
+  width: min(100%, 420px);
+}
+
+app-import-preview .annual-banner-stat {
+  border-radius: 14px;
+  border: 1px solid #dbe4f0;
+  padding: 10px 12px;
+  background: #fff;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+app-import-preview .annual-banner-stat span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+  color: #64748b;
+}
+
+app-import-preview .annual-banner-stat strong {
+  font-size: 20px;
+  color: #0f172a;
+}
+
+app-import-preview .banner-new { border-color: #bfdbfe; background: #eff6ff; }
+app-import-preview .banner-new strong { color: #1d4ed8; }
+app-import-preview .banner-modified { border-color: #fed7aa; background: #fff7ed; }
+app-import-preview .banner-modified strong { color: #c2410c; }
+app-import-preview .banner-missing { border-color: #fecaca; background: #fef2f2; }
+app-import-preview .banner-missing strong { color: #b91c1c; }
+
+app-import-preview .annual-banner-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+app-import-preview .comparison-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+app-import-preview .comparison-header h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+app-import-preview .comparison-header p {
+  margin: 0;
+  color: #475569;
+  max-width: 760px;
+  line-height: 1.5;
+}
+
+app-import-preview .comparison-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  width: min(100%, 560px);
+}
+
+app-import-preview .comparison-stat {
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid #dbe4f0;
+  background: #fff;
+  display: grid;
+  gap: 4px;
+}
+
+app-import-preview .comparison-stat span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
+  color: #64748b;
+}
+
+app-import-preview .comparison-stat strong {
+  font-size: 18px;
+  color: #0f172a;
+}
+
+app-import-preview .stat-new { border-color: #bfdbfe; background: #eff6ff; }
+app-import-preview .stat-new strong,
+app-import-preview .cmp-new { color: #1d4ed8; }
+app-import-preview .stat-modified { border-color: #fed7aa; background: #fff7ed; }
+app-import-preview .stat-modified strong,
+app-import-preview .cmp-modified { color: #c2410c; }
+app-import-preview .stat-unchanged { border-color: #bbf7d0; background: #f0fdf4; }
+app-import-preview .stat-unchanged strong,
+app-import-preview .cmp-unchanged { color: #166534; }
+app-import-preview .stat-missing { border-color: #fecaca; background: #fef2f2; }
+app-import-preview .stat-missing strong { color: #b91c1c; }
+
+app-import-preview .comparison-missing {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #dbe4f0;
+}
+
+app-import-preview .comparison-missing-title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+app-import-preview .comparison-missing-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+app-import-preview .comparison-missing-item {
+  border: 1px solid #dbe4f0;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+app-import-preview .comparison-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid #dbe4f0;
+  width: fit-content;
+  background: #fff;
+}
+
+app-import-preview .comparison-pill mat-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
+}
+
+app-import-preview .comparison-detail {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+app-import-preview .mobile-comparison-pill {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+app-import-preview .comparison-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+html.theme-dark app-import-preview .comparison-loading {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.34) !important;
+  color: #cbd5e1 !important;
+}
 
 // Toast notification animations
 @keyframes slideInUp {
@@ -1593,6 +1867,70 @@ html.theme-dark app-import-preview .action-cancel {
   border-color: rgba(245, 158, 11, 0.42) !important;
   color: #fcd34d !important;
 }
+html.theme-dark app-import-preview .comparison-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 15, 30, 0.96)) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-import-preview .annual-banner {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96)) !important;
+  border-color: rgba(96, 165, 250, 0.28) !important;
+}
+
+html.theme-dark app-import-preview .annual-banner-copy h2 {
+  color: #f8fafc !important;
+}
+
+html.theme-dark app-import-preview .annual-banner-copy p {
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-import-preview .annual-banner-stat {
+  background: rgba(15, 23, 42, 0.82) !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.theme-dark app-import-preview .annual-banner-stat span {
+  color: #cbd5e1 !important;
+}
+
+html.theme-dark app-import-preview .annual-banner-stat strong {
+  color: #f8fafc !important;
+}
+
+html.theme-dark app-import-preview .annual-banner-loading {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(59, 130, 246, 0.34) !important;
+  color: #cbd5e1 !important;
+}
+html.theme-dark app-import-preview .comparison-header h3,
+html.theme-dark app-import-preview .comparison-stat strong {
+  color: var(--app-text) !important;
+}
+html.theme-dark app-import-preview .comparison-header p,
+html.theme-dark app-import-preview .comparison-stat span,
+html.theme-dark app-import-preview .comparison-detail,
+html.theme-dark app-import-preview .comparison-missing-title {
+  color: var(--app-text-muted) !important;
+}
+html.theme-dark app-import-preview .comparison-stat,
+html.theme-dark app-import-preview .comparison-pill,
+html.theme-dark app-import-preview .comparison-missing-item {
+  background: rgba(15, 23, 42, 0.86) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+html.theme-dark app-import-preview .stat-new { background: rgba(37, 99, 235, 0.14) !important; }
+html.theme-dark app-import-preview .stat-new strong,
+html.theme-dark app-import-preview .cmp-new { color: #93c5fd !important; }
+html.theme-dark app-import-preview .stat-modified { background: rgba(249, 115, 22, 0.14) !important; }
+html.theme-dark app-import-preview .stat-modified strong,
+html.theme-dark app-import-preview .cmp-modified { color: #fdba74 !important; }
+html.theme-dark app-import-preview .stat-unchanged { background: rgba(34, 197, 94, 0.14) !important; }
+html.theme-dark app-import-preview .stat-unchanged strong,
+html.theme-dark app-import-preview .cmp-unchanged { color: #86efac !important; }
+html.theme-dark app-import-preview .stat-missing { background: rgba(239, 68, 68, 0.14) !important; }
+html.theme-dark app-import-preview .stat-missing strong { color: #fca5a5 !important; }
 html.theme-dark app-import-preview .summary-item .valid-count { color: #86efac; }
 html.theme-dark app-import-preview .summary-item .warning-count { color: #fcd34d; }
 html.theme-dark app-import-preview .summary-item .error-count { color: #fca5a5; }
@@ -2077,21 +2415,43 @@ html.theme-dark app-import-wizard .responsibility-notice {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22) !important;
 }
 
+html.theme-dark app-import-wizard .requirements-table {
+  background: rgba(15, 23, 42, 0.86) !important;
+  border-color: var(--app-border) !important;
+}
+
+html.theme-dark app-import-wizard .requirements-table-head {
+  background: rgba(30, 41, 59, 0.96) !important;
+  color: #94a3b8 !important;
+  border-bottom-color: var(--app-border) !important;
+}
+
+html.theme-dark app-import-wizard .requirements-table-row {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.88)) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+html.theme-dark app-import-wizard .requirements-table-row:nth-child(even) {
+  background: rgba(15, 23, 42, 0.78) !important;
+}
+
+html.theme-dark app-import-wizard .requirements-type {
+  background: rgba(59, 130, 246, 0.14) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #93c5fd !important;
+}
+
 html.theme-dark app-import-wizard .requirements-header p,
-html.theme-dark app-import-wizard .requirements-title,
 html.theme-dark app-import-wizard .requirements-meta,
 html.theme-dark app-import-wizard .requirements-example,
+html.theme-dark app-import-wizard .requirements-definition,
+html.theme-dark app-import-wizard .requirements-validation,
 html.theme-dark app-import-wizard .step-subtitle,
 html.theme-dark app-import-wizard .hint,
 html.theme-dark app-import-wizard .file-size,
 html.theme-dark app-import-wizard .notice-content p,
 html.theme-dark app-import-wizard .responsibility-checkbox {
   color: var(--app-text-muted) !important;
-}
-
-html.theme-dark app-import-wizard .requirements-item {
-  background: rgba(15, 23, 42, 0.72) !important;
-  border-color: var(--app-border) !important;
 }
 
 html.theme-dark app-import-wizard .drop-zone {
@@ -2154,16 +2514,11 @@ html.theme-dark app-import-wizard .requirements-panel {
   background: rgba(15, 23, 42, 0.6) !important;
   border-color: var(--app-border) !important;
 }
-html.theme-dark app-import-wizard .requirements-item {
-  background: var(--app-surface) !important;
-  border-color: var(--app-border) !important;
-}
 html.theme-dark app-import-wizard .requirements-header h3,
 html.theme-dark app-import-wizard .requirements-name {
   color: var(--app-text) !important;
 }
 html.theme-dark app-import-wizard .requirements-header p,
-html.theme-dark app-import-wizard .requirements-title,
 html.theme-dark app-import-wizard .requirements-meta,
 html.theme-dark app-import-wizard .requirements-example,
 html.theme-dark app-import-wizard .step-subtitle {
