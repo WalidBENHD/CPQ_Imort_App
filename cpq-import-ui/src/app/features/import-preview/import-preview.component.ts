@@ -139,41 +139,63 @@ import { EditRowDialogComponent } from './edit-row-dialog.component';
       <mat-card class="comparison-card">
         <mat-card-content>
           <div class="comparison-header">
-            <div>
+            <div class="comparison-copy">
               <div class="label">{{ comparison?.hasBaseline ? 'Annual update comparison' : 'Initial baseline submission' }}</div>
               <h3>
                 {{ comparison?.hasBaseline
                   ? 'Compared against the latest approved baseline'
                   : 'This submission establishes the approved baseline' }}
               </h3>
-              <div class="baseline-chip" *ngIf="comparison?.hasBaseline && comparison?.baselineJobId === job?.id">
-                {{ comparisonBaselineLabel() }}
-              </div>
               <p *ngIf="comparison?.hasBaseline; else noBaselineMessage">
                 This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
                 Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
               </p>
+              <div *ngIf="activeBaselineLink() as baselineLink" class="baseline-link-wrap">
+                <a mat-button class="baseline-link-btn" [routerLink]="baselineLink">
+                  <mat-icon>timeline</mat-icon>
+                  Open active baseline
+                </a>
+              </div>
             </div>
             <ng-container *ngIf="comparison as cmp; else comparisonStatus">
-              <div class="comparison-stats">
-                <div class="comparison-stat stat-new">
-                  <span>New</span>
-                  <strong>{{ cmp.newRows }}</strong>
+              <div class="baseline-focus">
+                <div class="baseline-focus__head">
+                  <div class="baseline-focus__eyebrow">Baseline focus</div>
+                  <div
+                    *ngIf="comparison?.hasBaseline && comparison?.baselineJobId === job?.id"
+                    class="baseline-focus__pill">
+                    Active baseline
+                  </div>
                 </div>
-                <div class="comparison-stat stat-modified">
-                  <span>Modified</span>
-                  <strong>{{ cmp.modifiedRows }}</strong>
+                <div class="baseline-focus__title">
+                  {{ cmp.hasBaseline ? 'Latest approved version' : 'First approved submission' }}
                 </div>
-                <div class="comparison-stat stat-unchanged">
-                  <span>Unchanged</span>
-                  <strong>{{ cmp.unchangedRows }}</strong>
-                </div>
-                <div class="comparison-stat stat-missing">
-                  <span>Missing</span>
-                  <strong>{{ cmp.missingBaselineRows }}</strong>
+                <div class="baseline-focus__body">
+                  {{ cmp.hasBaseline
+                    ? 'Use this upload as the comparison anchor for future annual updates.'
+                    : 'This upload becomes the anchor for future annual updates.' }}
                 </div>
               </div>
             </ng-container>
+          </div>
+
+          <div *ngIf="comparison as cmp" class="comparison-metrics">
+            <div class="comparison-metric metric-new">
+              <div class="comparison-metric__label">New</div>
+              <strong class="comparison-metric__value">{{ cmp.newRows }}</strong>
+            </div>
+            <div class="comparison-metric metric-modified">
+              <div class="comparison-metric__label">Modified</div>
+              <strong class="comparison-metric__value">{{ cmp.modifiedRows }}</strong>
+            </div>
+            <div class="comparison-metric metric-unchanged">
+              <div class="comparison-metric__label">Unchanged</div>
+              <strong class="comparison-metric__value">{{ cmp.unchangedRows }}</strong>
+            </div>
+            <div class="comparison-metric metric-missing">
+              <div class="comparison-metric__label">Missing</div>
+              <strong class="comparison-metric__value">{{ cmp.missingBaselineRows }}</strong>
+            </div>
           </div>
 
           <ng-template #comparisonStatus>
@@ -824,6 +846,14 @@ export class ImportPreviewComponent implements OnInit {
     return 'Active baseline';
   }
 
+  activeBaselineLink(): string | null {
+    if (!this.comparison?.hasBaseline || !this.comparison.baselineJobId || this.comparison.baselineJobId === this.job?.id) {
+      return null;
+    }
+
+    return `/import/${this.comparison.baselineJobId}`;
+  }
+
   getMobileColumns(row: StagingRow): string[] {
     return Object.keys(row.fields).slice(0, 3);
   }
@@ -873,18 +903,37 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   ngOnInit() {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.loading = true;
-    this.importService.getJob(id).subscribe({
-      next: j => {
-        this.job = j;
-        this.loading = false;
-        this.loadDatasetRequirement(j.entityTypeLabel);
-        this.loadComparison();
-        this.loadRows();
-      },
-      error: () => { this.loading = false; }
+    this.route.paramMap.subscribe(params => {
+      const id = params.get('id');
+      if (!id) {
+        return;
+      }
+
+      this.resetViewState();
+      this.loading = true;
+      this.importService.getJob(id).subscribe({
+        next: j => {
+          this.job = j;
+          this.loading = false;
+          this.loadDatasetRequirement(j.entityTypeLabel);
+          this.loadComparison();
+          this.loadRows();
+        },
+        error: () => { this.loading = false; }
+      });
     });
+  }
+
+  private resetViewState(): void {
+    this.job = null;
+    this.datasetRequirement = null;
+    this.comparison = null;
+    this.rows = null;
+    this.comparisonMap.clear();
+    this.rowPage = 1;
+    this.rowFilter = null;
+    this.comparisonFilter = null;
+    this.expandedRows.clear();
   }
 
   private loadDatasetRequirement(entityTypeLabel: string): void {
