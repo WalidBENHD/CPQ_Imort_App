@@ -391,14 +391,19 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                 <td mat-cell *matCellDef="let row" [class.changed-field-cell]="isFieldChanged(row, col)">
                   <div class="field-cell" [class.field-cell--changed]="isFieldChanged(row, col)">
                     <ng-container *ngIf="comparisonChangeForField(row, col) as fieldChange; else plainFieldValue">
-                      <span class="field-value field-value--current">{{ row.fields[col] || '-' }}</span>
-                      <span class="field-previous field-previous--icon" matTooltip="Committed baseline value" aria-label="Committed baseline value">
-                        <mat-icon>verified</mat-icon>
-                        <span class="field-previous__value">{{ fieldChange.baselineValue || '-' }}</span>
+                      <span class="field-value field-value--current">
+                        {{ row.fields[col] || '-' }}
+                      </span>
+                      <span class="field-previous" aria-label="Committed baseline value">
+                        <span class="field-previous__value">
+                          {{ fieldChange.baselineValue || '-' }}
+                        </span>
                       </span>
                     </ng-container>
                     <ng-template #plainFieldValue>
-                      <span class="field-value">{{ row.fields[col] || '-' }}</span>
+                      <span class="field-value">
+                        {{ row.fields[col] || '-' }}
+                      </span>
                     </ng-template>
                   </div>
                 </td>
@@ -470,14 +475,19 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                     <span class="mobile-field-label">{{ col }}</span>
                     <div class="mobile-field-value-wrap" [class.changed-field-cell]="isFieldChanged(row, col)">
                       <ng-container *ngIf="comparisonChangeForField(row, col) as fieldChange; else plainMobileFieldValue">
-                        <span class="mobile-field-value mobile-field-value--current">{{ row.fields[col] || '-' }}</span>
-                        <span class="field-previous field-previous--icon" matTooltip="Committed baseline value" aria-label="Committed baseline value">
-                          <mat-icon>verified</mat-icon>
-                          <span class="field-previous__value">{{ fieldChange.baselineValue || '-' }}</span>
+                        <span class="mobile-field-value mobile-field-value--current">
+                          {{ row.fields[col] || '-' }}
+                        </span>
+                        <span class="field-previous" aria-label="Committed baseline value">
+                          <span class="field-previous__value">
+                            {{ fieldChange.baselineValue || '-' }}
+                          </span>
                         </span>
                       </ng-container>
                       <ng-template #plainMobileFieldValue>
-                        <span class="mobile-field-value">{{ row.fields[col] || '-' }}</span>
+                        <span class="mobile-field-value">
+                          {{ row.fields[col] || '-' }}
+                        </span>
                       </ng-template>
                     </div>
                   </div>
