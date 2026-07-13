@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using CPQ_Import_App.Core.Enums;
 
 namespace CPQ_Import_App.Core.Models;
@@ -23,6 +24,8 @@ public class ImportJob
     public int WarningRows { get; set; }
     public int ErrorRows { get; set; }
     public int CommittedRows { get; set; }
+    [NotMapped]
+    public bool IsActiveBaseline { get; set; }
     public ICollection<StagingRow> StagingRows { get; set; } = new List<StagingRow>();
     public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }

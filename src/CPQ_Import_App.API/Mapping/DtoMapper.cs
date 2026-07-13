@@ -48,7 +48,8 @@ public static class DtoMapper
         job.ValidRows,
         job.WarningRows,
         job.ErrorRows,
-        job.CommittedRows
+        job.CommittedRows,
+        job.IsActiveBaseline
     );
 
     public static StagingRowDto ToDto(this StagingRow row) => new(

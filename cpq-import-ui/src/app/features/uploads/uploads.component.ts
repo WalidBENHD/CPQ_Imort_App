@@ -110,7 +110,10 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
               <th mat-header-cell *matHeaderCellDef>File</th>
               <td mat-cell *matCellDef="let job">
                 <div class="file-cell">
-                  <mat-icon>description</mat-icon>
+                  <div class="file-icon-wrap" [class.file-icon-wrap--active]="job.isActiveBaseline">
+                    <mat-icon>description</mat-icon>
+                    <span class="file-icon-led" *ngIf="job.isActiveBaseline"></span>
+                  </div>
                   <div>
                     <div class="file-name">{{ job.originalFileName }}</div>
                     <div class="file-subtitle">Uploaded by {{ job.createdByDisplayName }}</div>
@@ -163,7 +166,10 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
               <span class="mobile-date">{{ job.createdAt | date:'dd/MM HH:mm' }}</span>
             </div>
             <div class="mobile-file">
-              <mat-icon>description</mat-icon>
+              <div class="file-icon-wrap mobile-file-icon-wrap" [class.file-icon-wrap--active]="job.isActiveBaseline">
+                <mat-icon>description</mat-icon>
+                <span class="file-icon-led" *ngIf="job.isActiveBaseline"></span>
+              </div>
               <span>{{ job.originalFileName }}</span>
             </div>
             <div class="mobile-sub">{{ job.entityTypeLabel }}</div>
@@ -392,8 +398,43 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       gap: 10px;
     }
 
-    .file-cell mat-icon {
-      color: #94a3b8;
+    .file-icon-wrap {
+      position: relative;
+      flex: none;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+    }
+
+    .file-icon-wrap--active {
+      color: #16a34a;
+    }
+
+    .file-icon-wrap mat-icon {
+      color: currentColor;
+      width: 20px;
+      height: 20px;
+      font-size: 20px;
+      line-height: 20px;
+    }
+
+    .file-icon-wrap--active mat-icon {
+      color: #16a34a;
+    }
+
+    .file-icon-led {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.88);
     }
 
     .file-name {
@@ -465,18 +506,16 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
 
     .mobile-file {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 8px;
       font-weight: 700;
       color: #0f172a;
       margin-bottom: 8px;
     }
 
-    .mobile-file mat-icon {
-      color: #94a3b8;
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
+    .mobile-file-icon-wrap {
+      width: 22px;
+      height: 22px;
     }
 
     .mobile-file span {
@@ -521,6 +560,23 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
 
     .loading-copy {
       color: #475569;
+    }
+
+    html.theme-dark app-uploads .file-icon-wrap {
+      color: #94a3b8;
+    }
+
+    html.theme-dark app-uploads .file-icon-wrap--active {
+      color: #86efac;
+    }
+
+    html.theme-dark app-uploads .file-icon-wrap--active mat-icon {
+      color: #4ade80;
+    }
+
+    html.theme-dark app-uploads .file-icon-led {
+      border-color: rgba(15, 23, 42, 0.95);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.22);
     }
 
     @media (max-width: 980px) {

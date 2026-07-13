@@ -22,7 +22,8 @@ public record ImportJobDto(
     int ValidRows,
     int WarningRows,
     int ErrorRows,
-    int CommittedRows
+    int CommittedRows,
+    bool IsActiveBaseline
 );
 
 public record StagingRowDto(

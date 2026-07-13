@@ -17,10 +17,19 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return job;
     }
 
-    public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
-        => db.ImportJobs
+    public async Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
+    {
+        var job = await db.ImportJobs
             .Include(j => j.AuditLogs)
             .FirstOrDefaultAsync(j => j.Id == id, ct);
+
+        if (job is not null)
+        {
+            await MarkActiveBaselineAsync(job, ct);
+        }
+
+        return job;
+    }
 
     public async Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
@@ -47,6 +56,9 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
+
+        await MarkActiveBaselinesAsync(items, ct);
+
         return (items, total);
     }
 
@@ -278,6 +290,44 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return articleNumbers;
+    }
+
+    private async Task MarkActiveBaselinesAsync(IReadOnlyCollection<ImportJob> jobs, CancellationToken ct)
+    {
+        if (jobs.Count == 0)
+        {
+            return;
+        }
+
+        var activeCommittedJobs = await db.ImportJobs
+            .AsNoTracking()
+            .Where(j => j.Status == ImportStatus.Committed)
+            .OrderByDescending(j => j.CommittedAt)
+            .ThenByDescending(j => j.CreatedAt)
+            .ToListAsync(ct);
+
+        var activeIds = activeCommittedJobs
+            .GroupBy(j => j.EntityType)
+            .Select(g => g.First().Id)
+            .ToHashSet();
+
+        foreach (var job in jobs)
+        {
+            job.IsActiveBaseline = activeIds.Contains(job.Id);
+        }
+    }
+
+    private async Task MarkActiveBaselineAsync(ImportJob job, CancellationToken ct)
+    {
+        var activeJobId = await db.ImportJobs
+            .AsNoTracking()
+            .Where(j => j.Status == ImportStatus.Committed && j.EntityType == job.EntityType)
+            .OrderByDescending(j => j.CommittedAt)
+            .ThenByDescending(j => j.CreatedAt)
+            .Select(j => j.Id)
+            .FirstOrDefaultAsync(ct);
+
+        job.IsActiveBaseline = activeJobId == job.Id;
     }
 
     public async Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default)

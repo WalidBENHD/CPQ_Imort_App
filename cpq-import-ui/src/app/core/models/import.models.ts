@@ -71,6 +71,7 @@ export interface ImportJob {
   warningRows: number;
   errorRows: number;
   committedRows: number;
+  isActiveBaseline: boolean;
 }
 
 export interface ValidationMessage {
