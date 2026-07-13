@@ -50,6 +50,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         </button>
         <button
           mat-stroked-button
+          class="header-action-btn action-comparison"
+          *ngIf="canDownloadComparisonReport()"
+          (click)="downloadComparisonReport()"
+          matTooltip="Download comparison report for detected differences">
+          <mat-icon>difference</mat-icon> Comparison Report
+        </button>
+        <button
+          mat-stroked-button
           class="header-action-btn action-refresh"
           *ngIf="canRefreshValidation()"
           [disabled]="refreshingValidation"
@@ -545,6 +553,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       background: #eff6ff;
     }
     .action-original:hover { background: #dbeafe; }
+    .action-comparison {
+      border-color: #bbf7d0 !important;
+      color: #166534 !important;
+      background: #f0fdf4;
+    }
+    .action-comparison:hover { background: #dcfce7; }
     .action-error {
       border-color: #fecaca !important;
       color: #b91c1c !important;
@@ -960,6 +974,14 @@ export class ImportPreviewComponent implements OnInit {
     return !['Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
   }
 
+  canDownloadComparisonReport(): boolean {
+    return !!this.comparison && (
+      this.comparison.newRows > 0 ||
+      this.comparison.modifiedRows > 0 ||
+      this.comparison.missingBaselineRows > 0
+    );
+  }
+
   ngOnInit() {
     this.filtersForm.valueChanges
       .pipe(debounceTime(250), takeUntilDestroyed(this.destroyRef))
@@ -1182,6 +1204,32 @@ export class ImportPreviewComponent implements OnInit {
       URL.revokeObjectURL(a.href);
     }, async (err) => {
       let message = 'Failed to download the error report.';
+
+      if (err?.error instanceof Blob) {
+        try {
+          const text = await err.error.text();
+          message = text || message;
+        } catch {
+          // Keep the generic message if the blob cannot be read.
+        }
+      } else if (err?.error?.error) {
+        message = err.error.error;
+      }
+
+      this.snackBar.open(message, 'Close', { duration: 7000 });
+    });
+  }
+
+  downloadComparisonReport(): void {
+    if (!this.job || !this.canDownloadComparisonReport()) return;
+    this.importService.downloadComparisonReport(this.job.id).subscribe(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `comparison_${this.job!.id}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, async (err) => {
+      let message = 'Failed to download the comparison report.';
 
       if (err?.error instanceof Blob) {
         try {

@@ -94,6 +94,10 @@ export class ImportService {
     return this.http.get(`${this.base}/${jobId}/error-report`, { responseType: 'blob' });
   }
 
+  downloadComparisonReport(jobId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/${jobId}/comparison-report`, { responseType: 'blob' });
+  }
+
   downloadTemplate(entityType: EntityType): Observable<Blob> {
     return this.http.get(`${environment.apiUrl}/templates/${entityType}`, { responseType: 'blob' });
   }

@@ -392,6 +392,20 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    /// <summary>Download a comparison report for rows with differences against the latest baseline.</summary>
+    [HttpGet("{id:guid}/comparison-report")]
+    public async Task<IActionResult> DownloadComparisonReport(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var bytes = await importService.GenerateComparisonReportAsync(id, ct);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"comparison_{id:N}.xlsx");
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     private async Task<ActionResult?> ValidateApproverPermissionAsync(CancellationToken ct)
     {
         if (!Guid.TryParse(UserId, out var currentUserId))

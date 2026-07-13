@@ -399,6 +399,209 @@ public class ImportService(
         return package.GetAsByteArray();
     }
 
+    public async Task<byte[]> GenerateComparisonReportAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var comparison = await repository.GetComparisonAsync(jobId, ct);
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (!comparison.HasBaseline)
+        {
+            throw new InvalidOperationException("This import has no baseline comparison to export.");
+        }
+
+        if (comparison.NewRows == 0 && comparison.ModifiedRows == 0 && comparison.MissingBaselineRows == 0)
+        {
+            throw new InvalidOperationException("This import has no comparison differences to export.");
+        }
+
+        var currentRows = new List<StagingRow>();
+        int page = 1;
+        while (true)
+        {
+            var (items, total) = await repository.GetStagingRowsPagedAsync(jobId, page, 500, null, null, null, ct);
+            currentRows.AddRange(items);
+            if (currentRows.Count >= total || items.Count == 0)
+            {
+                break;
+            }
+            page++;
+        }
+
+        var currentRowLookup = currentRows.ToDictionary(
+            r => r.Id,
+            r => (IReadOnlyDictionary<string, string?>)DeserializeFields(r.RawData));
+
+        ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+
+        var summary = package.Workbook.Worksheets.Add("Summary");
+        summary.Cells[1, 1].Value = "Comparison report";
+        summary.Cells[2, 1].Value = "Job";
+        summary.Cells[2, 2].Value = job.OriginalFileName;
+        summary.Cells[3, 1].Value = "Dataset";
+        summary.Cells[3, 2].Value = DatasetCatalog.Get(job.EntityType).DisplayName;
+        summary.Cells[4, 1].Value = "Baseline job";
+        summary.Cells[4, 2].Value = comparison.BaselineJobId.ToString("D");
+        summary.Cells[5, 1].Value = "Compared rows";
+        summary.Cells[5, 2].Value = comparison.ComparedRows;
+        summary.Cells[6, 1].Value = "New rows";
+        summary.Cells[6, 2].Value = comparison.NewRows;
+        summary.Cells[7, 1].Value = "Modified rows";
+        summary.Cells[7, 2].Value = comparison.ModifiedRows;
+        summary.Cells[8, 1].Value = "Unchanged rows";
+        summary.Cells[8, 2].Value = comparison.UnchangedRows;
+        summary.Cells[9, 1].Value = "Missing rows";
+        summary.Cells[9, 2].Value = comparison.MissingBaselineRows;
+
+        summary.Cells[1, 1, 1, 2].Style.Font.Bold = true;
+        summary.Cells[1, 1, 1, 2].Style.Font.Size = 14;
+        summary.Cells[2, 1, 9, 1].Style.Font.Bold = true;
+        summary.Cells[2, 1, 9, 2].AutoFitColumns();
+
+        WriteNewRowsSheet(package, comparison, currentRowLookup);
+        WriteModifiedRowsSheet(package, comparison);
+
+        var missing = package.Workbook.Worksheets.Add("Missing");
+        var missingHeaders = new[] { "Key" }.Concat(
+            comparison.MissingRows.SelectMany(m => m.BaselineValues.Keys)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(k => k)).ToList();
+
+        for (int c = 0; c < missingHeaders.Count; c++)
+        {
+            var cell = missing.Cells[1, c + 1];
+            cell.Value = missingHeaders[c];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(0x1D, 0x4E, 0xD8));
+            cell.Style.Font.Color.SetColor(Color.White);
+        }
+
+        for (int i = 0; i < comparison.MissingRows.Count; i++)
+        {
+            var item = comparison.MissingRows[i];
+            missing.Cells[i + 2, 1].Value = item.Key;
+            for (int c = 1; c < missingHeaders.Count; c++)
+            {
+                var header = missingHeaders[c];
+                item.BaselineValues.TryGetValue(header, out var value);
+                missing.Cells[i + 2, c + 1].Value = value;
+            }
+        }
+
+        if (missing.Dimension is not null)
+        {
+            missing.Cells[missing.Dimension.Address].AutoFitColumns();
+        }
+
+        return package.GetAsByteArray();
+    }
+
+    private static void WriteNewRowsSheet(ExcelPackage package, ImportComparisonResult comparison, IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string?>> currentRowLookup)
+    {
+        var newRows = comparison.Rows.Where(r => r.ComparisonStatus == "New").ToList();
+        if (newRows.Count == 0)
+        {
+            return;
+        }
+
+        var ws = package.Workbook.Worksheets.Add("New");
+        var fieldHeaders = newRows
+            .Select(row => currentRowLookup.TryGetValue(row.RowId, out var fields) ? fields.Keys : [])
+            .SelectMany(keys => keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k)
+            .ToList();
+
+        var headers = new[] { "Row", "Key" }.Concat(fieldHeaders).ToList();
+        WriteHeaderRow(ws, headers);
+
+        for (int i = 0; i < newRows.Count; i++)
+        {
+            var row = newRows[i];
+            currentRowLookup.TryGetValue(row.RowId, out var fields);
+            fields ??= new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+            ws.Cells[i + 2, 1].Value = row.RowNumber;
+            ws.Cells[i + 2, 2].Value = row.Key;
+            for (int c = 0; c < fieldHeaders.Count; c++)
+            {
+                fields.TryGetValue(fieldHeaders[c], out var value);
+                ws.Cells[i + 2, c + 3].Value = value;
+            }
+        }
+
+        AutoFit(ws);
+    }
+
+    private static void WriteModifiedRowsSheet(ExcelPackage package, ImportComparisonResult comparison)
+    {
+        var modifiedRows = comparison.Rows.Where(r => r.ComparisonStatus == "Modified").ToList();
+        if (modifiedRows.Count == 0)
+        {
+            return;
+        }
+
+        var ws = package.Workbook.Worksheets.Add("Modified");
+        var headers = new[]
+        {
+            "Row",
+            "Key",
+            "Changed field count",
+            "Field",
+            "Current value",
+            "Baseline value"
+        };
+
+        WriteHeaderRow(ws, headers);
+
+        int rowIndex = 2;
+        foreach (var row in modifiedRows)
+        {
+            var visibleChanges = row.Changes.Where(c => c.IsDifferent).ToList();
+            if (visibleChanges.Count == 0)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < visibleChanges.Count; i++)
+            {
+                var change = visibleChanges[i];
+                ws.Cells[rowIndex, 1].Value = i == 0 ? row.RowNumber : null;
+                ws.Cells[rowIndex, 2].Value = i == 0 ? row.Key : null;
+                ws.Cells[rowIndex, 3].Value = i == 0 ? row.ChangedFieldCount : null;
+                ws.Cells[rowIndex, 4].Value = change.Field;
+                ws.Cells[rowIndex, 5].Value = change.CurrentValue;
+                ws.Cells[rowIndex, 6].Value = change.BaselineValue;
+                rowIndex++;
+            }
+        }
+
+        AutoFit(ws);
+    }
+
+    private static void WriteHeaderRow(ExcelWorksheet ws, IReadOnlyList<string> headers)
+    {
+        for (int c = 0; c < headers.Count; c++)
+        {
+            var cell = ws.Cells[1, c + 1];
+            cell.Value = headers[c];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(0x1D, 0x4E, 0xD8));
+            cell.Style.Font.Color.SetColor(Color.White);
+        }
+    }
+
+    private static void AutoFit(ExcelWorksheet ws)
+    {
+        if (ws.Dimension is not null)
+        {
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        }
+    }
+
     private async Task RecalculateJobAsync(ImportJob job, CancellationToken ct)
     {
         var allRows = new List<StagingRow>();
