@@ -62,6 +62,12 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default)
+        => await db.StagingRows
+            .Where(r => r.ImportJobId == jobId)
+            .OrderBy(r => r.RowNumber)
+            .ToListAsync(ct);
+
     public async Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsPagedAsync(
         Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
     {
@@ -129,6 +135,9 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         db.AuditLogs.Add(entry);
         await db.SaveChangesAsync(ct);
     }
+
+    public Task SaveChangesAsync(CancellationToken ct = default)
+        => db.SaveChangesAsync(ct);
 
     public async Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default)
     {

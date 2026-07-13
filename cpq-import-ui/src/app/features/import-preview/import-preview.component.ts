@@ -50,6 +50,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         </button>
         <button
           mat-stroked-button
+          class="header-action-btn action-refresh"
+          *ngIf="canRefreshValidation()"
+          [disabled]="refreshingValidation"
+          (click)="refreshValidation(true)"
+          matTooltip="Recheck against the latest master data">
+          <mat-icon *ngIf="!refreshingValidation">refresh</mat-icon>
+          <mat-spinner *ngIf="refreshingValidation" diameter="16"></mat-spinner>
+          Refresh validation
+        </button>
+        <button
+          mat-stroked-button
           class="header-action-btn action-cancel"
           *ngIf="canCancelJob()"
           (click)="cancelImport()"
@@ -379,7 +390,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                 <th mat-header-cell *matHeaderCellDef>{{ col }}</th>
                 <td mat-cell *matCellDef="let row" [class.changed-field-cell]="isFieldChanged(row, col)">
                   <div class="field-cell" [class.field-cell--changed]="isFieldChanged(row, col)">
-                    <span class="field-value">{{ row.fields[col] || '-' }}</span>
+                    <ng-container *ngIf="comparisonChangeForField(row, col) as fieldChange; else plainFieldValue">
+                      <span class="field-value field-value--current">{{ row.fields[col] || '-' }}</span>
+                      <span class="field-previous field-previous--icon" matTooltip="Committed baseline value" aria-label="Committed baseline value">
+                        <mat-icon>verified</mat-icon>
+                        <span class="field-previous__value">{{ fieldChange.baselineValue || '-' }}</span>
+                      </span>
+                    </ng-container>
+                    <ng-template #plainFieldValue>
+                      <span class="field-value">{{ row.fields[col] || '-' }}</span>
+                    </ng-template>
                   </div>
                 </td>
               </ng-container>
@@ -449,7 +469,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                   <div class="mobile-field" *ngFor="let col of getMobileColumns(row)">
                     <span class="mobile-field-label">{{ col }}</span>
                     <div class="mobile-field-value-wrap" [class.changed-field-cell]="isFieldChanged(row, col)">
-                      <span class="mobile-field-value">{{ row.fields[col] || '-' }}</span>
+                      <ng-container *ngIf="comparisonChangeForField(row, col) as fieldChange; else plainMobileFieldValue">
+                        <span class="mobile-field-value mobile-field-value--current">{{ row.fields[col] || '-' }}</span>
+                        <span class="field-previous field-previous--icon" matTooltip="Committed baseline value" aria-label="Committed baseline value">
+                          <mat-icon>verified</mat-icon>
+                          <span class="field-previous__value">{{ fieldChange.baselineValue || '-' }}</span>
+                        </span>
+                      </ng-container>
+                      <ng-template #plainMobileFieldValue>
+                        <span class="mobile-field-value">{{ row.fields[col] || '-' }}</span>
+                      </ng-template>
                     </div>
                   </div>
                   <div class="mobile-more" *ngIf="remainingFieldCount(row) > 0">
@@ -788,6 +817,7 @@ export class ImportPreviewComponent implements OnInit {
   loading = false;
   comparisonLoading = false;
   rowsLoading = false;
+  refreshingValidation = false;
   rowPage = 1;
   rowPageSize = 50;
   committing = false;
@@ -912,6 +942,14 @@ export class ImportPreviewComponent implements OnInit {
     return canCancelStatus && this.auth.userId !== '' && this.job.createdBy === this.auth.userId;
   }
 
+  canRefreshValidation(): boolean {
+    if (!this.job) {
+      return false;
+    }
+
+    return !['Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
+  }
+
   ngOnInit() {
     this.filtersForm.valueChanges
       .pipe(debounceTime(250), takeUntilDestroyed(this.destroyRef))
@@ -933,8 +971,12 @@ export class ImportPreviewComponent implements OnInit {
           this.job = j;
           this.loading = false;
           this.loadDatasetRequirement(j.entityTypeLabel);
-          this.loadComparison();
-          this.loadRows();
+          if (this.canRefreshValidation()) {
+            this.refreshValidation(false);
+          } else {
+            this.loadComparison();
+            this.loadRows();
+          }
         },
         error: () => { this.loading = false; }
       });
@@ -1006,6 +1048,31 @@ export class ImportPreviewComponent implements OnInit {
         this.rowsLoading = false;
       },
       error: () => { this.rowsLoading = false; }
+    });
+  }
+
+  refreshValidation(manual = false): void {
+    if (!this.job || !this.canRefreshValidation() || this.refreshingValidation) {
+      return;
+    }
+
+    this.refreshingValidation = true;
+    this.importService.refreshValidation(this.job.id).subscribe({
+      next: updatedJob => {
+        this.job = updatedJob;
+        this.refreshingValidation = false;
+        if (manual) {
+          this.snackBar.open('Validation refreshed against the latest master data.', 'Close', { duration: 5000 });
+        }
+        this.loadComparison();
+        this.loadRows();
+      },
+      error: err => {
+        this.refreshingValidation = false;
+        this.snackBar.open(err?.error?.error ?? 'Unable to refresh validation.', 'Close', { duration: 7000 });
+        this.loadComparison();
+        this.loadRows();
+      }
     });
   }
 

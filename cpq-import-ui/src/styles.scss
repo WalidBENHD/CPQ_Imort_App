@@ -1604,20 +1604,21 @@ app-import-preview .comparison-loading {
 
 app-import-preview .field-cell,
 app-import-preview .mobile-field-value-wrap {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   max-width: 100%;
 }
 
 app-import-preview .field-cell--changed,
 app-import-preview .mobile-field-value-wrap.changed-field-cell {
-  padding: 3px 8px;
-  margin: -3px -8px;
-  border-radius: 8px;
-  background: #fffaf2;
-  box-shadow: inset 0 0 0 1px #f4c08a;
+  padding: 8px 10px;
+  margin: -6px -10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff8f1 0%, #fffdf9 100%);
+  box-shadow: inset 0 0 0 1px #f4c08a, inset 3px 0 0 #fb923c;
 }
 
 app-import-preview .field-value,
@@ -1626,10 +1627,64 @@ app-import-preview .mobile-field-value {
   word-break: break-word;
 }
 
+app-import-preview .field-value--current,
+app-import-preview .mobile-field-value--current {
+  font-weight: 600;
+}
+
+app-import-preview .field-previous {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #fdba74;
+  background: #fff4eb;
+  color: #9a3412;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+app-import-preview .field-previous--icon {
+  padding-left: 6px;
+}
+
+app-import-preview .field-previous--icon mat-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+  line-height: 14px;
+  flex: none;
+}
+
+app-import-preview .field-previous__value {
+  min-width: 0;
+  word-break: break-word;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(154, 52, 18, 0.5);
+}
+
 html.theme-dark app-import-preview .field-cell--changed,
 html.theme-dark app-import-preview .mobile-field-value-wrap.changed-field-cell {
-  background: rgba(251, 146, 60, 0.08) !important;
-  box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.28) !important;
+  background: linear-gradient(180deg, rgba(251, 146, 60, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.32), inset 3px 0 0 rgba(251, 146, 60, 0.82) !important;
+}
+
+html.theme-dark app-import-preview .field-previous {
+  background: rgba(251, 146, 60, 0.12) !important;
+  border-color: rgba(251, 146, 60, 0.34) !important;
+  color: #fdba74 !important;
+}
+
+html.theme-dark app-import-preview .field-previous--icon mat-icon {
+  color: #fdba74 !important;
+}
+
+html.theme-dark app-import-preview .field-previous__value {
+  text-decoration-color: rgba(253, 186, 116, 0.6);
 }
 
 html.theme-dark app-import-preview .comparison-loading {

@@ -44,6 +44,12 @@ export class ImportService {
     return this.http.get<PagedResult<StagingRow>>(`${this.base}/${jobId}/rows`, { params });
   }
 
+  refreshValidation(jobId: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/refresh-validation`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
   updateRow(jobId: string, rowId: string, fields: Record<string, string | null>): Observable<ImportJob> {
     return this.http.put<ImportJob>(`${this.base}/${jobId}/rows/${rowId}`, { fields }).pipe(
       tap(() => this.notificationService.pollNow().subscribe())

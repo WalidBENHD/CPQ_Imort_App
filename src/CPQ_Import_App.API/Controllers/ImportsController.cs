@@ -110,6 +110,43 @@ public class ImportsController(
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 
+    /// <summary>Refresh row validation against the latest approved master data.</summary>
+    [HttpPost("{id:guid}/refresh-validation")]
+    public async Task<ActionResult<ImportJobDto>> RefreshValidation(Guid id, CancellationToken ct)
+    {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null)
+            return NotFound(new { error = $"Import job '{id}' not found." });
+
+        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+        {
+            return Conflict(new { error = $"Job is in status '{job.Status}' and cannot be refreshed." });
+        }
+
+        try
+        {
+            var refreshed = await importService.RefreshValidationAsync(id, UserId, UserDisplayName, ct);
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "RefreshValidation",
+                $"Refreshed validation for import {id}.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK),
+                ct);
+
+            return Ok(refreshed.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Validation refresh failed: {ex.GetBaseException().Message}" });
+        }
+    }
+
     /// <summary>Get paginated list of import jobs.</summary>
     [HttpGet]
     public async Task<ActionResult<PagedResult<ImportJobDto>>> GetJobs(

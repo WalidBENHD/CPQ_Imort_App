@@ -49,27 +49,15 @@ public class ImportService(
         {
             ms.Position = 0;
             var parsed = await parser.ParseAsync(ms, fileName, ct);
+            IReadOnlySet<string>? approvedArticles = null;
             if (entityType == EntityType.PriceList)
             {
-                var approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
-                foreach (var row in parsed)
-                {
-                    var articleNumber = row.Fields.TryGetValue("ArticleNumber", out var value) ? value?.Trim() : null;
-                    if (string.IsNullOrWhiteSpace(articleNumber))
-                    {
-                        continue;
-                    }
+                approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
+            }
 
-                    if (!approvedArticles.Contains(articleNumber))
-                    {
-                        row.Messages.Add(new ValidationMessage
-                        {
-                            Field = "ArticleNumber",
-                            Message = $"Article '{articleNumber}' does not exist in the approved Article Master baseline.",
-                            Severity = ValidationSeverity.Error
-                        });
-                    }
-                }
+            foreach (var row in parsed)
+            {
+                await ApplyCurrentBaselineValidationAsync(entityType, row.Fields, row.Messages, approvedArticles, ct);
             }
 
             stagingRows = parsed.Select(r =>
@@ -138,6 +126,53 @@ public class ImportService(
     public Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
         Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
         => repository.GetStagingRowsPagedAsync(jobId, page, pageSize, search, filterStatus, comparisonStatus, ct);
+
+    public async Task<ImportJob> RefreshValidationAsync(
+        Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be refreshed.");
+
+        var parser = parsers.FirstOrDefault(p => p.SupportedEntityType == job.EntityType)
+            ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
+
+        var rows = await repository.GetStagingRowsByJobAsync(jobId, ct);
+        IReadOnlySet<string>? approvedArticles = null;
+        if (job.EntityType == EntityType.PriceList)
+        {
+            approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
+        }
+
+        foreach (var row in rows)
+        {
+            var fields = DeserializeFields(row.RawData);
+            var messages = parser.ValidateRow(fields);
+            await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, approvedArticles, ct);
+
+            row.RawData = JsonSerializer.Serialize(fields, JsonOpts);
+            row.ValidationMessages = messages.Count > 0
+                ? JsonSerializer.Serialize(messages, JsonOpts)
+                : null;
+            row.Status = RowValidator.DeriveStatus(messages);
+        }
+
+        ApplyJobTotals(job, rows);
+        await repository.SaveChangesAsync(ct);
+
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Refreshed",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = "Validation refreshed against the latest approved master data."
+        }, ct);
+
+        return job;
+    }
 
     public async Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default)
@@ -385,5 +420,48 @@ public class ImportService(
         job.ProcessedAt = DateTime.UtcNow;
 
         await repository.UpdateJobAsync(job, ct);
+    }
+
+    private async Task ApplyCurrentBaselineValidationAsync(
+        EntityType entityType,
+        Dictionary<string, string?> fields,
+        List<ValidationMessage> messages,
+        IReadOnlySet<string>? approvedArticles,
+        CancellationToken ct)
+    {
+        if (entityType != EntityType.PriceList)
+        {
+            return;
+        }
+
+        approvedArticles ??= await repository.GetLatestApprovedArticleNumbersAsync(ct);
+        var articleNumber = fields.TryGetValue("ArticleNumber", out var value) ? value?.Trim() : null;
+        if (string.IsNullOrWhiteSpace(articleNumber) || approvedArticles.Contains(articleNumber))
+        {
+            return;
+        }
+
+        messages.Add(new ValidationMessage
+        {
+            Field = "ArticleNumber",
+            Message = $"Article '{articleNumber}' does not exist in the approved Article Master baseline.",
+            Severity = ValidationSeverity.Error
+        });
+    }
+
+    private static Dictionary<string, string?> DeserializeFields(string rawData)
+        => string.IsNullOrWhiteSpace(rawData)
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : JsonSerializer.Deserialize<Dictionary<string, string?>>(rawData, JsonOpts)
+              ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+    private static void ApplyJobTotals(ImportJob job, IReadOnlyCollection<StagingRow> rows)
+    {
+        job.TotalRows = rows.Count;
+        job.ValidRows = rows.Count(r => r.Status == RowStatus.Valid);
+        job.WarningRows = rows.Count(r => r.Status == RowStatus.Warning);
+        job.ErrorRows = rows.Count(r => r.Status == RowStatus.Error);
+        job.Status = job.ErrorRows > 0 ? ImportStatus.NeedsCorrection : ImportStatus.AwaitingApproval;
+        job.ProcessedAt = DateTime.UtcNow;
     }
 }
