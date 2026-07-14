@@ -1134,11 +1134,12 @@ export class ImportPreviewComponent implements OnInit {
         };
 
     const dialogRef = this.dialog.open(AnnualCommitConfirmDialogComponent, {
-      width: '820px',
+      width: '980px',
       maxWidth: '96vw',
       maxHeight: '92vh',
       autoFocus: false,
       disableClose: false,
+      panelClass: 'annual-commit-dialog-panel',
       data: {
         datasetLabel: this.job.entityTypeLabel,
         originalFileName: this.job.originalFileName,
