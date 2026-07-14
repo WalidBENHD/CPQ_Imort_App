@@ -79,6 +79,13 @@ public record ImportComparisonDto(
     IReadOnlyList<ComparisonRowDto> Rows,
     IReadOnlyList<ComparisonMissingItemDto> MissingRows);
 
+public record ApprovedComparisonSnapshotDto(
+    int SchemaVersion,
+    DateTime ApprovedAtUtc,
+    string ApprovedByUserId,
+    string ApprovedByDisplayName,
+    ImportComparisonDto Comparison);
+
 public record DashboardSummaryDto(
     int AwaitingApproval,
     int CommittedToday,

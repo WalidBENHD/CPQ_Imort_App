@@ -110,6 +110,22 @@ public class ImportsController(
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 
+    /// <summary>Get the immutable comparison that was accepted when a committed upload was approved.</summary>
+    [HttpGet("{id:guid}/approval-snapshot")]
+    public async Task<ActionResult<ApprovedComparisonSnapshotDto>> GetApprovalSnapshot(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var snapshot = await importService.GetApprovedComparisonSnapshotAsync(id, ct);
+            return snapshot is null ? NoContent() : Ok(snapshot.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
+        }
+    }
+
     /// <summary>Refresh row validation against the latest approved master data.</summary>
     [HttpPost("{id:guid}/refresh-validation")]
     public async Task<ActionResult<ImportJobDto>> RefreshValidation(Guid id, CancellationToken ct)

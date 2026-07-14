@@ -18,11 +18,12 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from '../../core/services/import.service';
-import { ComparisonFieldChange, ComparisonMissingItem, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
+import { ApprovedComparisonSnapshot, ComparisonFieldChange, ComparisonMissingItem, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
 import { AnnualCommitConfirmDialogComponent } from './annual-commit-confirm-dialog.component';
+import { ApprovalRecordComponent } from './approval-record.component';
 import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -34,7 +35,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     MatChipsModule, MatProgressSpinnerModule, MatPaginatorModule,
     MatTabsModule, MatDialogModule, MatSnackBarModule, MatTooltipModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule,
-    StatusBadgeComponent, AnnualCommitConfirmDialogComponent],
+    StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent],
   template: `
     <div class="page-header">
       <div>
@@ -160,19 +161,35 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         </mat-card-content>
       </mat-card>
 
+      <app-approval-record
+        *ngIf="job.statusLabel === 'Committed'"
+        [snapshot]="approvalSnapshot"
+        [loading]="approvalSnapshotLoading" />
+
       <mat-card class="comparison-card">
         <mat-card-content>
           <div class="comparison-header">
             <div class="comparison-copy">
-              <div class="label">{{ comparison?.hasBaseline ? 'Annual update comparison' : 'Initial baseline submission' }}</div>
+              <div class="label">
+                {{ job.statusLabel === 'Committed'
+                  ? 'Current baseline comparison'
+                  : (comparison?.hasBaseline ? 'Annual update comparison' : 'Initial baseline submission') }}
+              </div>
               <h3>
-                {{ comparison?.hasBaseline
-                  ? 'Compared against the latest approved baseline'
-                  : 'This submission establishes the approved baseline' }}
+                {{ job.statusLabel === 'Committed'
+                  ? 'Recalculated against the latest approved baseline'
+                  : (comparison?.hasBaseline
+                    ? 'Compared against the latest approved baseline'
+                    : 'This submission establishes the approved baseline') }}
               </h3>
               <p *ngIf="comparison?.hasBaseline; else noBaselineMessage">
-                This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
-                Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
+                <ng-container *ngIf="job.statusLabel === 'Committed'; else pendingComparisonCopy">
+                  This live comparison can change as newer uploads are committed. Use the approval record above for the exact situation accepted by the approver.
+                </ng-container>
+                <ng-template #pendingComparisonCopy>
+                  This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
+                  Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
+                </ng-template>
               </p>
               <div *ngIf="activeBaselineLink() as baselineLink" class="baseline-link-wrap">
                 <a mat-button class="baseline-link-btn" [routerLink]="baselineLink">
@@ -993,9 +1010,11 @@ export class ImportPreviewComponent implements OnInit {
   job: ImportJob | null = null;
   datasetRequirement: DatasetRequirement | null = null;
   comparison: ImportComparison | null = null;
+  approvalSnapshot: ApprovedComparisonSnapshot | null = null;
   rows: PagedResult<StagingRow> | null = null;
   loading = false;
   comparisonLoading = false;
+  approvalSnapshotLoading = false;
   rowsLoading = false;
   refreshingValidation = false;
   rowPage = 1;
@@ -1159,6 +1178,9 @@ export class ImportPreviewComponent implements OnInit {
           this.job = j;
           this.loading = false;
           this.loadDatasetRequirement(j.entityTypeLabel);
+          if (j.statusLabel === 'Committed') {
+            this.loadApprovalSnapshot();
+          }
           if (this.canRefreshValidation()) {
             this.refreshValidation(false);
           } else {
@@ -1175,11 +1197,32 @@ export class ImportPreviewComponent implements OnInit {
     this.job = null;
     this.datasetRequirement = null;
     this.comparison = null;
+    this.approvalSnapshot = null;
+    this.approvalSnapshotLoading = false;
     this.rows = null;
     this.comparisonMap.clear();
     this.rowPage = 1;
     this.filtersForm.reset({ search: '', status: '', comparison: '' }, { emitEvent: false });
     this.expandedRows.clear();
+  }
+
+  private loadApprovalSnapshot(): void {
+    if (!this.job || this.job.statusLabel !== 'Committed') {
+      this.approvalSnapshot = null;
+      return;
+    }
+
+    this.approvalSnapshotLoading = true;
+    this.importService.getApprovalSnapshot(this.job.id).subscribe({
+      next: snapshot => {
+        this.approvalSnapshot = snapshot;
+        this.approvalSnapshotLoading = false;
+      },
+      error: () => {
+        this.approvalSnapshot = null;
+        this.approvalSnapshotLoading = false;
+      }
+    });
   }
 
   private loadDatasetRequirement(entityTypeLabel: string): void {
@@ -1319,7 +1362,11 @@ export class ImportPreviewComponent implements OnInit {
       next: result => {
         this.snackBar.open(result.message, 'Close', { duration: 5000, panelClass: 'snack-success' });
         this.committing = false;
-        this.importService.getJob(this.job!.id).subscribe(j => { this.job = j; });
+        this.importService.getJob(this.job!.id).subscribe(j => {
+          this.job = j;
+          this.loadApprovalSnapshot();
+          this.loadComparison();
+        });
       },
       error: err => {
         const isForbidden = err?.status === 403;

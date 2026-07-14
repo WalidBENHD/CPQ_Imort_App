@@ -152,6 +152,9 @@ namespace CPQ_Import_App.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ApprovedComparisonJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("CommittedAt")
                         .HasColumnType("datetime2");
 

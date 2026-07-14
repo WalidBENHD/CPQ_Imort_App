@@ -99,6 +99,13 @@ public static class DtoMapper
         comparison.Rows.Select(x => x.ToDto()).ToList(),
         comparison.MissingRows.Select(x => x.ToDto()).ToList());
 
+    public static ApprovedComparisonSnapshotDto ToDto(this ApprovedComparisonSnapshot snapshot) => new(
+        snapshot.SchemaVersion,
+        snapshot.ApprovedAtUtc,
+        snapshot.ApprovedByUserId,
+        snapshot.ApprovedByDisplayName,
+        snapshot.Comparison.ToDto());
+
     public static ActivityEventDto ToDto(this ActivityEvent activity) => new(
         activity.Id,
         activity.OccurredAtUtc,

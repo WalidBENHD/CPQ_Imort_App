@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  CommitResult, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, EntityType, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow
+  ApprovedComparisonSnapshot, CommitResult, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, EntityType, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -78,6 +78,10 @@ export class ImportService {
 
   getComparison(jobId: string): Observable<ImportComparison> {
     return this.http.get<ImportComparison>(`${this.base}/${jobId}/comparison`);
+  }
+
+  getApprovalSnapshot(jobId: string): Observable<ApprovedComparisonSnapshot | null> {
+    return this.http.get<ApprovedComparisonSnapshot | null>(`${this.base}/${jobId}/approval-snapshot`);
   }
 
   reject(jobId: string, reason: string): Observable<ImportJob> {

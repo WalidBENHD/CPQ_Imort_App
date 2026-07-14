@@ -33,3 +33,10 @@ public sealed record ImportComparisonResult(
     int MissingBaselineRows,
     IReadOnlyList<ComparisonRowResult> Rows,
     IReadOnlyList<ComparisonMissingItem> MissingRows);
+
+public sealed record ApprovedComparisonSnapshot(
+    int SchemaVersion,
+    DateTime ApprovedAtUtc,
+    string ApprovedByUserId,
+    string ApprovedByDisplayName,
+    ImportComparisonResult Comparison);

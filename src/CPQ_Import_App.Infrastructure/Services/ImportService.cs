@@ -16,7 +16,11 @@ public class ImportService(
     IEnumerable<IFileParser> parsers,
     IEnumerable<ICpqCommitStrategy> commitStrategies) : IImportService
 {
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        WriteIndented = false,
+        PropertyNameCaseInsensitive = true
+    };
 
     public async Task<ImportJob> UploadAsync(Stream fileStream, string fileName, EntityType entityType,
         string userId, string userDisplayName, CancellationToken ct = default)
@@ -228,6 +232,13 @@ public class ImportService(
             throw new InvalidOperationException("Blocking errors must be corrected before commit.");
 
         var comparison = await repository.GetComparisonAsync(jobId, ct);
+        var approvedAt = DateTime.UtcNow;
+        var approvalSnapshot = new ApprovedComparisonSnapshot(
+            SchemaVersion: 1,
+            ApprovedAtUtc: approvedAt,
+            ApprovedByUserId: userId,
+            ApprovedByDisplayName: userDisplayName,
+            Comparison: comparison);
         var removedKeys = comparison.HasBaseline
             ? comparison.MissingRows
                 .Select(item => item.Key)
@@ -257,9 +268,10 @@ public class ImportService(
         await strategy.CommitRowsAsync(rowDicts, removedKeys, ct);
 
         job.Status = ImportStatus.Committed;
-        job.CommittedAt = DateTime.UtcNow;
+        job.CommittedAt = approvedAt;
         job.CommittedBy = userDisplayName;
         job.CommittedRows = rowDicts.Count;
+        job.ApprovedComparisonJson = JsonSerializer.Serialize(approvalSnapshot, JsonOpts);
 
         await repository.UpdateJobAsync(job, ct);
         await repository.AddAuditLogAsync(new AuditLog
@@ -328,6 +340,28 @@ public class ImportService(
 
     public Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default)
         => repository.GetComparisonAsync(jobId, ct);
+
+    public async Task<ApprovedComparisonSnapshot?> GetApprovedComparisonSnapshotAsync(
+        Guid jobId,
+        CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (string.IsNullOrWhiteSpace(job.ApprovedComparisonJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ApprovedComparisonSnapshot>(job.ApprovedComparisonJson, JsonOpts);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException($"The approval snapshot for import job '{jobId}' is invalid.", ex);
+        }
+    }
 
     public Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default)
         => repository.GetLatestApprovedArticleNumbersAsync(ct);

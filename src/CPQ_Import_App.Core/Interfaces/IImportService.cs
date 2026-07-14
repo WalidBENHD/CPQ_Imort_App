@@ -20,6 +20,7 @@ public interface IImportService
     Task<ImportJob> RejectAsync(Guid jobId, string userId, string userDisplayName,
         string reason, CancellationToken ct = default);
     Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default);
+    Task<ApprovedComparisonSnapshot?> GetApprovedComparisonSnapshotAsync(Guid jobId, CancellationToken ct = default);
     Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default);
     Task<byte[]?> GetOriginalFileAsync(Guid jobId, CancellationToken ct = default);
     Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default);

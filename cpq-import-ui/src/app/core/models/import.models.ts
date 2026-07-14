@@ -138,6 +138,14 @@ export interface ImportComparison {
   missingRows: ComparisonMissingItem[];
 }
 
+export interface ApprovedComparisonSnapshot {
+  schemaVersion: number;
+  approvedAtUtc: string;
+  approvedByUserId: string;
+  approvedByDisplayName: string;
+  comparison: ImportComparison;
+}
+
 export interface DashboardSummary {
   awaitingApproval: number;
   committedToday: number;
