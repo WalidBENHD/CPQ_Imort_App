@@ -168,102 +168,119 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
       <mat-card class="comparison-card">
         <mat-card-content>
-          <div class="comparison-header">
-            <div class="comparison-copy">
-              <div class="label">
-                {{ job.statusLabel === 'Committed'
-                  ? 'Current baseline comparison'
-                  : (comparison?.hasBaseline ? 'Annual update comparison' : 'Initial baseline submission') }}
-              </div>
-              <h3>
-                {{ job.statusLabel === 'Committed'
-                  ? 'Recalculated against the latest approved baseline'
-                  : (comparison?.hasBaseline
-                    ? 'Compared against the latest approved baseline'
-                    : 'This submission establishes the approved baseline') }}
-              </h3>
-              <p *ngIf="comparison?.hasBaseline; else noBaselineMessage">
-                <ng-container *ngIf="job.statusLabel === 'Committed'; else pendingComparisonCopy">
-                  This live comparison can change as newer uploads are committed. Use the approval record above for the exact situation accepted by the approver.
-                </ng-container>
-                <ng-template #pendingComparisonCopy>
-                  This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
-                  Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
-                </ng-template>
-              </p>
-              <div *ngIf="activeBaselineLink() as baselineLink" class="baseline-link-wrap">
-                <a mat-button class="baseline-link-btn" [routerLink]="baselineLink">
-                  <mat-icon>timeline</mat-icon>
-                  Open active baseline
-                </a>
+          <ng-container *ngIf="job?.isActiveBaseline; else comparisonDetails">
+            <div class="comparison-header comparison-header--active">
+              <div class="comparison-copy">
+                <div class="label">Baseline status</div>
+                <div class="comparison-title-row">
+                  <h3>Approved version currently in force</h3>
+                  <span class="comparison-status-pill">Active baseline</span>
+                </div>
+                <p>
+                  This upload is the current approved baseline. The approval record above captures the exact state that was signed off.
+                </p>
               </div>
             </div>
-            <ng-container *ngIf="comparison as cmp; else comparisonStatus">
-              <div class="baseline-focus">
-                <div class="baseline-focus__head">
-                  <div class="baseline-focus__eyebrow">Baseline focus</div>
-                  <div
-                    *ngIf="comparison?.hasBaseline && comparison?.baselineJobId === job?.id"
-                    class="baseline-focus__pill">
-                    Active baseline
+          </ng-container>
+
+          <ng-template #comparisonDetails>
+            <div class="comparison-header">
+              <div class="comparison-copy">
+                <div class="label">
+                  {{ job.statusLabel === 'Committed'
+                    ? 'Current baseline comparison'
+                    : (comparison?.hasBaseline ? 'Annual update comparison' : 'Initial baseline submission') }}
+                </div>
+                <h3>
+                  {{ job.statusLabel === 'Committed'
+                    ? 'Recalculated against the latest approved baseline'
+                    : (comparison?.hasBaseline
+                      ? 'Compared against the latest approved baseline'
+                      : 'This submission establishes the approved baseline') }}
+                </h3>
+                <p *ngIf="comparison?.hasBaseline; else noBaselineMessage">
+                  <ng-container *ngIf="job.statusLabel === 'Committed'; else pendingComparisonCopy">
+                    This live comparison can change as newer uploads are committed. Use the approval record above for the exact situation accepted by the approver.
+                  </ng-container>
+                  <ng-template #pendingComparisonCopy>
+                    This pilot treats the upload as a new annual submission, then compares it to the last approved baseline.
+                    Approvers focus on new, modified, and missing rows instead of reviewing every row from scratch.
+                  </ng-template>
+                </p>
+                <div *ngIf="activeBaselineLink() as baselineLink" class="baseline-link-wrap">
+                  <a mat-button class="baseline-link-btn" [routerLink]="baselineLink">
+                    <mat-icon>timeline</mat-icon>
+                    Open active baseline
+                  </a>
+                </div>
+              </div>
+              <ng-container *ngIf="comparison as cmp; else comparisonStatus">
+                <div class="baseline-focus">
+                  <div class="baseline-focus__head">
+                    <div class="baseline-focus__eyebrow">Baseline focus</div>
+                    <div
+                      *ngIf="comparison?.hasBaseline && comparison?.baselineJobId === job?.id"
+                      class="baseline-focus__pill">
+                      Active baseline
+                    </div>
+                  </div>
+                  <div class="baseline-focus__title">
+                    {{ cmp.hasBaseline ? 'Latest approved version' : 'First approved submission' }}
+                  </div>
+                  <div class="baseline-focus__body">
+                    {{ cmp.hasBaseline
+                      ? 'Use this upload as the comparison anchor for future annual updates.'
+                      : 'This upload becomes the anchor for future annual updates.' }}
                   </div>
                 </div>
-                <div class="baseline-focus__title">
-                  {{ cmp.hasBaseline ? 'Latest approved version' : 'First approved submission' }}
-                </div>
-                <div class="baseline-focus__body">
-                  {{ cmp.hasBaseline
-                    ? 'Use this upload as the comparison anchor for future annual updates.'
-                    : 'This upload becomes the anchor for future annual updates.' }}
-                </div>
+              </ng-container>
+            </div>
+
+            <div *ngIf="comparison as cmp" class="comparison-metrics">
+              <div class="comparison-metric metric-new">
+                <div class="comparison-metric__label">New</div>
+                <strong class="comparison-metric__value">{{ cmp.newRows }}</strong>
               </div>
-            </ng-container>
-          </div>
+              <div class="comparison-metric metric-modified">
+                <div class="comparison-metric__label">Modified</div>
+                <strong class="comparison-metric__value">{{ cmp.modifiedRows }}</strong>
+              </div>
+              <div class="comparison-metric metric-unchanged">
+                <div class="comparison-metric__label">Unchanged</div>
+                <strong class="comparison-metric__value">{{ cmp.unchangedRows }}</strong>
+              </div>
+              <div class="comparison-metric metric-missing">
+                <div class="comparison-metric__label">Missing</div>
+                <strong class="comparison-metric__value">{{ cmp.missingBaselineRows }}</strong>
+              </div>
+            </div>
 
-          <div *ngIf="comparison as cmp" class="comparison-metrics">
-            <div class="comparison-metric metric-new">
-              <div class="comparison-metric__label">New</div>
-              <strong class="comparison-metric__value">{{ cmp.newRows }}</strong>
-            </div>
-            <div class="comparison-metric metric-modified">
-              <div class="comparison-metric__label">Modified</div>
-              <strong class="comparison-metric__value">{{ cmp.modifiedRows }}</strong>
-            </div>
-            <div class="comparison-metric metric-unchanged">
-              <div class="comparison-metric__label">Unchanged</div>
-              <strong class="comparison-metric__value">{{ cmp.unchangedRows }}</strong>
-            </div>
-            <div class="comparison-metric metric-missing">
-              <div class="comparison-metric__label">Missing</div>
-              <strong class="comparison-metric__value">{{ cmp.missingBaselineRows }}</strong>
-            </div>
-          </div>
+            <ng-template #comparisonStatus>
+              <div class="comparison-loading" *ngIf="comparisonLoading">
+                <mat-icon>hourglass_empty</mat-icon>
+                <span>Loading baseline comparison...</span>
+              </div>
+              <div class="comparison-loading" *ngIf="!comparisonLoading">
+                <mat-icon>info</mat-icon>
+                <span>
+                  The comparison summary is not available yet. The upload will still be treated as an annual baseline review.
+                </span>
+              </div>
+            </ng-template>
 
-          <ng-template #comparisonStatus>
-            <div class="comparison-loading" *ngIf="comparisonLoading">
-              <mat-icon>hourglass_empty</mat-icon>
-              <span>Loading baseline comparison...</span>
-            </div>
-            <div class="comparison-loading" *ngIf="!comparisonLoading">
-              <mat-icon>info</mat-icon>
-              <span>
-                The comparison summary is not available yet. The upload will still be treated as an annual baseline review.
-              </span>
+            <ng-template #noBaselineMessage>
+              This is the first approved submission for this dataset. It will become the baseline for future annual submissions.
+            </ng-template>
+
+            <div class="comparison-missing" *ngIf="comparison?.missingRows?.length">
+              <div class="comparison-missing-title">Missing from this upload</div>
+              <div class="comparison-missing-list">
+                <span class="comparison-missing-item" *ngFor="let missing of comparison!.missingRows">
+                  {{ missing.key }}
+                </span>
+              </div>
             </div>
           </ng-template>
-
-          <ng-template #noBaselineMessage>
-            This is the first approved submission for this dataset. It will become the baseline for future annual submissions.
-          </ng-template>
-
-          <div class="comparison-missing" *ngIf="comparison?.missingRows?.length">
-            <div class="comparison-missing-title">Missing from this upload</div>
-            <div class="comparison-missing-list">
-              <span class="comparison-missing-item" *ngFor="let missing of comparison!.missingRows">
-                {{ missing.key }}
-              </span>
-            </div>
-          </div>
         </mat-card-content>
       </mat-card>
 
@@ -612,6 +629,52 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     .summary-item .valid-count { color: #2e7d32; }
     .summary-item .warning-count { color: #f57f17; }
     .summary-item .error-count { color: #c62828; }
+    .comparison-card {
+      margin-bottom: 16px;
+      border: 1px solid #dbe4f0;
+      box-shadow: none;
+      background: #fff;
+    }
+    .comparison-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .comparison-copy {
+      min-width: 0;
+      flex: 1;
+    }
+    .comparison-copy h3 {
+      margin: 6px 0 8px;
+      font-size: 18px;
+      line-height: 1.3;
+      color: #0f172a;
+    }
+    .comparison-copy p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.55;
+    }
+    .comparison-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .comparison-status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #86efac;
+      background: #ecfdf5;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
     .criteria-box {
       margin-top: 14px;
       padding: 10px 12px;
@@ -838,6 +901,25 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       background: rgba(15, 23, 42, 0.92);
     }
 
+    :host-context(html.theme-dark) .comparison-card {
+      border-color: rgba(126, 162, 255, 0.18);
+      background: rgba(15, 23, 42, 0.92);
+    }
+
+    :host-context(html.theme-dark) .comparison-copy h3 {
+      color: #f8fafc;
+    }
+
+    :host-context(html.theme-dark) .comparison-copy p {
+      color: #cbd5e1;
+    }
+
+    :host-context(html.theme-dark) .comparison-status-pill {
+      border-color: rgba(74, 222, 128, 0.35);
+      background: rgba(22, 101, 52, 0.28);
+      color: #bbf7d0;
+    }
+
     :host-context(html.theme-dark) .action-bar {
       color: var(--app-text);
     }
@@ -923,6 +1005,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       .page-header { flex-direction: column; gap: 10px; }
       .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .summary-grid-metadata, .summary-grid-stats { grid-template-columns: repeat(2, 1fr); }
+      .comparison-header { flex-direction: column; }
       .action-bar { flex-direction: column; align-items: flex-start; }
       .action-buttons { width: 100%; flex-wrap: wrap; }
       .action-buttons button { flex: 1; min-width: 180px; }
