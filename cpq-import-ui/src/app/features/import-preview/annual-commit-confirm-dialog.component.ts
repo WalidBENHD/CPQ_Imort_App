@@ -141,8 +141,8 @@ export interface AnnualCommitConfirmDialogData {
       --ac-warning-text: #9a3412;
       --ac-warning-strong: #ea580c;
       --ac-warning-soft: rgba(249, 115, 22, 0.15);
-      --ac-impact-strong: #db2777;
-      --ac-impact-bg: linear-gradient(180deg, rgba(219, 39, 119, 0.08) 0%, var(--ac-surface-alt) 100%);
+      --ac-impact-strong: #dc2626;
+      --ac-impact-bg: linear-gradient(180deg, rgba(220, 38, 38, 0.08) 0%, var(--ac-surface-alt) 100%);
     }
 
     :host-context(html.theme-dark) {
@@ -165,8 +165,8 @@ export interface AnnualCommitConfirmDialogData {
       --ac-warning-text: #fdba74;
       --ac-warning-strong: #fb923c;
       --ac-warning-soft: rgba(251, 146, 60, 0.1);
-      --ac-impact-strong: #f9a8d4;
-      --ac-impact-bg: linear-gradient(180deg, rgba(63, 12, 36, 0.96) 0%, rgba(17, 28, 53, 0.98) 100%);
+      --ac-impact-strong: #fca5a5;
+      --ac-impact-bg: linear-gradient(180deg, rgba(69, 10, 10, 0.96) 0%, rgba(17, 28, 53, 0.98) 100%);
     }
 
     :host ::ng-deep .annual-commit-dialog-panel .mat-mdc-dialog-container {
@@ -263,6 +263,7 @@ export interface AnnualCommitConfirmDialogData {
       grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
       gap: 16px;
       min-height: 0;
+      flex: 1 1 auto;
     }
 
     .overview,
@@ -281,19 +282,11 @@ export interface AnnualCommitConfirmDialogData {
       gap: 16px;
     }
 
-    .summary {
-      margin: 0;
-      color: var(--ac-muted-strong);
-      line-height: 1.6;
-      font-size: 14px;
-    }
-
     .summary-banner {
       border-radius: 18px;
       border: 1px solid color-mix(in srgb, var(--ac-impact-strong) 28%, var(--ac-border));
       border-left: 6px solid var(--ac-impact-strong);
       background: var(--ac-impact-bg);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
       padding: 16px 18px;
       display: grid;
       gap: 8px;
@@ -316,19 +309,6 @@ export interface AnnualCommitConfirmDialogData {
 
     .summary-banner__text strong {
       font-weight: 900;
-      color: var(--ac-impact-strong);
-    }
-
-    :host-context(html.theme-dark) .summary-banner {
-      background: var(--ac-impact-bg);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.18);
-    }
-
-    :host-context(html.theme-dark) .summary-banner__text {
-      color: #f8fafc;
-    }
-
-    :host-context(html.theme-dark) .summary-banner__text strong {
       color: var(--ac-impact-strong);
     }
 
@@ -509,11 +489,7 @@ export interface AnnualCommitConfirmDialogData {
       justify-content: flex-end;
       gap: 10px;
       padding-top: 2px;
-    }
-
-    .actions :is(button[mat-button], button[mat-raised-button]) {
-      border-radius: 999px;
-      min-height: 40px;
+      flex: 0 0 auto;
     }
 
     @media (max-width: 900px) {
@@ -539,11 +515,17 @@ export interface AnnualCommitConfirmDialogData {
 
     @media (max-width: 600px) {
       .shell {
-        padding: 14px;
+        width: calc(100vw - 10px);
+        max-width: calc(100vw - 10px);
+        padding: 12px 10px 10px;
+        gap: 12px;
+        height: calc(100dvh - 10px);
+        max-height: calc(100dvh - 10px);
       }
 
       .hero {
         grid-template-columns: 1fr;
+        gap: 12px;
       }
 
       .hero__icon {
@@ -555,14 +537,98 @@ export interface AnnualCommitConfirmDialogData {
         font-size: 20px;
       }
 
+      .hero__copy p {
+        font-size: 13px;
+      }
+
+      .hero__meta {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-top: 10px;
+        gap: 6px;
+      }
+
+      .meta-pill {
+        width: 100%;
+        justify-content: center;
+        min-height: 28px;
+      }
+
       .overview,
       .removals {
+        padding: 12px;
+        border-radius: 16px;
+      }
+
+      .body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+        padding-right: 2px;
+      }
+
+      .overview {
+        gap: 12px;
+        order: 2;
+      }
+
+      .summary-banner {
+        padding: 13px 13px 12px;
+        border-radius: 16px;
+      }
+
+      .impact-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .impact-card {
+        min-height: 118px;
         padding: 14px;
+      }
+
+      .impact-card--missing {
+        grid-column: 1 / -1;
+      }
+
+      .impact-value {
+        font-size: 28px;
+      }
+
+      .info-box {
+        padding: 14px;
+        gap: 10px;
+      }
+
+      .removals {
+        gap: 12px;
+        order: 1;
+        margin-top: 2px;
+      }
+
+      .removals__head {
+        align-items: center;
+      }
+
+      .removals__scroll {
+        max-height: 42vh;
+        gap: 8px;
+      }
+
+      .removal-row {
+        padding: 10px 12px;
+        gap: 8px;
+        border-radius: 12px;
       }
 
       .actions {
         flex-direction: column-reverse;
         align-items: stretch;
+        gap: 8px;
+        padding: 10px 0 0;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--ac-surface) 38%);
       }
 
       .actions button {
