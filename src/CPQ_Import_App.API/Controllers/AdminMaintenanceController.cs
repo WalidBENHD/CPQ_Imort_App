@@ -26,7 +26,7 @@ public class AdminMaintenanceController(
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
-                error = "This reset endpoint is only enabled in development or when Maintenance:AllowDangerousDataReset is true."
+                error = "This reset endpoint is only enabled when Maintenance:AllowDangerousDataReset is true."
             });
         }
 
@@ -52,7 +52,7 @@ public class AdminMaintenanceController(
         await ClearCpqDatabaseAsync(ct);
 
         return Ok(new DataResetResponseDto(
-            "Development data has been cleared. TestUsers were preserved.",
+            "Maintenance data has been cleared. TestUsers were preserved.",
             "TestUsers",
             importTables,
             cpqTables));

@@ -126,14 +126,14 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
         <div class="panel-header">
           <div>
             <h2>Maintenance</h2>
-            <p class="muted">Clear demo data while keeping the test users used for sign-in and approvals.</p>
+            <p class="muted">Clear test data while keeping the user accounts used for sign-in and approvals.</p>
           </div>
           <span class="danger-pill">Danger zone</span>
         </div>
 
         <div class="maintenance-grid">
           <div class="maintenance-copy">
-            <div class="maintenance-title">Reset development data</div>
+            <div class="maintenance-title">Reset test data</div>
             <p>
               This removes import history, staging rows, notifications, audit activity and CPQ data.
               The local user accounts remain untouched.
@@ -142,7 +142,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
 
           <button mat-stroked-button color="warn" type="button" class="reset-button" (click)="openResetDialog()">
             <mat-icon>delete_forever</mat-icon>
-            Reset Dev Data
+            Reset Data
           </button>
         </div>
       </mat-card>
@@ -1066,11 +1066,11 @@ export class UserApprovalComponent implements OnInit, OnDestroy {
 
       this.auth.resetDevData().subscribe({
         next: () => {
-          this.successMessage = 'Development data cleared. Test users were preserved.';
+          this.successMessage = 'Test data cleared. Test users were preserved.';
           this.reload();
         },
         error: (err) => {
-          this.errorMessage = err?.error?.error ?? 'Unable to reset development data.';
+          this.errorMessage = err?.error?.error ?? 'Unable to reset test data.';
         }
       });
     });
