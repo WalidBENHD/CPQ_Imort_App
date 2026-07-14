@@ -205,14 +205,15 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    if (db.Database.IsRelational())
-    {
-        await db.Database.MigrateAsync();
-    }
-
     if (db.Database.IsNpgsql())
     {
+        await db.Database.EnsureCreatedAsync();
+        await EnsurePostgresImportJobsColumnsAsync(db);
         await EnsurePostgresActivityEventsTableAsync(db);
+    }
+    else if (db.Database.IsRelational())
+    {
+        await db.Database.MigrateAsync();
     }
 
     if (disableAuth)
@@ -304,5 +305,15 @@ static async Task EnsurePostgresActivityEventsTableAsync(AppDbContext db)
         """;
 
     await db.Database.ExecuteSqlRawAsync("CREATE SCHEMA IF NOT EXISTS import; " + createSql + " " + indexSql);
+}
+
+static async Task EnsurePostgresImportJobsColumnsAsync(AppDbContext db)
+{
+    const string sql = """
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "ApprovedComparisonJson" text NULL;
+        """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
 }
 
