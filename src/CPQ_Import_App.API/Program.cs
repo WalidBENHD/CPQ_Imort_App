@@ -205,14 +205,14 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    if (db.Database.IsNpgsql())
-    {
-        await db.Database.EnsureCreatedAsync();
-        await EnsurePostgresActivityEventsTableAsync(db);
-    }
-    else if (app.Environment.IsDevelopment())
+    if (db.Database.IsRelational())
     {
         await db.Database.MigrateAsync();
+    }
+
+    if (db.Database.IsNpgsql())
+    {
+        await EnsurePostgresActivityEventsTableAsync(db);
     }
 
     if (disableAuth)
