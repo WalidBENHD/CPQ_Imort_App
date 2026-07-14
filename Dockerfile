@@ -1,4 +1,4 @@
-FROM node:20-alpine AS ui-build
+FROM node:20-bookworm-slim AS ui-build
 WORKDIR /ui
 COPY cpq-import-ui/package*.json ./
 RUN npm ci
