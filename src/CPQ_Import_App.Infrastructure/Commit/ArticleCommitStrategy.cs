@@ -16,11 +16,14 @@ public class ArticleCommitStrategy(IConfiguration config) : ICpqCommitStrategy
 {
     public EntityType EntityType => EntityType.Article;
 
-    public async Task CommitRowsAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct = default)
+    public async Task CommitRowsAsync(
+        IEnumerable<Dictionary<string, string?>> rows,
+        IReadOnlyCollection<string> removedKeys,
+        CancellationToken ct = default)
     {
         if (CommitConnectionResolver.ShouldUsePostgres(config))
         {
-            await CommitRowsPostgresAsync(rows, ct);
+            await CommitRowsPostgresAsync(rows, removedKeys, ct);
             return;
         }
 
@@ -50,6 +53,36 @@ public class ArticleCommitStrategy(IConfiguration config) : ICpqCommitStrategy
                     Unit = row.GetValueOrDefault("Unit")
                 }, tx);
             }
+
+            if (removedKeys.Count > 0)
+            {
+                var articleNumbers = removedKeys
+                    .Where(key => !string.IsNullOrWhiteSpace(key))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                if (articleNumbers.Length > 0)
+                {
+                    await conn.ExecuteAsync("""
+                        DELETE FROM [dbo].[CpqArticleDescriptions]
+                        WHERE [ArticleNumber] IN @ArticleNumbers;
+
+                        DELETE FROM [dbo].[CpqArticlePrices]
+                        WHERE [ArticleNumber] IN @ArticleNumbers;
+
+                        DELETE a
+                        FROM [dbo].[CpqArticles] AS a
+                        WHERE a.[ArticleNumber] IN @ArticleNumbers
+                          AND NOT EXISTS (
+                              SELECT 1 FROM [dbo].[CpqArticleDescriptions] d WHERE d.[ArticleNumber] = a.[ArticleNumber]
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM [dbo].[CpqArticlePrices] p WHERE p.[ArticleNumber] = a.[ArticleNumber]
+                          );
+                        """, new { ArticleNumbers = articleNumbers }, tx);
+                }
+            }
+
             await tx.CommitAsync(ct);
         }
         catch
@@ -59,7 +92,7 @@ public class ArticleCommitStrategy(IConfiguration config) : ICpqCommitStrategy
         }
     }
 
-    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct)
+    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, IReadOnlyCollection<string> removedKeys, CancellationToken ct)
     {
         const string ensureSql = """
             CREATE SCHEMA IF NOT EXISTS dbo;
@@ -101,6 +134,34 @@ public class ArticleCommitStrategy(IConfiguration config) : ICpqCommitStrategy
                     Category = row.GetValueOrDefault("Category"),
                     Unit = row.GetValueOrDefault("Unit")
                 }, tx);
+            }
+
+            if (removedKeys.Count > 0)
+            {
+                var articleNumbers = removedKeys
+                    .Where(key => !string.IsNullOrWhiteSpace(key))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                if (articleNumbers.Length > 0)
+                {
+                    await conn.ExecuteAsync("""
+                        DELETE FROM dbo."CpqArticleDescriptions"
+                        WHERE "ArticleNumber" = ANY(@ArticleNumbers);
+
+                        DELETE FROM dbo."CpqArticlePrices"
+                        WHERE "ArticleNumber" = ANY(@ArticleNumbers);
+
+                        DELETE FROM dbo."CpqArticles" AS a
+                        WHERE a."ArticleNumber" = ANY(@ArticleNumbers)
+                          AND NOT EXISTS (
+                              SELECT 1 FROM dbo."CpqArticleDescriptions" d WHERE d."ArticleNumber" = a."ArticleNumber"
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM dbo."CpqArticlePrices" p WHERE p."ArticleNumber" = a."ArticleNumber"
+                          );
+                        """, new { ArticleNumbers = articleNumbers }, tx);
+                }
             }
 
             await tx.CommitAsync(ct);

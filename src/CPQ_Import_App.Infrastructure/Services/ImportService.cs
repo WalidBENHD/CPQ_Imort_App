@@ -227,6 +227,15 @@ public class ImportService(
         if (job.ErrorRows > 0)
             throw new InvalidOperationException("Blocking errors must be corrected before commit.");
 
+        var comparison = await repository.GetComparisonAsync(jobId, ct);
+        var removedKeys = comparison.HasBaseline
+            ? comparison.MissingRows
+                .Select(item => item.Key)
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : [];
+
         var strategy = commitStrategies.FirstOrDefault(s => s.EntityType == job.EntityType)
             ?? throw new InvalidOperationException($"No commit strategy for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
 
@@ -245,7 +254,7 @@ public class ImportService(
             .Select(r => JsonSerializer.Deserialize<Dictionary<string, string?>>(r.RawData, JsonOpts)!)
             .ToList();
 
-        await strategy.CommitRowsAsync(rowDicts, ct);
+        await strategy.CommitRowsAsync(rowDicts, removedKeys, ct);
 
         job.Status = ImportStatus.Committed;
         job.CommittedAt = DateTime.UtcNow;

@@ -11,11 +11,14 @@ public class PriceListCommitStrategy(IConfiguration config) : ICpqCommitStrategy
 {
     public EntityType EntityType => EntityType.PriceList;
 
-    public async Task CommitRowsAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct = default)
+    public async Task CommitRowsAsync(
+        IEnumerable<Dictionary<string, string?>> rows,
+        IReadOnlyCollection<string> removedKeys,
+        CancellationToken ct = default)
     {
         if (CommitConnectionResolver.ShouldUsePostgres(config))
         {
-            await CommitRowsPostgresAsync(rows, ct);
+            await CommitRowsPostgresAsync(rows, removedKeys, ct);
             return;
         }
 
@@ -62,6 +65,23 @@ public class PriceListCommitStrategy(IConfiguration config) : ICpqCommitStrategy
                     ValidTo = row.GetValueOrDefault("ValidTo")
                 }, tx);
             }
+
+            if (removedKeys.Count > 0)
+            {
+                var articleNumbers = removedKeys
+                    .Where(key => !string.IsNullOrWhiteSpace(key))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                if (articleNumbers.Length > 0)
+                {
+                    await conn.ExecuteAsync("""
+                        DELETE FROM [dbo].[CpqArticlePrices]
+                        WHERE [ArticleNumber] IN @ArticleNumbers;
+                        """, new { ArticleNumbers = articleNumbers }, tx);
+                }
+            }
+
             await tx.CommitAsync(ct);
         }
         catch
@@ -71,7 +91,7 @@ public class PriceListCommitStrategy(IConfiguration config) : ICpqCommitStrategy
         }
     }
 
-    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct)
+    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, IReadOnlyCollection<string> removedKeys, CancellationToken ct)
     {
         const string ensureSql = """
             CREATE SCHEMA IF NOT EXISTS dbo;
@@ -162,6 +182,22 @@ public class PriceListCommitStrategy(IConfiguration config) : ICpqCommitStrategy
                     ValidFrom = validFrom,
                     ValidTo = validTo
                 }, tx);
+            }
+
+            if (removedKeys.Count > 0)
+            {
+                var articleNumbers = removedKeys
+                    .Where(key => !string.IsNullOrWhiteSpace(key))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                if (articleNumbers.Length > 0)
+                {
+                    await conn.ExecuteAsync("""
+                        DELETE FROM dbo."CpqArticlePrices"
+                        WHERE "ArticleNumber" = ANY(@ArticleNumbers);
+                        """, new { ArticleNumbers = articleNumbers }, tx);
+                }
             }
 
             await tx.CommitAsync(ct);

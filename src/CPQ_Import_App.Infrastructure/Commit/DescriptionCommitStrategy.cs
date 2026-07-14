@@ -11,11 +11,14 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
 {
     public EntityType EntityType => EntityType.Description;
 
-    public async Task CommitRowsAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct = default)
+    public async Task CommitRowsAsync(
+        IEnumerable<Dictionary<string, string?>> rows,
+        IReadOnlyCollection<string> removedKeys,
+        CancellationToken ct = default)
     {
         if (CommitConnectionResolver.ShouldUsePostgres(config))
         {
-            await CommitRowsPostgresAsync(rows, ct);
+            await CommitRowsPostgresAsync(rows, removedKeys, ct);
             return;
         }
 
@@ -60,6 +63,26 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
                     LongDescription = row.GetValueOrDefault("LongDescription")
                 }, tx);
             }
+
+            foreach (var key in removedKeys.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var parts = key.Split('|', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length != 2)
+                {
+                    continue;
+                }
+
+                await conn.ExecuteAsync("""
+                    DELETE FROM [dbo].[CpqArticleDescriptions]
+                    WHERE [ArticleNumber] = @ArticleNumber
+                      AND [LanguageCode] = @LanguageCode;
+                    """, new
+                {
+                    ArticleNumber = parts[0],
+                    LanguageCode = parts[1]
+                }, tx);
+            }
+
             await tx.CommitAsync(ct);
         }
         catch
@@ -69,7 +92,7 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
         }
     }
 
-    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct)
+    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, IReadOnlyCollection<string> removedKeys, CancellationToken ct)
     {
         const string ensureSql = """
             CREATE SCHEMA IF NOT EXISTS dbo;
@@ -138,6 +161,25 @@ public class DescriptionCommitStrategy(IConfiguration config) : ICpqCommitStrate
                     LanguageCode = languageCode,
                     ShortDescription = row.GetValueOrDefault("ShortDescription"),
                     LongDescription = row.GetValueOrDefault("LongDescription")
+                }, tx);
+            }
+
+            foreach (var key in removedKeys.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var parts = key.Split('|', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length != 2)
+                {
+                    continue;
+                }
+
+                await conn.ExecuteAsync("""
+                    DELETE FROM dbo."CpqArticleDescriptions"
+                    WHERE "ArticleNumber" = @ArticleNumber
+                      AND "LanguageCode" = @LanguageCode;
+                    """, new
+                {
+                    ArticleNumber = parts[0],
+                    LanguageCode = parts[1]
                 }, tx);
             }
 

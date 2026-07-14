@@ -18,10 +18,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from '../../core/services/import.service';
-import { ComparisonFieldChange, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
+import { ComparisonFieldChange, ComparisonMissingItem, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
+import { AnnualCommitConfirmDialogComponent } from './annual-commit-confirm-dialog.component';
 import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -32,7 +33,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     MatCardModule, MatButtonModule, MatIconModule, MatTableModule,
     MatChipsModule, MatProgressSpinnerModule, MatPaginatorModule,
     MatTabsModule, MatDialogModule, MatSnackBarModule, MatTooltipModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule, StatusBadgeComponent],
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule,
+    StatusBadgeComponent, AnnualCommitConfirmDialogComponent],
   template: `
     <div class="page-header">
       <div>
@@ -1114,7 +1116,48 @@ export class ImportPreviewComponent implements OnInit {
 
   onRowPage(e: PageEvent) { this.rowPage = e.pageIndex + 1; this.rowPageSize = e.pageSize; this.loadRows(); }
 
-  commit() {
+  commit(): void {
+    if (!this.job || this.committing) return;
+
+    const summary: { newRows: number; modifiedRows: number; unchangedRows: number; missingRows: ComparisonMissingItem[] } = this.comparison
+      ? {
+          newRows: this.comparison.newRows,
+          modifiedRows: this.comparison.modifiedRows,
+          unchangedRows: this.comparison.unchangedRows,
+          missingRows: this.comparison.missingRows
+        }
+      : {
+          newRows: this.job.validRows + this.job.warningRows,
+          modifiedRows: 0,
+          unchangedRows: 0,
+          missingRows: []
+        };
+
+    const dialogRef = this.dialog.open(AnnualCommitConfirmDialogComponent, {
+      width: '820px',
+      maxWidth: '96vw',
+      maxHeight: '92vh',
+      autoFocus: false,
+      disableClose: false,
+      data: {
+        datasetLabel: this.job.entityTypeLabel,
+        originalFileName: this.job.originalFileName,
+        hasBaseline: !!this.comparison?.hasBaseline,
+        newRows: summary.newRows,
+        modifiedRows: summary.modifiedRows,
+        unchangedRows: summary.unchangedRows,
+        missingRows: summary.missingRows
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.executeCommit();
+      }
+    });
+  }
+
+  private executeCommit(): void {
     if (!this.job) return;
     this.committing = true;
     this.importService.commit(this.job.id).subscribe({

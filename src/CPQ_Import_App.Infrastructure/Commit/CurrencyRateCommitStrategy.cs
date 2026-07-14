@@ -11,11 +11,14 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
 {
     public EntityType EntityType => EntityType.CurrencyRate;
 
-    public async Task CommitRowsAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct = default)
+    public async Task CommitRowsAsync(
+        IEnumerable<Dictionary<string, string?>> rows,
+        IReadOnlyCollection<string> removedKeys,
+        CancellationToken ct = default)
     {
         if (CommitConnectionResolver.ShouldUsePostgres(config))
         {
-            await CommitRowsPostgresAsync(rows, ct);
+            await CommitRowsPostgresAsync(rows, removedKeys, ct);
             return;
         }
 
@@ -48,6 +51,28 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
                     ValidFrom = row.GetValueOrDefault("ValidFrom")
                 }, tx);
             }
+
+            foreach (var key in removedKeys.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var parts = key.Split('|', 3, StringSplitOptions.TrimEntries);
+                if (parts.Length != 3)
+                {
+                    continue;
+                }
+
+                await conn.ExecuteAsync("""
+                    DELETE FROM [dbo].[CpqCurrencyRates]
+                    WHERE [FromCurrency] = @FromCurrency
+                      AND [ToCurrency] = @ToCurrency
+                      AND [ValidFrom] = @ValidFrom;
+                    """, new
+                {
+                    FromCurrency = parts[0],
+                    ToCurrency = parts[1],
+                    ValidFrom = parts[2]
+                }, tx);
+            }
+
             await tx.CommitAsync(ct);
         }
         catch
@@ -57,7 +82,7 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
         }
     }
 
-    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, CancellationToken ct)
+    private async Task CommitRowsPostgresAsync(IEnumerable<Dictionary<string, string?>> rows, IReadOnlyCollection<string> removedKeys, CancellationToken ct)
     {
         const string ensureSql = """
             CREATE SCHEMA IF NOT EXISTS dbo;
@@ -116,6 +141,27 @@ public class CurrencyRateCommitStrategy(IConfiguration config) : ICpqCommitStrat
                     ToCurrency = toCurrency,
                     Rate = rate,
                     ValidFrom = validFrom
+                }, tx);
+            }
+
+            foreach (var key in removedKeys.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var parts = key.Split('|', 3, StringSplitOptions.TrimEntries);
+                if (parts.Length != 3)
+                {
+                    continue;
+                }
+
+                await conn.ExecuteAsync("""
+                    DELETE FROM dbo."CpqCurrencyRates"
+                    WHERE "FromCurrency" = @FromCurrency
+                      AND "ToCurrency" = @ToCurrency
+                      AND "ValidFrom" = @ValidFrom;
+                    """, new
+                {
+                    FromCurrency = parts[0],
+                    ToCurrency = parts[1],
+                    ValidFrom = parts[2]
                 }, tx);
             }
 

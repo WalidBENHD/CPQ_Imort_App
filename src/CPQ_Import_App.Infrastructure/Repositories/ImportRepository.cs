@@ -397,15 +397,25 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return entityType switch
         {
             EntityType.Article => baselineRows
-                .Where(row => row.ContainsKey("ArticleNumber"))
-                .GroupBy(row => row["ArticleNumber"] ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .Where(group => !string.IsNullOrWhiteSpace(group.Key))
-                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First()), StringComparer.OrdinalIgnoreCase),
+                .Select(row => (Key: NormalizeJobKey(entityType, row), Row: row))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+                .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First().Row), StringComparer.OrdinalIgnoreCase),
             EntityType.PriceList => baselineRows
-                .Where(row => row.ContainsKey("ArticleNumber"))
-                .GroupBy(row => row["ArticleNumber"] ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .Where(group => !string.IsNullOrWhiteSpace(group.Key))
-                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First()), StringComparer.OrdinalIgnoreCase),
+                .Select(row => (Key: NormalizeJobKey(entityType, row), Row: row))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+                .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First().Row), StringComparer.OrdinalIgnoreCase),
+            EntityType.Description => baselineRows
+                .Select(row => (Key: NormalizeJobKey(entityType, row), Row: row))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+                .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First().Row), StringComparer.OrdinalIgnoreCase),
+            EntityType.CurrencyRate => baselineRows
+                .Select(row => (Key: NormalizeJobKey(entityType, row), Row: row))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+                .GroupBy(item => item.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => NormalizeBaselineRow(entityType, group.First().Row), StringComparer.OrdinalIgnoreCase),
             _ => new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase)
         };
     }
@@ -484,8 +494,26 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
     private static string NormalizeJobKey(EntityType entityType, IReadOnlyDictionary<string, string?> fields)
     {
-        var articleNumber = fields.TryGetValue("ArticleNumber", out var art) ? art?.Trim() : string.Empty;
-        return articleNumber ?? string.Empty;
+        string? Get(string key) => fields.TryGetValue(key, out var value) ? value?.Trim() : null;
+
+        return entityType switch
+        {
+            EntityType.Article => Get("ArticleNumber") ?? string.Empty,
+            EntityType.PriceList => Get("ArticleNumber") ?? string.Empty,
+            EntityType.Description => BuildCompositeKey(Get("ArticleNumber"), Get("LanguageCode")),
+            EntityType.CurrencyRate => BuildCompositeKey(Get("FromCurrency"), Get("ToCurrency"), Get("ValidFrom")),
+            _ => string.Empty
+        };
+    }
+
+    private static string BuildCompositeKey(params string?[] values)
+    {
+        if (values.Any(string.IsNullOrWhiteSpace))
+        {
+            return string.Empty;
+        }
+
+        return string.Join("|", values.Select(value => value!.Trim()));
     }
 
     private sealed record ComparisonRowSource(StagingRow Row, IReadOnlyDictionary<string, string?> Fields, string Key);
