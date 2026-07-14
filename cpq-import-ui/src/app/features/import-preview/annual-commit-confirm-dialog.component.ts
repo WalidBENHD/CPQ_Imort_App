@@ -46,10 +46,13 @@ export interface AnnualCommitConfirmDialogData {
 
       <div class="body">
         <section class="overview">
-          <p class="summary">
-            New rows will be added, modified rows will be updated, and rows missing from the previous approved
-            baseline for this same scope will be deleted.
-          </p>
+          <div class="summary-banner">
+            <div class="summary-banner__label">Commit impact</div>
+            <div class="summary-banner__text">
+              New rows will be <strong>added</strong>, modified rows will be <strong>updated</strong>, and rows
+              missing from the previous approved baseline for this same scope will be <strong>deleted</strong>.
+            </div>
+          </div>
 
           <div class="impact-grid">
             <article class="impact-card impact-card--new">
@@ -120,6 +123,50 @@ export interface AnnualCommitConfirmDialogData {
   styles: [`
     :host {
       display: block;
+      --ac-shell-bg: radial-gradient(circle at top left, rgba(255, 183, 77, 0.08), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+      --ac-surface: #ffffff;
+      --ac-surface-soft: #f8fafc;
+      --ac-surface-alt: #fafcff;
+      --ac-border: #e2e8f0;
+      --ac-border-strong: #d7dde7;
+      --ac-text: #0f172a;
+      --ac-muted: #475569;
+      --ac-muted-strong: #334155;
+      --ac-info-bg: #eff6ff;
+      --ac-info-border: #bfdbfe;
+      --ac-info-text: #1e3a8a;
+      --ac-warning-bg: #fff7ed;
+      --ac-warning-border: #fdba74;
+      --ac-warning-text: #9a3412;
+      --ac-warning-strong: #ea580c;
+      --ac-warning-soft: rgba(249, 115, 22, 0.15);
+      --ac-impact-strong: #db2777;
+      --ac-impact-bg: linear-gradient(180deg, rgba(219, 39, 119, 0.08) 0%, var(--ac-surface-alt) 100%);
+    }
+
+    :host-context(html.theme-dark) {
+      --ac-shell-bg: radial-gradient(circle at top left, rgba(126, 162, 255, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.08), transparent 24%),
+        linear-gradient(180deg, rgba(15, 23, 42, 0.99) 0%, rgba(8, 13, 28, 0.99) 100%);
+      --ac-surface: rgba(15, 23, 42, 0.97);
+      --ac-surface-soft: rgba(17, 28, 53, 0.92);
+      --ac-surface-alt: rgba(11, 18, 36, 0.96);
+      --ac-border: var(--app-border);
+      --ac-border-strong: rgba(126, 162, 255, 0.18);
+      --ac-text: var(--app-text);
+      --ac-muted: var(--app-text-muted);
+      --ac-muted-strong: #cbd5e1;
+      --ac-info-bg: linear-gradient(180deg, rgba(17, 28, 53, 0.96) 0%, rgba(10, 16, 33, 0.98) 100%);
+      --ac-info-border: rgba(126, 162, 255, 0.22);
+      --ac-info-text: #dbeafe;
+      --ac-warning-bg: rgba(249, 115, 22, 0.1);
+      --ac-warning-border: rgba(251, 146, 60, 0.22);
+      --ac-warning-text: #fdba74;
+      --ac-warning-strong: #fb923c;
+      --ac-warning-soft: rgba(251, 146, 60, 0.1);
+      --ac-impact-strong: #f9a8d4;
+      --ac-impact-bg: linear-gradient(180deg, rgba(63, 12, 36, 0.96) 0%, rgba(17, 28, 53, 0.98) 100%);
     }
 
     :host ::ng-deep .annual-commit-dialog-panel .mat-mdc-dialog-container {
@@ -142,9 +189,8 @@ export interface AnnualCommitConfirmDialogData {
       max-width: 94vw;
       max-height: 88vh;
       overflow: hidden;
-      background:
-        radial-gradient(circle at top left, rgba(255, 183, 77, 0.08), transparent 28%),
-        linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+      background: var(--ac-shell-bg);
+      color: var(--ac-text);
     }
 
     .hero {
@@ -158,11 +204,11 @@ export interface AnnualCommitConfirmDialogData {
       width: 48px;
       height: 48px;
       border-radius: 16px;
-      background: #fff7ed;
-      color: #ea580c;
+      background: var(--ac-warning-bg);
+      color: var(--ac-warning-strong);
       display: grid;
       place-items: center;
-      box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.15);
+      box-shadow: inset 0 0 0 1px var(--ac-warning-soft);
     }
 
     .hero__icon mat-icon {
@@ -176,12 +222,12 @@ export interface AnnualCommitConfirmDialogData {
       font-size: 24px;
       line-height: 1.15;
       font-weight: 800;
-      color: #111827;
+      color: var(--ac-text);
     }
 
     .hero__copy p {
       margin: 6px 0 0;
-      color: #475569;
+      color: var(--ac-muted);
       line-height: 1.5;
       font-size: 14px;
     }
@@ -201,15 +247,15 @@ export interface AnnualCommitConfirmDialogData {
       padding: 0 12px;
       font-size: 12px;
       font-weight: 700;
-      color: #334155;
-      background: #f8fafc;
-      border: 1px solid #dbe4f0;
+      color: var(--ac-muted-strong);
+      background: var(--ac-surface-soft);
+      border: 1px solid var(--ac-border);
     }
 
     .meta-pill--ghost {
-      background: #eff6ff;
-      border-color: #bfdbfe;
-      color: #1e3a8a;
+      background: var(--ac-info-bg);
+      border-color: var(--ac-info-border);
+      color: var(--ac-info-text);
     }
 
     .body {
@@ -223,8 +269,8 @@ export interface AnnualCommitConfirmDialogData {
     .removals {
       min-width: 0;
       border-radius: 20px;
-      border: 1px solid #e2e8f0;
-      background: #ffffff;
+      border: 1px solid var(--ac-border);
+      background: var(--ac-surface);
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
@@ -237,9 +283,53 @@ export interface AnnualCommitConfirmDialogData {
 
     .summary {
       margin: 0;
-      color: #334155;
+      color: var(--ac-muted-strong);
       line-height: 1.6;
       font-size: 14px;
+    }
+
+    .summary-banner {
+      border-radius: 18px;
+      border: 1px solid color-mix(in srgb, var(--ac-impact-strong) 28%, var(--ac-border));
+      border-left: 6px solid var(--ac-impact-strong);
+      background: var(--ac-impact-bg);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      padding: 16px 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .summary-banner__label {
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--ac-impact-strong);
+    }
+
+    .summary-banner__text {
+      font-size: 16px;
+      line-height: 1.55;
+      font-weight: 600;
+      color: var(--ac-text);
+    }
+
+    .summary-banner__text strong {
+      font-weight: 900;
+      color: var(--ac-impact-strong);
+    }
+
+    :host-context(html.theme-dark) .summary-banner {
+      background: var(--ac-impact-bg);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.18);
+    }
+
+    :host-context(html.theme-dark) .summary-banner__text {
+      color: #f8fafc;
+    }
+
+    :host-context(html.theme-dark) .summary-banner__text strong {
+      color: var(--ac-impact-strong);
     }
 
     .impact-grid {
@@ -250,8 +340,8 @@ export interface AnnualCommitConfirmDialogData {
 
     .impact-card {
       border-radius: 18px;
-      border: 1px solid #d7dde7;
-      background: linear-gradient(180deg, #ffffff 0%, #fafcff 100%);
+      border: 1px solid var(--ac-border-strong);
+      background: linear-gradient(180deg, var(--ac-surface) 0%, var(--ac-surface-alt) 100%);
       padding: 16px;
       min-height: 132px;
       display: flex;
@@ -268,20 +358,20 @@ export interface AnnualCommitConfirmDialogData {
       letter-spacing: 0.08em;
       font-size: 11px;
       font-weight: 800;
-      color: #64748b;
+      color: var(--ac-muted);
     }
 
     .impact-value {
       font-size: 34px;
       line-height: 1;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--ac-text);
       margin-top: 10px;
     }
 
     .impact-note {
       margin-top: 10px;
-      color: #475569;
+      color: var(--ac-muted);
       font-size: 13px;
       line-height: 1.45;
     }
@@ -291,9 +381,9 @@ export interface AnnualCommitConfirmDialogData {
       align-items: flex-start;
       gap: 12px;
       border-radius: 16px;
-      border: 1px solid #bfdbfe;
-      background: linear-gradient(180deg, #eff6ff 0%, #f8fbff 100%);
-      color: #1e3a8a;
+      border: 1px solid var(--ac-info-border);
+      background: var(--ac-info-bg);
+      color: var(--ac-info-text);
       padding: 16px;
     }
 
@@ -327,14 +417,14 @@ export interface AnnualCommitConfirmDialogData {
       letter-spacing: 0.08em;
       font-size: 11px;
       font-weight: 800;
-      color: #64748b;
+      color: var(--ac-muted);
     }
 
     .removals__head h3 {
       margin: 4px 0 0;
       font-size: 18px;
       line-height: 1.2;
-      color: #0f172a;
+      color: var(--ac-text);
     }
 
     .removal-count {
@@ -345,9 +435,9 @@ export interface AnnualCommitConfirmDialogData {
       align-items: center;
       justify-content: center;
       padding: 0 12px;
-      background: #fff7ed;
-      color: #9a3412;
-      border: 1px solid #fdba74;
+      background: var(--ac-warning-bg);
+      color: var(--ac-warning-text);
+      border: 1px solid var(--ac-warning-border);
       font-size: 13px;
       font-weight: 800;
       flex: 0 0 auto;
@@ -371,8 +461,8 @@ export interface AnnualCommitConfirmDialogData {
       align-items: center;
       padding: 12px 14px;
       border-radius: 14px;
-      border: 1px solid #fed7aa;
-      background: linear-gradient(180deg, #fffaf4 0%, #fff7ed 100%);
+      border: 1px solid var(--ac-warning-border);
+      background: linear-gradient(180deg, var(--ac-surface-soft) 0%, var(--ac-surface-alt) 100%);
     }
 
     .removal-row__index {
@@ -381,15 +471,15 @@ export interface AnnualCommitConfirmDialogData {
       border-radius: 999px;
       display: grid;
       place-items: center;
-      background: #ffffff;
-      border: 1px solid #fcd9b2;
-      color: #9a3412;
+      background: rgba(126, 162, 255, 0.12);
+      border: 1px solid var(--ac-warning-border);
+      color: var(--ac-warning-text);
       font-size: 12px;
       font-weight: 800;
     }
 
     .removal-row__key {
-      color: #7c2d12;
+      color: var(--ac-muted-strong);
       font-size: 13px;
       font-weight: 700;
       line-height: 1.35;
@@ -402,9 +492,9 @@ export interface AnnualCommitConfirmDialogData {
       gap: 12px;
       min-height: 120px;
       border-radius: 16px;
-      border: 1px dashed #cbd5e1;
-      background: #f8fafc;
-      color: #334155;
+      border: 1px dashed var(--ac-border);
+      background: var(--ac-surface-soft);
+      color: var(--ac-muted-strong);
       padding: 16px;
     }
 
@@ -419,6 +509,11 @@ export interface AnnualCommitConfirmDialogData {
       justify-content: flex-end;
       gap: 10px;
       padding-top: 2px;
+    }
+
+    .actions :is(button[mat-button], button[mat-raised-button]) {
+      border-radius: 999px;
+      min-height: 40px;
     }
 
     @media (max-width: 900px) {
