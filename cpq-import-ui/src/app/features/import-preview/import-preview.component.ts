@@ -303,10 +303,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
           <div class="reject-panel" *ngIf="showRejectPanel">
             <mat-divider></mat-divider>
             <div class="reject-form">
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Rejection Reason</mat-label>
-                <textarea matInput [(ngModel)]="rejectionReason" rows="2" placeholder="Enter reason..."></textarea>
-              </mat-form-field>
+              <div class="reject-field">
+                <div class="reject-field__head">
+                  <div class="reject-field__label">Rejection reason</div>
+                  <div class="reject-field__hint">Tell the uploader what must change before resubmitting.</div>
+                </div>
+                <textarea
+                  class="reject-textarea"
+                  [(ngModel)]="rejectionReason"
+                  rows="3"
+                  placeholder="Enter reason..."></textarea>
+              </div>
               <div class="reject-actions">
                 <button mat-raised-button color="warn" (click)="reject()" [disabled]="!rejectionReason || rejecting">
                   Confirm Rejection
@@ -686,9 +693,57 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       padding-top: 14px;
       border-top: 1px solid #e2e8f0;
       margin-top: 12px;
+      display: grid;
+      gap: 14px;
     }
-    .full-width { width: 100%; }
     .reject-actions { display: flex; align-items: center; }
+    .reject-field {
+      display: grid;
+      gap: 10px;
+    }
+    .reject-field__head {
+      display: grid;
+      gap: 4px;
+    }
+    .reject-field__label {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      color: #0f172a;
+    }
+    .reject-field__hint {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #64748b;
+    }
+    .reject-textarea {
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 104px;
+      resize: vertical;
+      border-radius: 14px;
+      border: 1px solid #cbd5e1;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      color: #0f172a;
+      padding: 14px 15px;
+      font: inherit;
+      line-height: 1.5;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+    .reject-textarea::placeholder {
+      color: #94a3b8;
+      opacity: 1;
+    }
+    .reject-textarea:hover {
+      border-color: #94a3b8;
+    }
+    .reject-textarea:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+      background: #ffffff;
+    }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
     .rows-card .mat-mdc-card-header {
       padding: 12px 16px 8px;
@@ -760,6 +815,93 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     .msg-error { color: #c62828; }
     .msg-warning { color: #f57f17; }
     .msg-info { color: #1565c0; }
+
+    :host-context(html.theme-dark) .action-card {
+      border-color: rgba(126, 162, 255, 0.18);
+      background: rgba(15, 23, 42, 0.92);
+    }
+
+    :host-context(html.theme-dark) .action-bar {
+      color: var(--app-text);
+    }
+
+    :host-context(html.theme-dark) .action-info {
+      color: #dbeafe;
+      background: linear-gradient(180deg, rgba(17, 28, 53, 0.98) 0%, rgba(10, 16, 33, 0.98) 100%);
+      border-color: rgba(126, 162, 255, 0.24);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    :host-context(html.theme-dark) .action-info mat-icon {
+      color: #93c5fd;
+    }
+
+    :host-context(html.theme-dark) .action-info strong {
+      color: #f8fafc;
+    }
+
+    :host-context(html.theme-dark) .reject-form {
+      border-top-color: rgba(126, 162, 255, 0.18);
+      padding: 14px;
+      margin-top: 14px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(17, 28, 53, 0.92) 0%, rgba(10, 16, 33, 0.96) 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    :host-context(html.theme-dark) .reject-field__label {
+      color: #f8fafc;
+    }
+
+    :host-context(html.theme-dark) .reject-field__hint {
+      color: #94a3b8;
+    }
+
+    :host-context(html.theme-dark) .reject-textarea {
+      border-color: rgba(148, 163, 184, 0.28);
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(11, 18, 36, 0.98) 100%);
+      color: #f8fafc;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    :host-context(html.theme-dark) .reject-textarea::placeholder {
+      color: rgba(203, 213, 225, 0.72);
+      opacity: 1;
+    }
+
+    :host-context(html.theme-dark) .reject-textarea:hover {
+      border-color: rgba(96, 165, 250, 0.55);
+    }
+
+    :host-context(html.theme-dark) .reject-textarea:focus {
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16);
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    :host-context(html.theme-dark) .reject-actions button[mat-raised-button] {
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    :host-context(html.theme-dark) .reject-actions button[mat-button] {
+      color: #e2e8f0;
+    }
+
+    :host-context(html.theme-dark) .reject-actions button[mat-raised-button].mat-mdc-button-disabled,
+    :host-context(html.theme-dark) .reject-actions button[mat-raised-button]:disabled {
+      color: rgba(248, 250, 252, 0.7);
+      background: rgba(51, 65, 85, 0.88);
+      box-shadow: none;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      opacity: 1;
+    }
+
+    :host-context(html.theme-dark) .reject-actions button[mat-button].mat-mdc-button-disabled,
+    :host-context(html.theme-dark) .reject-actions button[mat-button]:disabled {
+      color: rgba(226, 232, 240, 0.6);
+      opacity: 1;
+    }
+
     @media (max-width: 900px) {
       .page-header { flex-direction: column; gap: 10px; }
       .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -804,6 +946,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       .ml-8 { margin-left: 0; }
       .btn-commit,
       .btn-reject { min-height: 40px; }
+      .reject-textarea {
+        min-height: 96px;
+        padding: 12px 13px;
+      }
       .correction-card {
         flex-direction: column;
         align-items: stretch;
@@ -822,6 +968,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       }
       .desktop-rows { display: none; }
       .mobile-rows { display: block; }
+
+      :host-context(html.theme-dark) .action-info {
+        background: linear-gradient(180deg, rgba(17, 28, 53, 0.98) 0%, rgba(10, 16, 33, 0.98) 100%);
+      }
+
+      :host-context(html.theme-dark) .reject-form {
+        padding: 12px;
+      }
     }
 
     @media (max-width: 390px) {

@@ -554,8 +554,7 @@ export interface AnnualCommitConfirmDialogData {
         min-height: 28px;
       }
 
-      .overview,
-      .removals {
+      .overview {
         padding: 12px;
         border-radius: 16px;
       }
@@ -567,11 +566,6 @@ export interface AnnualCommitConfirmDialogData {
         min-height: 0;
         overflow: auto;
         padding-right: 2px;
-      }
-
-      .overview {
-        gap: 12px;
-        order: 2;
       }
 
       .summary-banner {
@@ -603,24 +597,7 @@ export interface AnnualCommitConfirmDialogData {
       }
 
       .removals {
-        gap: 12px;
-        order: 1;
-        margin-top: 2px;
-      }
-
-      .removals__head {
-        align-items: center;
-      }
-
-      .removals__scroll {
-        max-height: 42vh;
-        gap: 8px;
-      }
-
-      .removal-row {
-        padding: 10px 12px;
-        gap: 8px;
-        border-radius: 12px;
+        display: none;
       }
 
       .actions {
