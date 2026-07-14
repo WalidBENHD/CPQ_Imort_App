@@ -50,20 +50,22 @@ public class ImportService(
             ms.Position = 0;
             var parsed = await parser.ParseAsync(ms, fileName, ct);
             IReadOnlySet<string>? approvedArticles = null;
-            if (entityType == EntityType.PriceList)
-            {
-                approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
-            }
+        if (entityType == EntityType.PriceList)
+        {
+            approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
+        }
 
-            foreach (var row in parsed)
-            {
-                await ApplyCurrentBaselineValidationAsync(entityType, row.Fields, row.Messages, approvedArticles, ct);
-            }
+        foreach (var row in parsed)
+        {
+            await ApplyCurrentBaselineValidationAsync(entityType, row.Fields, row.Messages, approvedArticles, ct);
+        }
 
-            stagingRows = parsed.Select(r =>
-            {
-                var status = RowValidator.DeriveStatus(r.Messages);
-                return new StagingRow
+        ApplyDuplicateArticleValidation(parsed);
+
+        stagingRows = parsed.Select(r =>
+        {
+            var status = RowValidator.DeriveStatus(r.Messages);
+            return new StagingRow
                 {
                     ImportJobId = job.Id,
                     RowNumber = r.RowNumber,
@@ -159,6 +161,8 @@ public class ImportService(
             row.Status = RowValidator.DeriveStatus(messages);
         }
 
+        ApplyDuplicateArticleValidation(rows);
+
         ApplyJobTotals(job, rows);
         await repository.SaveChangesAsync(ct);
 
@@ -195,6 +199,8 @@ public class ImportService(
         row.Status = RowValidator.DeriveStatus(messages);
 
         await repository.UpdateStagingRowAsync(row, ct);
+
+        await RevalidateDuplicateArticleRowsAsync(jobId, ct);
 
         await RecalculateJobAsync(job, ct);
 
@@ -657,6 +663,104 @@ public class ImportService(
             ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             : JsonSerializer.Deserialize<Dictionary<string, string?>>(rawData, JsonOpts)
               ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+    private static List<ValidationMessage> DeserializeMessages(string? rawMessages)
+        => string.IsNullOrWhiteSpace(rawMessages)
+            ? []
+            : JsonSerializer.Deserialize<List<ValidationMessage>>(rawMessages, JsonOpts) ?? [];
+
+    private void ApplyDuplicateArticleValidation(IReadOnlyCollection<ParsedRow> rows)
+    {
+        var rowData = rows
+            .Select(row => new
+            {
+                Row = row,
+                ArticleNumber = GetArticleNumber(row.Fields),
+                DuplicateMessage = CreateDuplicateArticleMessage(GetArticleNumber(row.Fields))
+            })
+            .ToList();
+
+        ApplyDuplicateValidation(rowData.Select(x => (x.Row.Fields, x.Row.Messages, x.ArticleNumber, x.DuplicateMessage)));
+    }
+
+    private void ApplyDuplicateArticleValidation(IReadOnlyCollection<StagingRow> rows)
+    {
+        var rowData = rows
+            .Select(row =>
+            {
+                var fields = DeserializeFields(row.RawData);
+                var messages = DeserializeMessages(row.ValidationMessages);
+                var articleNumber = GetArticleNumber(fields);
+                return new
+                {
+                    Row = row,
+                    Fields = fields,
+                    Messages = messages,
+                    ArticleNumber = articleNumber,
+                    DuplicateMessage = CreateDuplicateArticleMessage(articleNumber)
+                };
+            })
+            .ToList();
+
+        ApplyDuplicateValidation(rowData.Select(x => (x.Fields, x.Messages, x.ArticleNumber, x.DuplicateMessage)));
+
+        foreach (var item in rowData)
+        {
+            item.Row.ValidationMessages = item.Messages.Count > 0
+                ? JsonSerializer.Serialize(item.Messages, JsonOpts)
+                : null;
+            item.Row.Status = RowValidator.DeriveStatus(item.Messages);
+        }
+    }
+
+    private async Task RevalidateDuplicateArticleRowsAsync(Guid jobId, CancellationToken ct)
+    {
+        var rows = await repository.GetStagingRowsByJobAsync(jobId, ct);
+        ApplyDuplicateArticleValidation(rows);
+        await repository.SaveChangesAsync(ct);
+    }
+
+    private static void ApplyDuplicateValidation(
+        IEnumerable<(Dictionary<string, string?> Fields, List<ValidationMessage> Messages, string? ArticleNumber, string DuplicateMessage)> rowData)
+    {
+        var grouped = rowData
+            .Where(x => !string.IsNullOrWhiteSpace(x.ArticleNumber))
+            .GroupBy(x => x.ArticleNumber!, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var duplicateKeys = grouped
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in rowData)
+        {
+            item.Messages.RemoveAll(m =>
+                m.Field.Equals("ArticleNumber", StringComparison.OrdinalIgnoreCase) &&
+                m.Message.StartsWith("ArticleNumber value ", StringComparison.OrdinalIgnoreCase) &&
+                m.Message.EndsWith("is duplicated within the uploaded file.", StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrWhiteSpace(item.ArticleNumber) && duplicateKeys.Contains(item.ArticleNumber!))
+            {
+                item.Messages.Add(new ValidationMessage
+                {
+                    Field = "ArticleNumber",
+                    Message = item.DuplicateMessage,
+                    Severity = ValidationSeverity.Error
+                });
+            }
+        }
+    }
+
+    private static string? GetArticleNumber(IReadOnlyDictionary<string, string?> fields)
+    {
+        return fields.TryGetValue("ArticleNumber", out var articleNumber)
+            ? articleNumber?.Trim()
+            : null;
+    }
+
+    private static string CreateDuplicateArticleMessage(string? articleNumber)
+        => $"ArticleNumber value '{articleNumber}' is duplicated within the uploaded file.";
 
     private static void ApplyJobTotals(ImportJob job, IReadOnlyCollection<StagingRow> rows)
     {

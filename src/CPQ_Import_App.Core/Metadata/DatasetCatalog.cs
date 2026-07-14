@@ -47,6 +47,7 @@ public static class DatasetCatalog
             ],
             [
                 new DatasetValidationRule("ArticleNumber", "Required, max length 50 characters, and must not contain spaces."),
+                new DatasetValidationRule("ArticleNumber", "Must be unique within the uploaded file."),
                 new DatasetValidationRule("Name", "Required and max length 255 characters."),
                 new DatasetValidationRule("Category", "Required; must be a valid business category."),
                 new DatasetValidationRule("Unit", "Required; must be a controlled unit code.")
@@ -69,6 +70,7 @@ public static class DatasetCatalog
             ],
             [
                 new DatasetValidationRule("ArticleNumber", "Required, must not contain spaces, and must already exist in Article Master."),
+                new DatasetValidationRule("ArticleNumber", "Must be unique within the uploaded file."),
                 new DatasetValidationRule("UnitPrice", "Required and must be a valid decimal number."),
                 new DatasetValidationRule("Currency", "Required; must be a 3-letter ISO 4217 code (e.g., EUR)."),
                 new DatasetValidationRule("ValidFrom", "Required and must be a valid date."),
