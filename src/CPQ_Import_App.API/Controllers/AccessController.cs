@@ -16,7 +16,7 @@ namespace CPQ_Import_App.API.Controllers;
 [ApiController]
 [Route("api/access")]
 [Authorize]
-public class AccessController(AppDbContext db, IActivityService activityService) : ControllerBase
+public class AccessController(AppDbContext db, IActivityService activityService, INotificationService notificationService) : ControllerBase
 {
     [HttpGet("capabilities")]
     [Authorize(Policy = Capabilities.RolesManage)]
@@ -75,6 +75,8 @@ public class AccessController(AppDbContext db, IActivityService activityService)
         if (role.Key == "system-administrator" && !Capabilities.All.SetEquals(request.Capabilities))
             return Conflict(new { error = "The System Administrator role must retain every capability to prevent administrative lockout." });
 
+        var previousCapabilities = role.RoleCapabilities.Select(item => item.Capability).ToHashSet(StringComparer.Ordinal);
+        var affectedUserIds = role.UserRoles.Select(userRole => userRole.UserId).ToList();
         role.Name = request.Name.Trim();
         role.Description = request.Description.Trim();
         role.Icon = Normalize(request.Icon, "shield");
@@ -89,6 +91,8 @@ public class AccessController(AppDbContext db, IActivityService activityService)
         foreach (var capability in desired.Where(capability => role.RoleCapabilities.All(item => item.Capability != capability)))
             role.RoleCapabilities.Add(new RoleCapability { RoleId = role.Id, Capability = capability });
         await db.SaveChangesAsync(ct);
+        if (!previousCapabilities.SetEquals(desired))
+            await notificationService.NotifyRoleCapabilitiesChangedAsync(affectedUserIds, role.Name, CurrentActorName);
         await LogAsync("UpdateAccessRole", $"Updated access role {role.Name}.", role, ct);
         return Ok(ToDto(role));
     }
@@ -100,8 +104,12 @@ public class AccessController(AppDbContext db, IActivityService activityService)
         var role = await db.AccessRoles.Include(value => value.UserRoles).FirstOrDefaultAsync(value => value.Id == id, ct);
         if (role is null) return NotFound(new { error = "Role not found." });
         if (role.IsSystem) return Conflict(new { error = "Seeded roles cannot be deleted. Duplicate the role if you need a custom profile." });
+        var affectedUserIds = role.UserRoles.Select(userRole => userRole.UserId).ToList();
+        var roleName = role.Name;
         db.AccessRoles.Remove(role);
         await db.SaveChangesAsync(ct);
+        foreach (var userId in affectedUserIds)
+            await notificationService.NotifyUserAccessChangedAsync(userId, [], [roleName], CurrentActorName);
         await LogAsync("DeleteAccessRole", $"Deleted access role {role.Name}.", role, ct);
         return NoContent();
     }
@@ -120,6 +128,17 @@ public class AccessController(AppDbContext db, IActivityService activityService)
         if (Guid.TryParse(currentIdValue, out var currentId) && currentId == id && (!request.IsApproved || request.IsSuspended))
             return Conflict(new { error = "You cannot suspend or deactivate your own account." });
 
+        var previousRoleNames = await db.UserAccessRoles.AsNoTracking()
+            .Where(userRole => userRole.UserId == id)
+            .Select(userRole => userRole.Role.Name)
+            .OrderBy(name => name)
+            .ToListAsync(ct);
+        var nextRoleNames = await db.AccessRoles.AsNoTracking()
+            .Where(role => validRoleIds.Contains(role.Id))
+            .Select(role => role.Name)
+            .OrderBy(name => name)
+            .ToListAsync(ct);
+
         user.IsApproved = request.IsApproved;
         user.IsSuspended = request.IsSuspended;
         if (request.IsApproved && user.ApprovedAt is null)
@@ -130,6 +149,12 @@ public class AccessController(AppDbContext db, IActivityService activityService)
         db.UserAccessRoles.RemoveRange(user.AccessRoles);
         user.AccessRoles = validRoleIds.Select(roleId => new UserAccessRole { UserId = user.Id, RoleId = roleId }).ToList();
         await db.SaveChangesAsync(ct);
+        var changedBy = CurrentActorName;
+        await notificationService.NotifyUserAccessChangedAsync(
+            user.Id,
+            nextRoleNames.Except(previousRoleNames, StringComparer.OrdinalIgnoreCase).ToList(),
+            previousRoleNames.Except(nextRoleNames, StringComparer.OrdinalIgnoreCase).ToList(),
+            changedBy);
         await activityService.LogAsync(new ActivityWriteRequest(ActivityCategory.Admin, "UpdateUserAccess", $"Updated account and role assignments for {user.DisplayName}.", TargetType: "User", TargetId: user.Id.ToString(), StatusCode: StatusCodes.Status200OK, Metadata: new { request.IsApproved, request.IsSuspended, RoleIds = validRoleIds }), ct);
         return Ok(await BuildUserDtoAsync(user, ct));
     }
@@ -157,5 +182,6 @@ public class AccessController(AppDbContext db, IActivityService activityService)
 
     private static AccessRoleDto ToDto(AccessRole role) => new(role.Id, role.Key, role.Name, role.Description, role.Icon, role.Color, role.IsSystem, role.RoleCapabilities.Select(value => value.Capability).OrderBy(value => value).ToList(), role.UserRoles.Count);
     private static string Normalize(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+    private string CurrentActorName => User.FindFirstValue("name") ?? User.Identity?.Name ?? "an administrator";
     private Task LogAsync(string action, string description, AccessRole role, CancellationToken ct) => activityService.LogAsync(new ActivityWriteRequest(ActivityCategory.Admin, action, description, TargetType: "AccessRole", TargetId: role.Id.ToString(), StatusCode: StatusCodes.Status200OK, Metadata: new { role.Key, role.Name }), ct);
 }

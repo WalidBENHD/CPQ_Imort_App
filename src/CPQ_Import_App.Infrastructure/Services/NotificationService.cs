@@ -9,6 +9,8 @@ public interface INotificationService
     Task NotifyAdminsAboutPendingUserAsync(TestUser user, List<Guid> adminIds);
     Task NotifyUserApprovedAsync(Guid userId, string approverName);
     Task NotifyUserRoleChangedAsync(Guid userId, string oldRole, string newRole);
+    Task NotifyUserAccessChangedAsync(Guid userId, IReadOnlyCollection<string> addedRoles, IReadOnlyCollection<string> removedRoles, string changedBy);
+    Task NotifyRoleCapabilitiesChangedAsync(IReadOnlyCollection<Guid> userIds, string roleName, string changedBy);
     Task NotifyImportUploadedAsync(ImportJob job, List<Guid> approverIds);
     Task NotifyImportNeedsCorrectionAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportRejectedAsync(ImportJob job, Guid uploaderId);
@@ -62,6 +64,46 @@ public class NotificationService(
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
         await _notificationRepository.CreateAsync(notification);
+    }
+
+    public async Task NotifyUserAccessChangedAsync(
+        Guid userId,
+        IReadOnlyCollection<string> addedRoles,
+        IReadOnlyCollection<string> removedRoles,
+        string changedBy)
+    {
+        if (addedRoles.Count == 0 && removedRoles.Count == 0) return;
+
+        var changes = new List<string>();
+        if (addedRoles.Count > 0) changes.Add($"Added: {string.Join(", ", addedRoles)}.");
+        if (removedRoles.Count > 0) changes.Add($"Removed: {string.Join(", ", removedRoles)}.");
+
+        var notification = new Notification
+        {
+            UserId = userId,
+            NotificationType = NotificationType.UserRoleChanged,
+            Title = "Your access roles changed",
+            Message = $"{string.Join(" ", changes)} Changed by {changedBy}. Your available actions have been updated.",
+            RelatedUserId = userId,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+        await _notificationRepository.CreateAsync(notification);
+    }
+
+    public async Task NotifyRoleCapabilitiesChangedAsync(IReadOnlyCollection<Guid> userIds, string roleName, string changedBy)
+    {
+        foreach (var userId in userIds.Distinct())
+        {
+            await _notificationRepository.CreateAsync(new Notification
+            {
+                UserId = userId,
+                NotificationType = NotificationType.UserRoleChanged,
+                Title = "Your role permissions changed",
+                Message = $"The capabilities included in your {roleName} role were updated by {changedBy}. Your available actions may have changed.",
+                RelatedUserId = userId,
+                ExpiresAt = DateTime.UtcNow.AddDays(30)
+            });
+        }
     }
 
     public async Task NotifyImportUploadedAsync(ImportJob job, List<Guid> approverIds)
