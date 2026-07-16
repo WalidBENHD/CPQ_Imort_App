@@ -104,13 +104,13 @@ import { ThemeService } from './core/services/theme.service';
             </a>
           </ng-container>
 
-          <ng-container *ngIf="auth.isAdmin">
+          <ng-container *ngIf="visibleAdminNavItems.length">
             <div class="nav-group-label" *ngIf="isSidebarOpen">Admin</div>
 
             <a
               mat-button
               class="side-link"
-              *ngFor="let item of adminNavItems"
+              *ngFor="let item of visibleAdminNavItems"
               [routerLink]="item.route"
               routerLinkActive="side-link--active"
               [class.side-link--compact]="!isSidebarOpen"
@@ -605,9 +605,11 @@ export class AppComponent implements OnInit, OnDestroy {
     { route: '/uploads', label: 'Uploads', icon: 'view_list' }
   ];
 
-  readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
-    { route: '/admin/users', label: 'Admin Panel', icon: 'admin_panel_settings' },
-    { route: '/admin/activity', label: 'Activity', icon: 'monitoring' }
+  readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> = [
+    { route: '/admin/users', label: 'People', icon: 'group', capabilities: ['users.manage', 'users.assign_roles'] },
+    { route: '/admin/access-studio', label: 'Access Studio', icon: 'shield_person', capabilities: ['roles.manage'] },
+    { route: '/admin/activity', label: 'Activity', icon: 'monitoring', capabilities: ['audit.view'] },
+    { route: '/admin/maintenance', label: 'Maintenance', icon: 'build_circle', capabilities: ['system.maintenance'] }
   ];
 
   readonly internalToolsNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
@@ -622,6 +624,10 @@ export class AppComponent implements OnInit, OnDestroy {
   private routeSub: Subscription | null = null;
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
+
+  get visibleAdminNavItems(): ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> {
+    return this.adminNavItems.filter(item => item.capabilities.every(capability => this.auth.hasCapability(capability)));
+  }
 
   get themeIcon(): string {
     return this.themeService.currentTheme === 'dark' ? 'light_mode' : 'dark_mode';

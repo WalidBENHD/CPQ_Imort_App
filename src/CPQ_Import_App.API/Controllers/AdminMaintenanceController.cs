@@ -7,13 +7,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Data.SqlClient;
 using Npgsql;
+using CPQ_Import_App.Core.Security;
 using System.Data.Common;
 
 namespace CPQ_Import_App.API.Controllers;
 
 [ApiController]
 [Route("api/admin/maintenance")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Policy = Capabilities.SystemMaintenance)]
 public class AdminMaintenanceController(
     AppDbContext db,
     IConfiguration configuration,

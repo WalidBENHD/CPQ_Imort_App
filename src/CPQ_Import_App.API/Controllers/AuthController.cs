@@ -19,7 +19,8 @@ public class AuthController(
     LocalJwtTokenFactory tokenFactory,
     INotificationService notificationService,
     IActivityService activityService,
-    ILiveUserPresenceTracker liveUserPresenceTracker) : ControllerBase
+    ILiveUserPresenceTracker liveUserPresenceTracker,
+    AccessControlService accessControlService) : ControllerBase
 {
     private string CurrentUserName => User.FindFirstValue("preferred_username")
         ?? User.FindFirstValue(ClaimTypes.Name)
@@ -97,15 +98,11 @@ public class AuthController(
         var newUser = await db.TestUsers.FirstOrDefaultAsync(x => x.NormalizedUserName == normalized, ct);
         if (newUser != null)
         {
-            var adminIds = await db.TestUsers
-                .AsNoTracking()
-                .Where(x => x.IsAdmin && x.IsApproved)
-                .Select(x => x.Id)
-                .ToListAsync(ct);
+            var adminIds = await accessControlService.GetUserIdsWithCapabilityAsync(CPQ_Import_App.Core.Security.Capabilities.UsersManage, ct);
 
             if (adminIds.Any())
             {
-                await notificationService.NotifyAdminsAboutPendingUserAsync(newUser, adminIds);
+                await notificationService.NotifyAdminsAboutPendingUserAsync(newUser, adminIds.ToList());
             }
         }
 
@@ -161,6 +158,11 @@ public class AuthController(
             });
         }
 
+        if (user.IsSuspended)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Your account has been suspended. Contact an administrator." });
+        }
+
         user.LastLoginAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
 
@@ -176,8 +178,10 @@ public class AuthController(
             ExplicitUserRole: user.Role),
             ct);
 
-        var (token, expiresAtUtc) = tokenFactory.CreateToken(user);
-        return Ok(new AuthTokenResponse(token, expiresAtUtc, ToDto(user)));
+        var roles = await accessControlService.GetRoleKeysAsync(user.Id, ct);
+        var capabilities = await accessControlService.GetCapabilitiesAsync(user.Id, ct);
+        var (token, expiresAtUtc) = tokenFactory.CreateToken(user, roles, capabilities);
+        return Ok(new AuthTokenResponse(token, expiresAtUtc, await ToDtoAsync(user, ct)));
     }
 
     [HttpGet("me")]
@@ -196,7 +200,8 @@ public class AuthController(
             return Unauthorized();
         }
 
-        return Ok(ToDto(user));
+        if (!user.IsApproved || user.IsSuspended) return Unauthorized();
+        return Ok(await ToDtoAsync(user, ct));
     }
 
     [HttpGet("pending")]
@@ -209,7 +214,9 @@ public class AuthController(
             .OrderBy(x => x.CreatedAt)
             .ToListAsync(ct);
 
-        return Ok(users.Select(x => ToDto(x)).ToList());
+        var result = new List<AuthUserDto>();
+        foreach (var user in users) result.Add(await ToDtoAsync(user, ct));
+        return Ok(result);
     }
 
     [HttpGet("users")]
@@ -229,7 +236,8 @@ public class AuthController(
             .Select(g => new { UserId = g.Key, LastSeenAt = g.Max(x => x.OccurredAtUtc) })
             .ToDictionaryAsync(x => x.UserId, x => (DateTime?)x.LastSeenAt, ct);
 
-        return Ok(users.Select(user =>
+        var result = new List<AuthUserDto>();
+        foreach (var user in users)
         {
             activityByUserId.TryGetValue(user.Id.ToString(), out var lastSeenAt);
 
@@ -239,12 +247,14 @@ public class AuthController(
                 lastSeenAt = liveLastSeenAt;
             }
 
-            return ToDto(user, lastSeenAt);
-        }).ToList());
+            result.Add(await ToDtoAsync(user, ct, lastSeenAt));
+        }
+        return Ok(result);
     }
 
     [HttpPost("users")]
     [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "users.assign_roles")]
     public async Task<ActionResult<AuthUserDto>> CreateUser([FromBody] AdminCreateUserRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
@@ -264,6 +274,13 @@ public class AuthController(
             return Conflict(new { error = "Username already exists." });
         }
 
+        var requestedRoleIds = request.RoleIds?.Distinct().ToList() ?? [];
+        var validRoleIds = await db.AccessRoles.Where(role => requestedRoleIds.Contains(role.Id)).Select(role => role.Id).ToListAsync(ct);
+        if (validRoleIds.Count != requestedRoleIds.Count)
+        {
+            return BadRequest(new { error = "One or more selected roles do not exist." });
+        }
+
         var (hash, salt) = PasswordHasher.HashPassword(request.Password);
         var user = new TestUser
         {
@@ -272,8 +289,8 @@ public class AuthController(
             DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? request.UserName.Trim() : request.DisplayName.Trim(),
             PasswordHash = hash,
             PasswordSalt = salt,
-            Role = string.IsNullOrWhiteSpace(request.Role) ? "cpq-user" : request.Role.Trim(),
-            IsAdmin = request.IsAdmin,
+            Role = "capability-managed",
+            IsAdmin = false,
             IsApproved = request.IsApproved,
             ApprovedAt = request.IsApproved ? DateTime.UtcNow : null,
             ApprovedByUserName = request.IsApproved ? CurrentUserName : null
@@ -282,6 +299,12 @@ public class AuthController(
         db.TestUsers.Add(user);
         await db.SaveChangesAsync(ct);
 
+        if (validRoleIds.Count > 0)
+        {
+            db.UserAccessRoles.AddRange(validRoleIds.Select(roleId => new UserAccessRole { UserId = user.Id, RoleId = roleId }));
+            await db.SaveChangesAsync(ct);
+        }
+
         await activityService.LogAsync(new ActivityWriteRequest(
             ActivityCategory.Admin,
             "AdminCreateUser",
@@ -289,13 +312,14 @@ public class AuthController(
             TargetType: "User",
             TargetId: user.Id.ToString(),
             StatusCode: StatusCodes.Status200OK,
-            Metadata: new { user.UserName, user.Role, user.IsAdmin, user.IsApproved }),
+            Metadata: new { user.UserName, user.IsApproved, request.RoleIds }),
             ct);
-        return Ok(ToDto(user));
+        return Ok(await ToDtoAsync(user, ct));
     }
 
     [HttpPost("users/{id:guid}/approve")]
     [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "users.assign_roles")]
     public async Task<ActionResult<AuthUserDto>> Approve(Guid id, [FromBody] ApproveUserRequest request, CancellationToken ct)
     {
         var user = await db.TestUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -304,13 +328,26 @@ public class AuthController(
             return NotFound(new { error = "User not found." });
         }
 
+        var requestedRoleIds = request.RoleIds?.Distinct().ToList() ?? [];
+        var validRoleIds = await db.AccessRoles.Where(role => requestedRoleIds.Contains(role.Id)).Select(role => role.Id).ToListAsync(ct);
+        if (validRoleIds.Count != requestedRoleIds.Count)
+        {
+            return BadRequest(new { error = "One or more selected roles do not exist." });
+        }
+
         user.IsApproved = true;
-        user.Role = string.IsNullOrWhiteSpace(request.Role) ? "cpq-user" : request.Role.Trim();
-        user.IsAdmin = request.IsAdmin;
+        user.Role = "capability-managed";
+        user.IsAdmin = false;
+        user.IsSuspended = false;
         user.ApprovedAt = DateTime.UtcNow;
         user.ApprovedByUserName = CurrentUserName;
 
         await db.SaveChangesAsync(ct);
+        if (validRoleIds.Count > 0)
+        {
+            db.UserAccessRoles.AddRange(validRoleIds.Select(roleId => new UserAccessRole { UserId = user.Id, RoleId = roleId }));
+            await db.SaveChangesAsync(ct);
+        }
         
         // Notify user that they were approved
         await notificationService.NotifyUserApprovedAsync(user.Id, CurrentUserName);
@@ -322,10 +359,10 @@ public class AuthController(
             TargetType: "User",
             TargetId: user.Id.ToString(),
             StatusCode: StatusCodes.Status200OK,
-            Metadata: new { user.UserName, user.Role, user.IsAdmin }),
+            Metadata: new { user.UserName, request.RoleIds }),
             ct);
         
-        return Ok(ToDto(user));
+        return Ok(await ToDtoAsync(user, ct));
     }
 
     [HttpPost("users/{id:guid}/reject")]
@@ -360,14 +397,10 @@ public class AuthController(
 
     [HttpPost("users/{id:guid}/role")]
     [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "users.assign_roles")]
     public async Task<ActionResult<AuthUserDto>> UpdateRole(Guid id, [FromBody] UpdateUserRoleRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Role))
-        {
-            return BadRequest(new { error = "Role is required." });
-        }
-
-        var user = await db.TestUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
+        var user = await db.TestUsers.Include(x => x.AccessRoles).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (user is null)
         {
             return NotFound(new { error = "User not found." });
@@ -378,25 +411,28 @@ public class AuthController(
             return Conflict(new { error = "User must be approved first." });
         }
 
-        var oldRole = user.Role;
-        user.Role = request.Role.Trim();
-        user.IsAdmin = request.IsAdmin;
+        var roleIds = await db.AccessRoles.Where(role => request.RoleIds.Contains(role.Id)).Select(role => role.Id).ToListAsync(ct);
+        if (roleIds.Count != request.RoleIds.Distinct().Count()) return BadRequest(new { error = "One or more selected roles do not exist." });
+        var oldRole = string.Join(", ", await accessControlService.GetRoleKeysAsync(user.Id, ct));
+        db.UserAccessRoles.RemoveRange(user.AccessRoles);
+        user.AccessRoles = roleIds.Select(roleId => new UserAccessRole { UserId = user.Id, RoleId = roleId }).ToList();
+        user.IsSuspended = request.IsSuspended;
         await db.SaveChangesAsync(ct);
         
         // Notify user of role change
-        await notificationService.NotifyUserRoleChangedAsync(user.Id, oldRole, user.Role);
+        await notificationService.NotifyUserRoleChangedAsync(user.Id, oldRole, string.Join(", ", await accessControlService.GetRoleKeysAsync(user.Id, ct)));
 
         await activityService.LogAsync(new ActivityWriteRequest(
             ActivityCategory.Admin,
             "UpdateUserRole",
-            $"Admin updated role for {user.DisplayName} from {oldRole} to {user.Role}.",
+            $"Admin updated access roles for {user.DisplayName}.",
             TargetType: "User",
             TargetId: user.Id.ToString(),
             StatusCode: StatusCodes.Status200OK,
-            Metadata: new { oldRole, newRole = user.Role, user.IsAdmin }),
+            Metadata: new { oldRole, request.RoleIds, request.IsSuspended }),
             ct);
         
-        return Ok(ToDto(user));
+        return Ok(await ToDtoAsync(user, ct));
     }
 
     [HttpDelete("users/{id:guid}")]
@@ -430,19 +466,11 @@ public class AuthController(
         return NoContent();
     }
 
-    private static AuthUserDto ToDto(TestUser user, DateTime? lastSeenAt = null) => new(
-        user.Id,
-        user.UserName,
-        user.DisplayName,
-        user.Role,
-        user.IsApproved,
-        user.IsAdmin,
-        user.CreatedAt,
-        user.ApprovedAt,
-        user.ApprovedByUserName,
-        user.LastLoginAt,
-        lastSeenAt is null || (user.LastLoginAt.HasValue && user.LastLoginAt > lastSeenAt)
-            ? user.LastLoginAt
-            : lastSeenAt
-    );
+    private async Task<AuthUserDto> ToDtoAsync(TestUser user, CancellationToken ct, DateTime? lastSeenAt = null)
+    {
+        var assignments = await db.UserAccessRoles.AsNoTracking().Where(value => value.UserId == user.Id)
+            .Select(value => new { value.RoleId, value.Role.Name, Capabilities = value.Role.RoleCapabilities.Select(capability => capability.Capability) }).ToListAsync(ct);
+        var effectiveLastSeen = lastSeenAt is null || (user.LastLoginAt.HasValue && user.LastLoginAt > lastSeenAt) ? user.LastLoginAt : lastSeenAt;
+        return new AuthUserDto(user.Id, user.UserName, user.DisplayName, user.Role, user.IsApproved, user.IsAdmin, user.CreatedAt, user.ApprovedAt, user.ApprovedByUserName, user.LastLoginAt, effectiveLastSeen, user.IsSuspended, assignments.Select(value => value.RoleId).ToList(), assignments.Select(value => value.Name).ToList(), assignments.SelectMany(value => value.Capabilities).Distinct().OrderBy(value => value).ToList());
+    }
 }

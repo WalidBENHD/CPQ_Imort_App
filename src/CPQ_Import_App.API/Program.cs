@@ -8,6 +8,8 @@ using CPQ_Import_App.API.Middleware;
 using CPQ_Import_App.API.Monitoring;
 using CPQ_Import_App.API.Security;
 using CPQ_Import_App.API.Services;
+using CPQ_Import_App.Core.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -78,6 +80,8 @@ builder.Services.AddScoped<IFileParser, PriceListParser>();
 builder.Services.AddScoped<ICpqCommitStrategy, ArticleCommitStrategy>();
 builder.Services.AddScoped<ICpqCommitStrategy, PriceListCommitStrategy>();
 builder.Services.AddScoped<LocalJwtTokenFactory>();
+builder.Services.AddScoped<AccessControlService>();
+builder.Services.AddScoped<IAuthorizationHandler, CapabilityAuthorizationHandler>();
 builder.Services.AddScoped<IEvolisDecryptorService, EvolisDecryptorService>();
 builder.Services.AddScoped<EvolisWordDocumentBuilder>();
 builder.Services.AddScoped<EvolisPdfDocumentBuilder>();
@@ -133,28 +137,16 @@ else
 // ── Authorization Policies ────────────────────────────────────────────────────
 builder.Services.AddAuthorization(options =>
 {
-    // Users with claim "roles" containing "cpq-approver" can commit/reject imports.
-    // Adjust the claim type to match your OIDC provider's token structure.
-    options.AddPolicy("ApproverOnly", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.HasClaim(c =>
-                (c.Type == "roles" || c.Type == "role" ||
-                 c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                && (c.Value == "cpq-approver" || c.Value == "cpq-internal-tools" || c.Value == "cpq-admin"))));
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .AddRequirements(new ActiveAccountRequirement())
+        .Build();
+    foreach (var capability in Capabilities.All)
+        options.AddPolicy(capability, policy => policy.RequireAuthenticatedUser().RequireCapability(capability));
 
-    options.AddPolicy("InternalToolsOnly", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.HasClaim(c =>
-                (c.Type == "roles" || c.Type == "role" ||
-                 c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                && (c.Value == "cpq-internal-tools" || c.Value == "cpq-admin"))));
-
-    options.AddPolicy("AdminOnly", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.HasClaim(c =>
-                (c.Type == "roles" || c.Type == "role" ||
-                 c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-                && c.Value == "cpq-admin")));
+    options.AddPolicy("ApproverOnly", policy => policy.RequireAuthenticatedUser().RequireCapability(Capabilities.ImportsApprove));
+    options.AddPolicy("InternalToolsOnly", policy => policy.RequireAuthenticatedUser().RequireCapability(Capabilities.ToolsEvolis));
+    options.AddPolicy("AdminOnly", policy => policy.RequireAuthenticatedUser().RequireCapability(Capabilities.UsersManage));
 });
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -210,6 +202,7 @@ using (var scope = app.Services.CreateScope())
         await db.Database.EnsureCreatedAsync();
         await EnsurePostgresImportJobsColumnsAsync(db);
         await EnsurePostgresActivityEventsTableAsync(db);
+        await EnsurePostgresAccessControlTablesAsync(db);
     }
     else if (db.Database.IsRelational())
     {
@@ -220,6 +213,8 @@ using (var scope = app.Services.CreateScope())
     {
         await LocalAuthBootstrapper.EnsureSeedAdminAsync(db, app.Configuration);
     }
+
+    await AccessControlBootstrapper.EnsureSeedDataAsync(db);
 }
 
 if (app.Environment.IsDevelopment())
@@ -321,6 +316,46 @@ static async Task EnsurePostgresImportJobsColumnsAsync(AppDbContext db)
 
         ALTER TABLE IF EXISTS import."ImportJobs"
         ADD COLUMN IF NOT EXISTS "ApprovedByUserId" character varying(256) NULL;
+        """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static async Task EnsurePostgresAccessControlTablesAsync(AppDbContext db)
+{
+    const string sql = """
+        ALTER TABLE IF EXISTS import."TestUsers"
+        ADD COLUMN IF NOT EXISTS "IsSuspended" boolean NOT NULL DEFAULT false;
+
+        CREATE TABLE IF NOT EXISTS import."AccessRoles" (
+            "Id" uuid NOT NULL,
+            "Key" character varying(80) NOT NULL,
+            "Name" character varying(120) NOT NULL,
+            "Description" character varying(1000) NOT NULL,
+            "Icon" character varying(80) NOT NULL,
+            "Color" character varying(32) NOT NULL,
+            "IsSystem" boolean NOT NULL,
+            "CreatedAt" timestamp with time zone NOT NULL,
+            "UpdatedAt" timestamp with time zone NOT NULL,
+            CONSTRAINT "PK_AccessRoles" PRIMARY KEY ("Id")
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_AccessRoles_Key" ON import."AccessRoles" ("Key");
+
+        CREATE TABLE IF NOT EXISTS import."RoleCapabilities" (
+            "RoleId" uuid NOT NULL,
+            "Capability" character varying(120) NOT NULL,
+            CONSTRAINT "PK_RoleCapabilities" PRIMARY KEY ("RoleId", "Capability"),
+            CONSTRAINT "FK_RoleCapabilities_AccessRoles_RoleId" FOREIGN KEY ("RoleId") REFERENCES import."AccessRoles" ("Id") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS import."UserAccessRoles" (
+            "UserId" uuid NOT NULL,
+            "RoleId" uuid NOT NULL,
+            CONSTRAINT "PK_UserAccessRoles" PRIMARY KEY ("UserId", "RoleId"),
+            CONSTRAINT "FK_UserAccessRoles_TestUsers_UserId" FOREIGN KEY ("UserId") REFERENCES import."TestUsers" ("Id") ON DELETE CASCADE,
+            CONSTRAINT "FK_UserAccessRoles_AccessRoles_RoleId" FOREIGN KEY ("RoleId") REFERENCES import."AccessRoles" ("Id") ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS "IX_UserAccessRoles_RoleId" ON import."UserAccessRoles" ("RoleId");
         """;
 
     await db.Database.ExecuteSqlRawAsync(sql);

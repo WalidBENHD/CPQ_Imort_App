@@ -3,6 +3,7 @@ using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Metadata;
+using CPQ_Import_App.Core.Security;
 using CPQ_Import_App.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,7 @@ namespace CPQ_Import_App.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = Capabilities.ImportsView)]
 public class DashboardController(
     IImportService importService,
     AppDbContext db) : ControllerBase

@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { AuthTokenResponse, AuthUser } from '../models/auth.models';
+import { AccessRole, AuthTokenResponse, AuthUser, SaveAccessRoleRequest } from '../models/auth.models';
 import { ToastService } from '../services/toast.service';
 import { NotificationService } from '../services/notification.service';
 
@@ -80,10 +80,33 @@ export class LocalAuthService {
     return this.http.get<AuthUser[]>(`${environment.apiUrl}/auth/users`);
   }
 
-  approveUser(userId: string, role: string, isAdmin: boolean): Observable<AuthUser> {
+  getAccessRoles(): Observable<AccessRole[]> {
+    return this.http.get<AccessRole[]>(`${environment.apiUrl}/access/roles`);
+  }
+
+  getCapabilityCatalog(): Observable<string[]> {
+    return this.http.get<string[]>(`${environment.apiUrl}/access/capabilities`);
+  }
+
+  createAccessRole(request: SaveAccessRoleRequest): Observable<AccessRole> {
+    return this.http.post<AccessRole>(`${environment.apiUrl}/access/roles`, request).pipe(tap(() => this.toast.success('Role created.')));
+  }
+
+  updateAccessRole(roleId: string, request: SaveAccessRoleRequest): Observable<AccessRole> {
+    return this.http.put<AccessRole>(`${environment.apiUrl}/access/roles/${roleId}`, request).pipe(tap(() => this.toast.success('Role capabilities saved.')));
+  }
+
+  deleteAccessRole(roleId: string): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl}/access/roles/${roleId}`).pipe(tap(() => this.toast.success('Role deleted.')));
+  }
+
+  updateUserAccess(userId: string, isApproved: boolean, isSuspended: boolean, roleIds: string[]): Observable<AuthUser> {
+    return this.http.put<AuthUser>(`${environment.apiUrl}/access/users/${userId}`, { isApproved, isSuspended, roleIds }).pipe(tap(() => this.toast.success('User access updated.')));
+  }
+
+  approveUser(userId: string, roleIds: string[]): Observable<AuthUser> {
     return this.http.post<AuthUser>(`${environment.apiUrl}/auth/users/${userId}/approve`, {
-      role,
-      isAdmin
+      roleIds
     }).pipe(
       tap(() => {
         this.toast.success('User approved and notification sent.');
@@ -105,10 +128,10 @@ export class LocalAuthService {
     );
   }
 
-  updateRole(userId: string, role: string, isAdmin: boolean): Observable<AuthUser> {
+  updateRole(userId: string, roleIds: string[], isSuspended = false): Observable<AuthUser> {
     return this.http.post<AuthUser>(`${environment.apiUrl}/auth/users/${userId}/role`, {
-      role,
-      isAdmin
+      roleIds,
+      isSuspended
     }).pipe(
       tap(() => {
         this.toast.success('User role updated.');
@@ -139,9 +162,8 @@ export class LocalAuthService {
     userName: string;
     displayName: string;
     password: string;
-    role: string;
-    isAdmin: boolean;
     isApproved: boolean;
+    roleIds: string[];
   }): Observable<AuthUser> {
     return this.http.post<AuthUser>(`${environment.apiUrl}/auth/users`, payload).pipe(
       tap(() => {

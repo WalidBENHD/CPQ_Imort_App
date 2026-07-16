@@ -3,23 +3,23 @@ using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Metadata;
-using CPQ_Import_App.Infrastructure.Data;
 using CPQ_Import_App.Infrastructure.Services;
+using CPQ_Import_App.API.Security;
+using CPQ_Import_App.Core.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CPQ_Import_App.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = Capabilities.ImportsView)]
 public class ImportsController(
     IImportService importService,
     INotificationService notificationService,
     IActivityService activityService,
-    AppDbContext db) : ControllerBase
+    AccessControlService accessControlService) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
@@ -31,6 +31,8 @@ public class ImportsController(
 
     /// <summary>Upload a file and create an import job.</summary>
     [HttpPost("upload")]
+    [Authorize(Policy = Capabilities.ImportsUpload)]
+    [Authorize(Policy = Capabilities.ImportsSubmit)]
     [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB
     public async Task<ActionResult<ImportJobDto>> Upload(
         IFormFile file,
@@ -56,15 +58,11 @@ public class ImportsController(
             if (job.Status == ImportStatus.AwaitingApproval)
             {
                 // Notify approvers/admins about the new import
-                var approverIds = await db.TestUsers
-                    .AsNoTracking()
-                    .Where(x => x.IsApproved && (x.IsAdmin || x.Role == "cpq-approver"))
-                    .Select(x => x.Id)
-                    .ToListAsync(ct);
+                var approverIds = await accessControlService.GetUserIdsWithCapabilityAsync(Capabilities.ImportsApprove, ct);
 
                 if (approverIds.Any())
                 {
-                    await notificationService.NotifyImportUploadedAsync(job, approverIds);
+                    await notificationService.NotifyImportUploadedAsync(job, approverIds.ToList());
                 }
             }
             else if (job.Status == ImportStatus.NeedsCorrection && Guid.TryParse(job.CreatedBy, out var uploaderId))
@@ -128,11 +126,15 @@ public class ImportsController(
 
     /// <summary>Refresh row validation against the latest approved master data.</summary>
     [HttpPost("{id:guid}/refresh-validation")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
     public async Task<ActionResult<ImportJobDto>> RefreshValidation(Guid id, CancellationToken ct)
     {
         var job = await importService.GetJobAsync(id, ct);
         if (job is null)
             return NotFound(new { error = $"Import job '{id}' not found." });
+
+        if (!string.Equals(job.CreatedBy, UserId, StringComparison.OrdinalIgnoreCase))
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Only the original uploader can refresh this import." });
 
         if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
         {
@@ -217,6 +219,7 @@ public class ImportsController(
     /// <summary>Commit a job — role: cpq-approver required.</summary>
     /// <summary>Update a staging row during correction mode.</summary>
     [HttpPut("{jobId:guid}/rows/{rowId:guid}")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
     public async Task<ActionResult<ImportJobDto>> UpdateRow(
         Guid jobId,
         Guid rowId,
@@ -263,6 +266,7 @@ public class ImportsController(
 
     /// <summary>Cancel a submission so the uploader can correct the source file and re-upload.</summary>
     [HttpPost("{id:guid}/cancel")]
+    [Authorize(Policy = Capabilities.ImportsWithdrawOwn)]
     public async Task<ActionResult<ImportJobDto>> Cancel(Guid id, CancellationToken ct)
     {
         var job = await importService.GetJobAsync(id, ct);
@@ -299,15 +303,9 @@ public class ImportsController(
     }
 
     [HttpPost("{id:guid}/approve")]
-    [Authorize]
+    [Authorize(Policy = Capabilities.ImportsApprove)]
     public async Task<ActionResult<ImportJobDto>> Approve(Guid id, CancellationToken ct)
     {
-        var permissionError = await ValidateApproverPermissionAsync(ct);
-        if (permissionError is not null)
-        {
-            return permissionError;
-        }
-
         try
         {
             var job = await importService.ApproveAsync(id, UserId, UserDisplayName, ct);
@@ -339,15 +337,9 @@ public class ImportsController(
     }
 
     [HttpPost("{id:guid}/return-to-review")]
-    [Authorize]
+    [Authorize(Policy = Capabilities.ImportsReturnToReview)]
     public async Task<ActionResult<ImportJobDto>> ReturnToReview(Guid id, CancellationToken ct)
     {
-        var permissionError = await ValidateApproverPermissionAsync(ct);
-        if (permissionError is not null)
-        {
-            return permissionError;
-        }
-
         try
         {
             var job = await importService.ReturnToReviewAsync(id, UserId, UserDisplayName, ct);
@@ -372,15 +364,9 @@ public class ImportsController(
     }
 
     [HttpPost("{id:guid}/publish")]
-    [Authorize]
+    [Authorize(Policy = Capabilities.ImportsPublish)]
     public async Task<ActionResult<PublicationResultDto>> Publish(Guid id, CancellationToken ct)
     {
-        var permissionError = await ValidateApproverPermissionAsync(ct);
-        if (permissionError is not null)
-        {
-            return permissionError;
-        }
-
         try
         {
             var job = await importService.PublishAsync(id, UserId, UserDisplayName, ct);
@@ -414,15 +400,9 @@ public class ImportsController(
 
     /// <summary>Reject a job — role: cpq-approver required.</summary>
     [HttpPost("{id:guid}/reject")]
-    [Authorize]
+    [Authorize(Policy = Capabilities.ImportsReject)]
     public async Task<ActionResult<ImportJobDto>> Reject(Guid id, [FromBody] RejectRequest request, CancellationToken ct)
     {
-        var permissionError = await ValidateApproverPermissionAsync(ct);
-        if (permissionError is not null)
-        {
-            return permissionError;
-        }
-
         if (string.IsNullOrWhiteSpace(request.Reason))
             return BadRequest("A rejection reason is required.");
         try
@@ -495,27 +475,4 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
-    private async Task<ActionResult?> ValidateApproverPermissionAsync(CancellationToken ct)
-    {
-        if (!Guid.TryParse(UserId, out var currentUserId))
-        {
-            return Unauthorized(new { error = "Invalid user identity." });
-        }
-
-        var currentUser = await db.TestUsers
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == currentUserId, ct);
-
-        if (currentUser is null || !currentUser.IsApproved)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Your account is not approved to perform this action." });
-        }
-
-        if (!currentUser.IsAdmin && !string.Equals(currentUser.Role, "cpq-approver", StringComparison.OrdinalIgnoreCase))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Approver role is required. Sign out and sign in again after role changes." });
-        }
-
-        return null;
-    }
 }

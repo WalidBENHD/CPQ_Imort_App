@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard, internalToolsGuard } from './core/auth/auth.guard';
+import { authGuard, capabilityGuard, internalToolsGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -17,17 +17,17 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard',
-    canActivate: [authGuard],
+    canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
   },
   {
     path: 'datasets',
-    canActivate: [authGuard],
+    canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/datasets/datasets.component').then(m => m.DatasetsComponent)
   },
   {
     path: 'uploads',
-    canActivate: [authGuard],
+    canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/uploads/uploads.component').then(m => m.UploadsComponent)
   },
   {
@@ -37,12 +37,12 @@ export const routes: Routes = [
   },
   {
     path: 'import/new',
-    canActivate: [authGuard],
+    canActivate: [capabilityGuard('imports.upload'), capabilityGuard('imports.submit')],
     loadComponent: () => import('./features/import-wizard/import-wizard.component').then(m => m.ImportWizardComponent)
   },
   {
     path: 'import/:id',
-    canActivate: [authGuard],
+    canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/import-preview/import-preview.component').then(m => m.ImportPreviewComponent)
   },
   {
@@ -51,13 +51,23 @@ export const routes: Routes = [
   },
   {
     path: 'admin/users',
-    canActivate: [adminGuard],
-    loadComponent: () => import('./features/admin/user-approval.component').then(m => m.UserApprovalComponent)
+    canActivate: [capabilityGuard('users.manage'), capabilityGuard('users.assign_roles')],
+    loadComponent: () => import('./features/admin/people-studio.component').then(m => m.PeopleStudioComponent)
   },
   {
     path: 'admin/activity',
-    canActivate: [adminGuard],
+    canActivate: [capabilityGuard('audit.view')],
     loadComponent: () => import('./features/admin/activity-monitor.component').then(m => m.ActivityMonitorComponent)
+  },
+  {
+    path: 'admin/access-studio',
+    canActivate: [capabilityGuard('roles.manage')],
+    loadComponent: () => import('./features/admin/access-studio.component').then(m => m.AccessStudioComponent)
+  },
+  {
+    path: 'admin/maintenance',
+    canActivate: [capabilityGuard('system.maintenance')],
+    loadComponent: () => import('./features/admin/maintenance.component').then(m => m.MaintenanceComponent)
   },
   { path: '**', redirectTo: 'dashboard' }
 ];

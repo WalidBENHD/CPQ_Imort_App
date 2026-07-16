@@ -48,3 +48,9 @@ export function readRoles(claims: TokenClaims): string[] {
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
 }
+
+export function readCapabilities(claims: TokenClaims): string[] {
+  const value = claims['capabilities'];
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+  return typeof value === 'string' ? [value] : [];
+}

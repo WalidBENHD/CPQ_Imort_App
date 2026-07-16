@@ -8,7 +8,7 @@ namespace CPQ_Import_App.API.Security;
 
 public class LocalJwtTokenFactory(IConfiguration configuration)
 {
-    public (string Token, DateTime ExpiresAtUtc) CreateToken(TestUser user)
+    public (string Token, DateTime ExpiresAtUtc) CreateToken(TestUser user, IEnumerable<string> roles, IEnumerable<string> capabilities)
     {
         var issuer = configuration["Auth:Local:Issuer"] ?? "CPQImportLocal";
         var audience = configuration["Auth:Local:Audience"] ?? "CPQImportLocalClient";
@@ -20,14 +20,10 @@ public class LocalJwtTokenFactory(IConfiguration configuration)
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.DisplayName),
             new("name", user.DisplayName),
-            new("preferred_username", user.UserName),
-            new("roles", user.Role)
+            new("preferred_username", user.UserName)
         };
-
-        if (user.IsAdmin)
-        {
-            claims.Add(new Claim("roles", "cpq-admin"));
-        }
+        claims.AddRange(roles.Select(role => new Claim("roles", role)));
+        claims.AddRange(capabilities.Select(capability => new Claim("capabilities", capability)));
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),

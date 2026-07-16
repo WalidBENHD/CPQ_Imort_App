@@ -12,6 +12,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TestUser> TestUsers => Set<TestUser>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ActivityEvent> ActivityEvents => Set<ActivityEvent>();
+    public DbSet<AccessRole> AccessRoles => Set<AccessRole>();
+    public DbSet<RoleCapability> RoleCapabilities => Set<RoleCapability>();
+    public DbSet<UserAccessRole> UserAccessRoles => Set<UserAccessRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +78,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Role).HasMaxLength(64);
             e.Property(x => x.ApprovedByUserName).HasMaxLength(120);
             e.HasIndex(x => x.NormalizedUserName).IsUnique();
+        });
+
+        modelBuilder.Entity<AccessRole>(e =>
+        {
+            e.ToTable("AccessRoles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Key).HasMaxLength(80);
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Icon).HasMaxLength(80);
+            e.Property(x => x.Color).HasMaxLength(32);
+            e.HasIndex(x => x.Key).IsUnique();
+        });
+
+        modelBuilder.Entity<RoleCapability>(e =>
+        {
+            e.ToTable("RoleCapabilities");
+            e.HasKey(x => new { x.RoleId, x.Capability });
+            e.Property(x => x.Capability).HasMaxLength(120);
+            e.HasOne(x => x.Role).WithMany(x => x.RoleCapabilities).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserAccessRole>(e =>
+        {
+            e.ToTable("UserAccessRoles");
+            e.HasKey(x => new { x.UserId, x.RoleId });
+            e.HasOne(x => x.User).WithMany(x => x.AccessRoles).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Notification>(e =>

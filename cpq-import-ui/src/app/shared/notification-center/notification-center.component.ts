@@ -402,7 +402,7 @@ export class NotificationCenterComponent implements OnInit, OnDestroy {
 
     switch (notification.notificationType) {
       case NotificationType.UserPendingApproval:
-        return this.auth.isAdmin ? ['/admin/users'] : ['/dashboard'];
+        return this.auth.hasCapability('users.manage') && this.auth.hasCapability('users.assign_roles') ? ['/admin/users'] : ['/dashboard'];
 
       case NotificationType.UserApproved:
       case NotificationType.UserRoleChanged:

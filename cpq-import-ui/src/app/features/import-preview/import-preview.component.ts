@@ -311,12 +311,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       </mat-card>
 
       <!-- Approval actions (approvers only, when AwaitingApproval) -->
-      <mat-card class="action-card" *ngIf="(job.statusLabel === 'AwaitingApproval' || job.statusLabel === 'Approved') && auth.isApprover">
+      <mat-card class="action-card" *ngIf="(job.statusLabel === 'AwaitingApproval' && canReviewApproval) || (job.statusLabel === 'Approved' && canControlPublication)">
         <mat-card-content>
           <ng-container *ngIf="publicationApproval; else approvalReview">
             <app-publication-readiness
               [approval]="publicationApproval"
               [publishing]="committing"
+              [canPublish]="auth.hasCapability('imports.publish')"
+              [canReturnToReview]="auth.hasCapability('imports.return_to_review')"
               (publish)="publishToCpq()"
               (returnToReview)="returnToReview()" />
           </ng-container>
@@ -347,17 +349,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                 </span>
               </div>
               <div class="action-buttons">
-                <button mat-raised-button color="primary" class="btn-commit" (click)="approveForPublication()" [disabled]="approving">
+                <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" class="btn-commit" (click)="approveForPublication()" [disabled]="approving">
                   <mat-icon>{{ approving ? 'hourglass_top' : 'verified' }}</mat-icon>
                   {{ approving ? 'Approving...' : 'Approve for publication' }}
                 </button>
-                <button mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
+                <button *ngIf="auth.hasCapability('imports.reject')" mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
                   <mat-icon>close</mat-icon> Reject
                 </button>
               </div>
             </div>
 
-            <div class="reject-panel" *ngIf="showRejectPanel">
+            <div class="reject-panel" *ngIf="showRejectPanel && auth.hasCapability('imports.reject')">
               <mat-divider></mat-divider>
               <div class="reject-form">
                 <div class="reject-field">
@@ -1245,7 +1247,9 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   canEditRow(row: StagingRow): boolean {
-    return this.job?.statusLabel !== 'Approved'
+    return this.auth.hasCapability('imports.correct_own')
+      && this.job?.createdBy === this.auth.userId
+      && this.job?.statusLabel !== 'Approved'
       && this.job?.statusLabel !== 'Committed'
       && this.job?.statusLabel !== 'Rejected'
       && this.job?.statusLabel !== 'Failed'
@@ -1265,7 +1269,15 @@ export class ImportPreviewComponent implements OnInit {
     }
 
     const canCancelStatus = this.job.statusLabel === 'AwaitingApproval' || this.job.statusLabel === 'NeedsCorrection';
-    return canCancelStatus && this.auth.userId !== '' && this.job.createdBy === this.auth.userId;
+    return this.auth.hasCapability('imports.withdraw_own') && canCancelStatus && this.auth.userId !== '' && this.job.createdBy === this.auth.userId;
+  }
+
+  get canReviewApproval(): boolean {
+    return this.auth.hasCapability('imports.approve') || this.auth.hasCapability('imports.reject');
+  }
+
+  get canControlPublication(): boolean {
+    return this.auth.hasCapability('imports.publish') || this.auth.hasCapability('imports.return_to_review');
   }
 
   canRefreshValidation(): boolean {
@@ -1273,7 +1285,9 @@ export class ImportPreviewComponent implements OnInit {
       return false;
     }
 
-    return !['Approved', 'Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
+    return this.auth.hasCapability('imports.correct_own')
+      && this.job.createdBy === this.auth.userId
+      && !['Approved', 'Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
   }
 
   canDownloadComparisonReport(): boolean {

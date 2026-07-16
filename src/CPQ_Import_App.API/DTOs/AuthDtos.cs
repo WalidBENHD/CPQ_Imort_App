@@ -4,17 +4,16 @@ public record RegisterRequest(string UserName, string DisplayName, string Passwo
 
 public record LoginRequest(string UserName, string Password);
 
-public record ApproveUserRequest(string? Role, bool IsAdmin);
+public record ApproveUserRequest(IReadOnlyList<Guid>? RoleIds);
 
-public record UpdateUserRoleRequest(string Role, bool IsAdmin);
+public record UpdateUserRoleRequest(IReadOnlyList<Guid> RoleIds, bool IsSuspended = false);
 
 public record AdminCreateUserRequest(
     string UserName,
     string DisplayName,
     string Password,
-    string Role,
-    bool IsAdmin,
-    bool IsApproved
+    bool IsApproved,
+    IReadOnlyList<Guid>? RoleIds
 );
 
 public record AuthUserDto(
@@ -28,7 +27,15 @@ public record AuthUserDto(
     DateTime? ApprovedAt,
     string? ApprovedByUserName,
     DateTime? LastLoginAt,
-    DateTime? LastSeenAt
+    DateTime? LastSeenAt,
+    bool IsSuspended,
+    IReadOnlyList<Guid> RoleIds,
+    IReadOnlyList<string> RoleNames,
+    IReadOnlyList<string> Capabilities
 );
+
+public record AccessRoleDto(Guid Id, string Key, string Name, string Description, string Icon, string Color, bool IsSystem, IReadOnlyList<string> Capabilities, int AssignedUsers);
+public record SaveAccessRoleRequest(string Name, string Description, string Icon, string Color, IReadOnlyList<string> Capabilities);
+public record UpdateUserAccessRequest(bool IsApproved, bool IsSuspended, IReadOnlyList<Guid> RoleIds);
 
 public record AuthTokenResponse(string AccessToken, DateTime ExpiresAtUtc, AuthUserDto User);

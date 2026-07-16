@@ -2,7 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { map } from 'rxjs/operators';
-import { mergeClaims, readAccessTokenClaims, readRoles, TokenClaims } from './token-claims';
+import { mergeClaims, readAccessTokenClaims, readCapabilities, readRoles, TokenClaims } from './token-claims';
 import { LocalAuthService } from './local-auth.service';
 import { isLocalAuthMode } from './auth-mode';
 
@@ -10,120 +10,49 @@ export const authGuard: CanActivateFn = () => {
   if (isLocalAuthMode()) {
     const localAuth = inject(LocalAuthService);
     const router = inject(Router);
-
-    return localAuth.ensureUserLoaded().pipe(
-      map((user) => user ? true : router.parseUrl('/login'))
-    );
+    return localAuth.ensureUserLoaded().pipe(map(user => user ? true : router.parseUrl('/login')));
   }
 
   const oauthService = inject(OAuthService);
-
-  if (oauthService.hasValidAccessToken()) {
-    return true;
-  }
-
+  if (oauthService.hasValidAccessToken()) return true;
   oauthService.initCodeFlow();
   return false;
 };
 
-export const approverGuard: CanActivateFn = () => {
-  if (isLocalAuthMode()) {
-    const localAuth = inject(LocalAuthService);
+export function capabilityGuard(capability: string): CanActivateFn {
+  return () => {
     const router = inject(Router);
-
-    return localAuth.ensureUserLoaded().pipe(
-      map((user) => {
+    if (isLocalAuthMode()) {
+      const localAuth = inject(LocalAuthService);
+      return localAuth.ensureUserLoaded().pipe(map(user => {
         if (!user) return router.parseUrl('/login');
-        const tokenClaims = readAccessTokenClaims(localAuth.token);
-        const roles = readRoles(tokenClaims);
-        if (roles.includes('cpq-approver') || roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
-        return router.parseUrl('/forbidden');
-      })
-    );
-  }
+        return user.capabilities?.includes(capability) ? true : router.parseUrl('/forbidden');
+      }));
+    }
 
-  const oauthService = inject(OAuthService);
-  const router = inject(Router);
+    const oauthService = inject(OAuthService);
+    if (!oauthService.hasValidAccessToken()) {
+      oauthService.initCodeFlow();
+      return false;
+    }
 
-  if (!oauthService.hasValidAccessToken()) {
-    oauthService.initCodeFlow();
-    return false;
-  }
+    const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
+    const claims = mergeClaims(identityClaims, readAccessTokenClaims(oauthService.getAccessToken()));
+    const capabilities = readCapabilities(claims);
+    const roles = readRoles(claims);
+    if (capabilities.includes(capability) || legacyRoleAllows(roles, capability)) return true;
+    return router.parseUrl('/forbidden');
+  };
+}
 
-  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
-  const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
-  const claims = mergeClaims(identityClaims, accessTokenClaims);
-  const roles = readRoles(claims);
-  if (roles.includes('cpq-approver') || roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
-
-  router.navigate(['/forbidden']);
-  return false;
-};
-
-export const internalToolsGuard: CanActivateFn = () => {
-  if (isLocalAuthMode()) {
-    const localAuth = inject(LocalAuthService);
-    const router = inject(Router);
-
-    return localAuth.ensureUserLoaded().pipe(
-      map((user) => {
-        if (!user) return router.parseUrl('/login');
-        const tokenClaims = readAccessTokenClaims(localAuth.token);
-        const roles = readRoles(tokenClaims);
-        if (roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
-        return router.parseUrl('/forbidden');
-      })
-    );
-  }
-
-  const oauthService = inject(OAuthService);
-  const router = inject(Router);
-
-  if (!oauthService.hasValidAccessToken()) {
-    oauthService.initCodeFlow();
-    return false;
-  }
-
-  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
-  const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
-  const claims = mergeClaims(identityClaims, accessTokenClaims);
-  const roles = readRoles(claims);
-  if (roles.includes('cpq-internal-tools') || roles.includes('cpq-admin')) return true;
-
-  router.navigate(['/forbidden']);
-  return false;
-};
-
-export const adminGuard: CanActivateFn = () => {
-  if (isLocalAuthMode()) {
-    const localAuth = inject(LocalAuthService);
-    const router = inject(Router);
-
-    return localAuth.ensureUserLoaded().pipe(
-      map((user) => {
-        if (!user) return router.parseUrl('/login');
-        const tokenClaims = readAccessTokenClaims(localAuth.token);
-        const roles = readRoles(tokenClaims);
-        if (roles.includes('cpq-admin')) return true;
-        return router.parseUrl('/forbidden');
-      })
-    );
-  }
-
-  const oauthService = inject(OAuthService);
-  const router = inject(Router);
-
-  if (!oauthService.hasValidAccessToken()) {
-    oauthService.initCodeFlow();
-    return false;
-  }
-
-  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
-  const accessTokenClaims = readAccessTokenClaims(oauthService.getAccessToken());
-  const claims = mergeClaims(identityClaims, accessTokenClaims);
-  const roles = readRoles(claims);
+function legacyRoleAllows(roles: string[], capability: string): boolean {
   if (roles.includes('cpq-admin')) return true;
-
-  router.navigate(['/forbidden']);
+  if (capability === 'tools.evolis') return roles.includes('cpq-internal-tools');
+  if (['imports.approve', 'imports.reject', 'imports.return_to_review', 'imports.publish'].includes(capability))
+    return roles.includes('cpq-approver') || roles.includes('cpq-internal-tools');
   return false;
-};
+}
+
+export const approverGuard = capabilityGuard('imports.approve');
+export const internalToolsGuard = capabilityGuard('tools.evolis');
+export const adminGuard = capabilityGuard('users.manage');

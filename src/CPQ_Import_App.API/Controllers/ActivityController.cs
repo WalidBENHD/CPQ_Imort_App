@@ -1,6 +1,7 @@
 using CPQ_Import_App.API.DTOs;
 using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.Core.Enums;
+using CPQ_Import_App.Core.Security;
 using CPQ_Import_App.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -53,7 +54,7 @@ public class ActivityController(IActivityService activityService) : ControllerBa
     }
 
     [HttpGet("overview")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = Capabilities.AuditView)]
     public async Task<ActionResult<ActivityOverviewDto>> GetOverview(CancellationToken ct)
     {
         var overview = await activityService.GetOverviewAsync(ct);
@@ -61,7 +62,7 @@ public class ActivityController(IActivityService activityService) : ControllerBa
     }
 
     [HttpGet]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = Capabilities.AuditView)]
     public async Task<ActionResult<PagedResult<ActivityEventDto>>> GetActivities(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,

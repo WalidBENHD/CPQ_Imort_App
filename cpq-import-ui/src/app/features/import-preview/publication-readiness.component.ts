@@ -62,10 +62,10 @@ export interface PublicationApprovalDraft {
       </div>
 
       <div class="publication-actions">
-        <button mat-button type="button" (click)="returnToReview.emit()" [disabled]="publishing">
+        <button *ngIf="canReturnToReview" mat-button type="button" (click)="returnToReview.emit()" [disabled]="publishing">
           <mat-icon>undo</mat-icon> Return to review
         </button>
-        <button mat-raised-button type="button" class="publish-button" (click)="publish.emit()" [disabled]="publishing">
+        <button *ngIf="canPublish" mat-raised-button type="button" class="publish-button" (click)="publish.emit()" [disabled]="publishing">
           <mat-icon>{{ publishing ? 'hourglass_top' : 'publish' }}</mat-icon>
           {{ publishing ? 'Publishing...' : 'Publish to CPQ' }}
         </button>
@@ -137,6 +137,8 @@ export interface PublicationApprovalDraft {
 export class PublicationReadinessComponent {
   @Input({ required: true }) approval!: PublicationApprovalDraft;
   @Input() publishing = false;
+  @Input() canPublish = false;
+  @Input() canReturnToReview = false;
   @Output() publish = new EventEmitter<void>();
   @Output() returnToReview = new EventEmitter<void>();
 }

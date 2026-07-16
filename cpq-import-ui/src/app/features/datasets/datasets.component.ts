@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
+import { AuthFacade } from '../../core/auth/auth.facade';
 
 @Component({
   selector: 'app-datasets',
@@ -20,7 +21,7 @@ import { ImportService } from '../../core/services/import.service';
           Manage the pilot dataset portfolio, ownership, template standards and current version for Saint-Marcellin PDU.
         </p>
       </div>
-      <button mat-raised-button color="primary" routerLink="/import/new">
+      <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" routerLink="/import/new">
         <mat-icon>add</mat-icon> New Annual Submission
       </button>
     </div>
@@ -70,7 +71,7 @@ import { ImportService } from '../../core/services/import.service';
         </div>
 
         <div class="dataset-actions">
-          <button mat-stroked-button (click)="startImport(dataset)">
+          <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-stroked-button (click)="startImport(dataset)">
             <mat-icon>publish</mat-icon> Import version
           </button>
           <button mat-button color="primary" (click)="downloadTemplate(dataset)">
@@ -496,6 +497,7 @@ import { ImportService } from '../../core/services/import.service';
   `]
 })
 export class DatasetsComponent implements OnInit {
+  readonly auth = inject(AuthFacade);
   private readonly router = inject(Router);
   private readonly importService = inject(ImportService);
 

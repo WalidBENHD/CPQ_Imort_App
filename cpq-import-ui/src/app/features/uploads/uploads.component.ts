@@ -16,6 +16,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ImportService } from '../../core/services/import.service';
 import { DATASET_CATALOG, EntityType, ImportJob, ImportStatus, PagedResult } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
+import { AuthFacade } from '../../core/auth/auth.facade';
 
 @Component({
   selector: 'app-uploads',
@@ -47,7 +48,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
       </div>
 
       <div class="header-actions">
-        <button mat-raised-button color="primary" (click)="newImport()">
+        <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" (click)="newImport()">
           <mat-icon>add</mat-icon> New Import
         </button>
       </div>
@@ -646,6 +647,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
   `]
 })
 export class UploadsComponent implements OnInit {
+  readonly auth = inject(AuthFacade);
   private readonly importService = inject(ImportService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);

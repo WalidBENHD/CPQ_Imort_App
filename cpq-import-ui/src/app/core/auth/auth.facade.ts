@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { OAuthService } from 'angular-oauth2-oidc';
-import { mergeClaims, readAccessTokenClaims, readRoles, TokenClaims } from './token-claims';
+import { mergeClaims, readAccessTokenClaims, readCapabilities, readRoles, TokenClaims } from './token-claims';
 import { LocalAuthService } from './local-auth.service';
 import { isLocalAuthMode } from './auth-mode';
 
@@ -51,36 +51,35 @@ export class AuthFacade {
   }
 
   get isApprover(): boolean {
-    if (isLocalAuthMode()) {
-      const tokenClaims = readAccessTokenClaims(this.localAuth.token);
-      const tokenRoles = readRoles(tokenClaims);
-      return tokenRoles.includes('cpq-approver') || tokenRoles.includes('cpq-internal-tools') || tokenRoles.includes('cpq-admin');
-    }
-
-    const roles = readRoles(this.mergedClaims);
-    return roles.includes('cpq-approver') || roles.includes('cpq-internal-tools') || roles.includes('cpq-admin');
+    return this.hasCapability('imports.approve') || this.hasCapability('imports.publish');
   }
 
   get isAdmin(): boolean {
-    if (isLocalAuthMode()) {
-      const tokenClaims = readAccessTokenClaims(this.localAuth.token);
-      const tokenRoles = readRoles(tokenClaims);
-      return tokenRoles.includes('cpq-admin');
-    }
-
-    const roles = readRoles(this.mergedClaims);
-    return roles.includes('cpq-admin');
+    return this.hasCapability('users.manage');
   }
 
   get isInternalTools(): boolean {
+    return this.hasCapability('tools.evolis');
+  }
+
+  hasCapability(capability: string): boolean {
     if (isLocalAuthMode()) {
-      const tokenClaims = readAccessTokenClaims(this.localAuth.token);
-      const tokenRoles = readRoles(tokenClaims);
-      return tokenRoles.includes('cpq-internal-tools') || tokenRoles.includes('cpq-admin');
+      const current = this.localAuth.currentUser?.capabilities;
+      if (current) return current.includes(capability);
+      const claims = readAccessTokenClaims(this.localAuth.token);
+      return readCapabilities(claims).includes(capability) || this.legacyRoleAllows(readRoles(claims), capability);
     }
 
-    const roles = readRoles(this.mergedClaims);
-    return roles.includes('cpq-internal-tools') || roles.includes('cpq-admin');
+    const claims = this.mergedClaims;
+    return readCapabilities(claims).includes(capability) || this.legacyRoleAllows(readRoles(claims), capability);
+  }
+
+  private legacyRoleAllows(roles: string[], capability: string): boolean {
+    if (roles.includes('cpq-admin')) return true;
+    if (capability === 'tools.evolis') return roles.includes('cpq-internal-tools');
+    if (['imports.approve', 'imports.reject', 'imports.return_to_review', 'imports.publish'].includes(capability))
+      return roles.includes('cpq-approver') || roles.includes('cpq-internal-tools');
+    return false;
   }
 
   get isAuthenticated(): boolean {
