@@ -120,6 +120,7 @@ interface AccessRole {
               <button mat-stroked-button type="button" (click)="openAccessEditor(user, false)"><mat-icon>manage_accounts</mat-icon> Manage access</button>
               <button mat-button type="button" *ngIf="accountStatus(user) === 'Active'" (click)="setAccountStatus(user, 'Suspended')">Suspend</button>
               <button mat-button type="button" *ngIf="accountStatus(user) === 'Suspended'" (click)="setAccountStatus(user, 'Active')">Reactivate</button>
+              <button mat-icon-button type="button" class="delete-user-button" *ngIf="canDeleteUser(user)" (click)="openDeleteConfirmation(user)" [attr.aria-label]="'Delete ' + user.displayName" title="Delete user"><mat-icon>delete_outline</mat-icon></button>
             </div>
           </article>
         </div>
@@ -144,6 +145,15 @@ interface AccessRole {
         <label class="field-label">Temporary password<input type="password" [(ngModel)]="newPassword" placeholder="At least 8 characters" /></label>
         <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Initial roles</mat-label><mat-select multiple [(ngModel)]="newUserRoleIds"><mat-option *ngFor="let role of roles" [value]="role.id">{{ role.name }}</mat-option></mat-select></mat-form-field>
         <div class="drawer-actions"><button mat-button type="button" (click)="closeCreateUser()">Cancel</button><button mat-raised-button class="primary-button" type="button" [disabled]="!newDisplayName.trim() || !newUserName.trim() || newPassword.length < 8" (click)="createUser()">Create account</button></div>
+      </section>
+
+      <div class="modal-backdrop" *ngIf="deleteCandidate" (click)="closeDeleteConfirmation()"></div>
+      <section class="create-dialog delete-dialog" *ngIf="deleteCandidate as user" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
+        <div class="delete-dialog__icon"><mat-icon>person_remove</mat-icon></div>
+        <div class="delete-dialog__copy"><span class="section-kicker section-kicker--danger">Permanent account deletion</span><h2 id="delete-user-title">Delete {{ user.displayName }}?</h2><p>The account and its role assignments will be removed. Historical uploads, approvals and audit evidence remain attributed to this user.</p></div>
+        <div class="delete-dialog__alternative"><mat-icon>pause_circle</mat-icon><span>Need a reversible option? Cancel and suspend the account instead.</span></div>
+        <label class="delete-confirm-field"><span>Type <strong>{{ user.userName }}</strong> to confirm</span><input [(ngModel)]="deleteConfirmationText" autocomplete="off" [placeholder]="user.userName" (keyup.enter)="deleteUser()" /></label>
+        <div class="delete-dialog__actions"><button mat-button type="button" (click)="closeDeleteConfirmation()" [disabled]="deletingUser">Cancel</button><button mat-raised-button type="button" class="delete-confirm-button" [disabled]="deleteConfirmationText !== user.userName || deletingUser" (click)="deleteUser()"><mat-icon>{{ deletingUser ? 'hourglass_top' : 'delete_forever' }}</mat-icon>{{ deletingUser ? 'Deleting...' : 'Delete user permanently' }}</button></div>
       </section>
     </section>
   `,
@@ -178,6 +188,7 @@ interface AccessRole {
     .role-chips { display:flex; flex-wrap:wrap; gap:5px; } .role-chips span { --role-color:#2563eb; padding:4px 7px; border:1px solid color-mix(in srgb,var(--role-color) 30%,transparent); border-radius:999px; color:var(--role-color); background:color-mix(in srgb,var(--role-color) 8%,var(--app-surface)); font-size:10px; font-weight:800; }
     .access-warning { display:flex; align-items:center; gap:5px; color:#b45309; font-size:11px; } .access-warning mat-icon { width:16px; height:16px; font-size:16px; }
     .capability-cell { display:grid; text-align:center; } .capability-cell strong { color:var(--app-text); font-size:17px; } .capability-cell span { color:var(--app-text-muted); font-size:10px; } .person-actions { justify-content:flex-end; gap:5px; } .person-actions button { border-radius:999px; }
+    .delete-user-button { color:#dc2626; }
     .empty-state,.loading-state { display:grid; justify-items:center; gap:5px; padding:35px; color:var(--app-text-muted); } .empty-state mat-icon { width:38px; height:38px; font-size:38px; } .empty-state strong { color:var(--app-text); }
     .modal-backdrop { position:fixed; inset:0; z-index:300; background:rgba(2,6,23,.58); backdrop-filter:blur(3px); }
     .access-drawer { position:fixed; z-index:310; top:0; right:0; width:min(520px,94vw); height:100vh; box-sizing:border-box; display:flex; flex-direction:column; gap:18px; overflow-y:auto; padding:24px; border-left:1px solid var(--app-border); background:var(--app-surface); box-shadow:-20px 0 50px rgba(2,6,23,.2); }
@@ -189,13 +200,15 @@ interface AccessRole {
     .drawer-empty { display:flex; align-items:center; gap:7px; padding:16px; border:1px dashed var(--app-border); border-radius:11px; color:#b45309; }
     .effective-summary { justify-content:space-between; padding:13px; border-radius:11px; color:#1e3a8a; background:#eff6ff; } .drawer-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:auto; padding-top:15px; border-top:1px solid var(--app-border); }
     .create-dialog { position:fixed; z-index:310; top:50%; left:50%; width:min(540px,92vw); box-sizing:border-box; display:grid; gap:16px; padding:22px; border:1px solid var(--app-border); border-radius:18px; background:var(--app-surface); box-shadow:0 25px 70px rgba(2,6,23,.3); transform:translate(-50%,-50%); } .field-label { display:grid; gap:6px; } .field-label input { box-sizing:border-box; width:100%; padding:11px; border:1px solid var(--app-border); border-radius:10px; color:var(--app-text); background:var(--app-surface-soft); font:inherit; outline:none; }
+    .delete-dialog { width:min(590px,92vw); border-color:#fca5a5; } .delete-dialog__icon { width:44px; height:44px; display:grid; place-items:center; border-radius:13px; color:#fff; background:#dc2626; } .delete-dialog__copy h2 { margin:4px 0; color:var(--app-text); } .delete-dialog__copy p { margin:0; color:var(--app-text-muted); } .delete-dialog__alternative { display:flex; gap:8px; padding:10px; color:#1e40af; font-size:12px; } .delete-confirm-field { display:grid; gap:6px; color:var(--app-text); font-size:12px; } .delete-confirm-field input { padding:11px; border:1px solid var(--app-border); border-radius:10px; color:var(--app-text); background:var(--app-surface-soft); font:800 14px monospace; } .delete-dialog__actions { display:flex; justify-content:flex-end; gap:8px; } .delete-confirm-button { color:#fff !important; background:#dc2626 !important; }
     :host-context(html.theme-dark) .prototype-notice { color:#bfdbfe; border-color:rgba(96,165,250,.35); border-left-color:#60a5fa; background:linear-gradient(90deg,rgba(30,64,175,.22),rgba(15,23,42,.9)); } :host-context(html.theme-dark) .prototype-pill,:host-context(html.theme-dark) .count-pill { color:#bfdbfe; border-color:rgba(96,165,250,.3); background:#111c32; }
     :host-context(html.theme-dark) .request-card { border-color:rgba(245,158,11,.3); background:linear-gradient(90deg,rgba(120,53,15,.18),var(--app-surface)); } :host-context(html.theme-dark) .request-callout { color:#fcd34d; }
     :host-context(html.theme-dark) .status-active { color:#86efac; background:rgba(22,101,52,.3); } :host-context(html.theme-dark) .status-pending { color:#fcd34d; background:rgba(146,64,14,.3); } :host-context(html.theme-dark) .status-suspended { color:#cbd5e1; background:#334155; } :host-context(html.theme-dark) .status-rejected { color:#fca5a5; background:rgba(127,29,29,.3); }
     :host-context(html.theme-dark) .account-principle,:host-context(html.theme-dark) .effective-summary { color:#bfdbfe; border-color:rgba(96,165,250,.3); background:rgba(30,64,175,.2); } :host-context(html.theme-dark) .status-choice button.selected { color:#bfdbfe; border-color:rgba(96,165,250,.5); background:rgba(30,64,175,.2); }
+    :host-context(html.theme-dark) .delete-user-button { color:#f87171; } :host-context(html.theme-dark) .delete-dialog__alternative { color:#bfdbfe; }
     @media (max-width:1100px) { .request-card { grid-template-columns:1fr auto; } .request-callout { grid-column:1; } .request-actions { grid-column:2; grid-row:1 / span 2; max-width:240px; } .person-row { grid-template-columns:minmax(210px,1fr) 120px minmax(180px,1fr) auto; } .capability-cell { display:none; } }
     @media (max-width:820px) { .page-header { align-items:flex-start; flex-direction:column; } .header-actions { width:100%; } .header-actions a,.header-actions button { flex:1; } .summary-grid { grid-template-columns:repeat(2,1fr); } .request-card { grid-template-columns:1fr; } .request-callout,.request-actions { grid-column:auto; grid-row:auto; max-width:none; } .request-actions { justify-content:stretch; } .request-actions button { flex:1; } .filter-bar { grid-template-columns:1fr; } .person-row { grid-template-columns:1fr auto; } .roles-cell { grid-column:1; } .account-cell { grid-column:2; grid-row:1; } .person-actions { grid-column:1 / -1; } }
-    @media (max-width:520px) { .prototype-notice { grid-template-columns:auto 1fr; } .prototype-pill { grid-column:2; justify-self:start; } .summary-grid { gap:8px; } .summary-card { display:grid; justify-items:center; padding:11px 7px; text-align:center; } .header-actions { display:grid; } .pending-panel,.directory-panel { padding:14px; } .request-actions { display:grid; } .person-row { grid-template-columns:1fr; } .account-cell,.roles-cell,.person-actions { grid-column:1; grid-row:auto; } .person-actions { display:grid; } .access-drawer { padding:18px; } .drawer-actions { flex-direction:column-reverse; } .drawer-actions button { width:100%; } }
+    @media (max-width:520px) { .prototype-notice { grid-template-columns:auto 1fr; } .prototype-pill { grid-column:2; justify-self:start; } .summary-grid { gap:8px; } .summary-card { display:grid; justify-items:center; padding:11px 7px; text-align:center; } .header-actions { display:grid; } .pending-panel,.directory-panel { padding:14px; } .request-actions { display:grid; } .person-row { grid-template-columns:1fr; } .account-cell,.roles-cell,.person-actions { grid-column:1; grid-row:auto; } .person-actions { display:grid; } .access-drawer { padding:18px; } .drawer-actions { flex-direction:column-reverse; } .drawer-actions button { width:100%; } .delete-dialog__actions { flex-direction:column-reverse; } .delete-dialog__actions button { width:100%; } }
   `]
 })
 export class PeopleStudioComponent implements OnInit {
@@ -215,6 +228,9 @@ export class PeopleStudioComponent implements OnInit {
   newUserName = '';
   newPassword = '';
   newUserRoleIds: string[] = [];
+  deleteCandidate: AuthUser | null = null;
+  deleteConfirmationText = '';
+  deletingUser = false;
 
   ngOnInit(): void {
     this.reload();
@@ -347,6 +363,38 @@ export class PeopleStudioComponent implements OnInit {
     this.localAuth.createUser({ userName, displayName, password: this.newPassword, isApproved: true, roleIds: this.newUserRoleIds }).subscribe(user => {
       this.users = this.dedupeUsers([...this.users, user]);
       this.closeCreateUser();
+    });
+  }
+
+  canDeleteUser(user: AuthUser): boolean {
+    return user.id !== this.localAuth.currentUser?.id;
+  }
+
+  openDeleteConfirmation(user: AuthUser): void {
+    if (!this.canDeleteUser(user)) return;
+    this.deleteCandidate = user;
+    this.deleteConfirmationText = '';
+  }
+
+  closeDeleteConfirmation(): void {
+    if (this.deletingUser) return;
+    this.deleteCandidate = null;
+    this.deleteConfirmationText = '';
+  }
+
+  deleteUser(): void {
+    const user = this.deleteCandidate;
+    if (!user || this.deleteConfirmationText !== user.userName || this.deletingUser) return;
+    this.deletingUser = true;
+    this.localAuth.deleteUser(user.id).subscribe({
+      next: () => {
+        this.users = this.users.filter(item => item.id !== user.id);
+        this.deletingUser = false;
+        this.closeDeleteConfirmation();
+      },
+      error: () => {
+        this.deletingUser = false;
+      }
     });
   }
 
