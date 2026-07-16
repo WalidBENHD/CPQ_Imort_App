@@ -74,7 +74,7 @@ public class DashboardController(
 
         var recentSubmissions = await importService.GetJobsPagedAsync(1, 5, ct: ct);
 
-        var openQueue = jobs.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection);
+        var openQueue = jobs.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.Approved || j.Status == ImportStatus.NeedsCorrection);
 
         var summary = new DashboardSummaryDto(
             openQueue,
@@ -82,7 +82,7 @@ public class DashboardController(
             jobs.Count(j => j.Status == ImportStatus.Rejected),
             jobs.Count,
             jobs.Count(j => j.Status == ImportStatus.NeedsCorrection || (j.Status == ImportStatus.AwaitingApproval && j.ErrorRows > 0)),
-            jobs.Count(j => (j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection) && (j.ProcessedAt ?? j.CreatedAt) < agingCutoff));
+            jobs.Count(j => (j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.Approved || j.Status == ImportStatus.NeedsCorrection) && (j.ProcessedAt ?? j.CreatedAt) < agingCutoff));
 
         var attentionItems = BuildAttentionItems(jobs);
         var datasetHealth = BuildDatasetHealth(jobs);
@@ -101,7 +101,7 @@ public class DashboardController(
         var items = new List<DashboardAttentionDto>();
 
         var oldestPending = jobs
-            .Where(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection)
+            .Where(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.Approved || j.Status == ImportStatus.NeedsCorrection)
             .OrderBy(j => j.ProcessedAt ?? j.CreatedAt)
             .FirstOrDefault();
 
@@ -110,9 +110,9 @@ public class DashboardController(
             var age = DateTime.UtcNow - (oldestPending.ProcessedAt ?? oldestPending.CreatedAt);
             items.Add(new DashboardAttentionDto(
                 oldestPending.Id,
-                "Oldest approval pending",
+                oldestPending.Status == ImportStatus.Approved ? "Publication pending" : "Oldest approval pending",
                 DatasetCatalog.Get(oldestPending.EntityType).DisplayName,
-                $"Waiting {FormatAge(age)} for action. {(oldestPending.Status == ImportStatus.NeedsCorrection || oldestPending.ErrorRows > 0 ? $"{oldestPending.ErrorRows} error rows need attention." : "Ready for approver action.")}",
+                $"Waiting {FormatAge(age)} for action. {(oldestPending.Status == ImportStatus.Approved ? "Approved and ready to publish to CPQ." : oldestPending.Status == ImportStatus.NeedsCorrection || oldestPending.ErrorRows > 0 ? $"{oldestPending.ErrorRows} error rows need attention." : "Ready for approver action.")}",
                 age >= TimeSpan.FromHours(24) ? "High" : "Medium",
                 "Review",
                 oldestPending.ProcessedAt ?? oldestPending.CreatedAt));
@@ -196,7 +196,7 @@ public class DashboardController(
                 var subset = jobs.Where(j => j.EntityType == dataset.EntityType).ToList();
                 var totalRows = subset.Sum(j => j.TotalRows);
                 var errorRows = subset.Sum(j => j.ErrorRows);
-                var openItems = subset.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.NeedsCorrection);
+                var openItems = subset.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.Approved || j.Status == ImportStatus.NeedsCorrection);
                 var lastActivity = subset
                     .Select(j => j.CommittedAt ?? j.RejectedAt ?? j.ProcessedAt ?? j.CreatedAt)
                     .OrderByDescending(x => x)

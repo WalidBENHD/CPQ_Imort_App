@@ -312,6 +312,15 @@ static async Task EnsurePostgresImportJobsColumnsAsync(AppDbContext db)
     const string sql = """
         ALTER TABLE IF EXISTS import."ImportJobs"
         ADD COLUMN IF NOT EXISTS "ApprovedComparisonJson" text NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "ApprovedAt" timestamp with time zone NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "ApprovedByDisplayName" character varying(512) NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "ApprovedByUserId" character varying(256) NULL;
         """;
 
     await db.Database.ExecuteSqlRawAsync(sql);

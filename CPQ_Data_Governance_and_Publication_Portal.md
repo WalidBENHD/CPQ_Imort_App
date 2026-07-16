@@ -1097,7 +1097,7 @@ The recommended next business deliverables are:
 
 ## 20. Current Application Fit and Phased Delivery
 
-At this stage, the current app satisfies the scope in a partial but meaningful way: it already delivers the user-facing entry points for login, role-aware access, dataset selection, upload, validation preview, row correction, approval/rejection, dashboards, and operational visibility, which means the core submission journey is demonstrable and usable for a pilot; on top of that, it now records the exact approval snapshot, keeps the approved baseline history separate from the live recalculated comparison, clearly marks the active baseline, and supports scoped deletions for missing rows inside the approved scope. Even so, it still only covers the business scope at an estimated 60-65% because the governed back end is not yet complete, and the portal still needs a fuller ownership model, more publication controls, and rollback maturity. The recommended phase plan is: **Phase 1 - Governance foundation** to finalize roles, scope, templates, reference data, and validation rules; **Phase 2 - Controlled submission MVP** to implement upload, validation, comparison, approval, approval evidence, and publication for one site and one product family; **Phase 3 - Traceability and risk reduction** to add history, effective dates, change reasons, and rollback; and **Phase 4 - Adoption and scale** to expand to more sites, dashboards, reminders, and operational reporting once the pilot is stable. For the pilot, the business scope is two logical datasets managed in one workflow: **Article Master** and **Basis Price**. The price dataset is intentionally framed as a **unit price** dataset: the file stores the monetary amount as `UnitPrice`, and the article master provides the unit of measure so users can read the value as "price per unit" without ambiguity.
+At this stage, the current app satisfies the scope in a partial but meaningful way: it already delivers the user-facing entry points for login, role-aware access, dataset selection, upload, validation preview, row correction, approval/rejection, dashboards, and operational visibility, which means the core submission journey is demonstrable and usable for a pilot; on top of that, it now records the exact approval snapshot, keeps the approved baseline history separate from the live recalculated comparison, clearly marks the active baseline, supports scoped deletions for missing rows inside the approved scope, and separates approval from publication through a persisted publication gate. The application now covers an estimated 65-70% of the business scope. The remaining gap is concentrated in a fuller ownership model, configurable separation of approver and publisher responsibilities, effective dates, rollback maturity, and broader operational reporting. The recommended phase plan is: **Phase 1 - Governance foundation** to finalize roles, scope, templates, reference data, and validation rules; **Phase 2 - Controlled submission MVP** to implement upload, validation, comparison, approval, approval evidence, and publication for one site and one product family; **Phase 3 - Traceability and risk reduction** to add history, effective dates, change reasons, and rollback; and **Phase 4 - Adoption and scale** to expand to more sites, dashboards, reminders, and operational reporting once the pilot is stable. For the pilot, the business scope is two logical datasets managed in one workflow: **Article Master** and **Basis Price**. The price dataset is intentionally framed as a **unit price** dataset: the file stores the monetary amount as `UnitPrice`, and the article master provides the unit of measure so users can read the value as "price per unit" without ambiguity.
 
 ### Phase 1 - Detailed Workplan
 
@@ -1135,6 +1135,10 @@ The app has already been adjusted to reflect the pilot foundations described abo
 - Preserving the live comparison as a separate recalculated view for newer uploads so the user can distinguish historical proof from current state
 - Updating the approval confirmation flow so the approver sees the impact before committing, including new, modified, and scoped-missing rows
 - Keeping missing-row deletions limited to the approved scope instead of deleting unrelated articles that may be used by other scopes
+- Separating approval from publication so approval records the accepted impact without changing CPQ
+- Persisting the approver identity, approval timestamp, and immutable comparison before publication
+- Freezing approved submissions against editing and revalidation until they are explicitly returned to review
+- Blocking publication when the active baseline has changed since approval, forcing a fresh review of the recalculated impact
 - Updating the scope document itself so the business direction, pilot assumptions, and implementation choices stay synchronized
 
 In practical terms, Phase 1 is now no longer only a planning exercise: the app already reflects the chosen pilot structure, the governed template shape, the clearer pricing meaning that the business asked for, the approval evidence model, and a more polished portfolio presentation for datasets and template structure.
@@ -1152,17 +1156,20 @@ The second phase has focused on turning the pilot into a real controlled submiss
 - Updating the approver action wording to reflect an annual review instead of a generic upload approval
 - Improving the preview messaging so the user understands when an upload creates the first baseline and when it is being compared to a previous approved version
 - Wiring the comparison logic through the backend, API contract, and frontend preview so the annual-update flow is visible end to end
-- Recording the approver's exact accepted comparison at commit time so the committed record becomes the evidence trail for what was approved
+- Recording the approver's exact accepted comparison at approval time so the evidence exists before CPQ publication
 - Making the committed upload view show the approval snapshot separately from the live comparison against the latest approved baseline
 - Showing the active-baseline status near the title for uploads that currently anchor the scope, while removing the redundant self-comparison block
 - Adding a confirmation dialog before annual approval that explains the impact of new, modified, and missing rows
 - Restricting missing-row deletion to the detected differences against the last approved baseline for the same scope
+- Adding a persisted **Ready for Publication** state between approval and CPQ publication
+- Adding a separate final publication confirmation that is the only workflow action that changes CPQ
+- Recording approval and publication as separate audit activities, including distinct approver and publisher identities
 - Simplifying the datasets page so each governed dataset has a compact card, a single metadata block, and an expandable structure section instead of repeated summary blocks
 - Converting the dataset structure into a field-card dictionary so the requirements are readable without forcing a wide, cut-off table layout
 - Adding a stable card height behavior so expanding one dataset does not visually stretch the neighboring card
 - Extending the same enterprise styling language to the datasets page and import wizard so the portal feels visually consistent across the pilot journey
 
-In practical terms, Phase 2 now gives the pilot a governed comparison workflow: the user can upload a new version, see what changed against the approved baseline, filter the rows by comparison status, correct data where required, approve the annual refresh with clear business context, and later reopen the committed upload with a preserved approval record that proves what was signed off, while the surrounding dataset pages and wizard now present that process in a cleaner governed portal style.
+In practical terms, Phase 2 now gives the pilot a governed comparison and publication workflow: the user can upload a new version, see what changed against the approved baseline, filter the rows by comparison status, correct data where required, approve the annual refresh without immediately changing CPQ, and then perform a separate controlled publication. The approval remains preserved as evidence of what was signed off, and stale approvals are prevented from publishing when the active baseline has moved.
 
 ### Pilot Template - Article Master + Basis Price
 

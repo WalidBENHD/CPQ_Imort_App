@@ -1,5 +1,5 @@
 export type EntityType = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
-export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'NeedsCorrection' | 'Committed' | 'Rejected' | 'Failed' | 'Cancelled';
+export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'NeedsCorrection' | 'Approved' | 'Committed' | 'Rejected' | 'Failed' | 'Cancelled';
 export type RowStatus = 'Valid' | 'Warning' | 'Error';
 export type ComparisonStatus = 'New' | 'Modified' | 'Unchanged';
 
@@ -61,6 +61,9 @@ export interface ImportJob {
   createdByDisplayName: string;
   createdAt: string;
   processedAt: string | null;
+  approvedAt: string | null;
+  approvedByUserId: string | null;
+  approvedByDisplayName: string | null;
   committedAt: string | null;
   committedBy: string | null;
   rejectedBy: string | null;
@@ -96,9 +99,9 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
-export interface CommitResult {
+export interface PublicationResult {
   jobId: string;
-  committedRows: number;
+  publishedRows: number;
   message: string;
 }
 

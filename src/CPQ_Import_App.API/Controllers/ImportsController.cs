@@ -110,7 +110,7 @@ public class ImportsController(
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 
-    /// <summary>Get the immutable comparison that was accepted when a committed upload was approved.</summary>
+    /// <summary>Get the immutable comparison accepted at approval, before or after publication.</summary>
     [HttpGet("{id:guid}/approval-snapshot")]
     public async Task<ActionResult<ApprovedComparisonSnapshotDto>> GetApprovalSnapshot(Guid id, CancellationToken ct)
     {
@@ -134,7 +134,7 @@ public class ImportsController(
         if (job is null)
             return NotFound(new { error = $"Import job '{id}' not found." });
 
-        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+        if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
         {
             return Conflict(new { error = $"Job is in status '{job.Status}' and cannot be refreshed." });
         }
@@ -298,9 +298,9 @@ public class ImportsController(
         }
     }
 
-    [HttpPost("{id:guid}/commit")]
+    [HttpPost("{id:guid}/approve")]
     [Authorize]
-    public async Task<ActionResult<CommitResultDto>> Commit(Guid id, CancellationToken ct)
+    public async Task<ActionResult<ImportJobDto>> Approve(Guid id, CancellationToken ct)
     {
         var permissionError = await ValidateApproverPermissionAsync(ct);
         if (permissionError is not null)
@@ -310,9 +310,81 @@ public class ImportsController(
 
         try
         {
-            var job = await importService.CommitAsync(id, UserId, UserDisplayName, ct);
-            
-            // Notify the uploader that their import was committed
+            var job = await importService.ApproveAsync(id, UserId, UserDisplayName, ct);
+
+            if (Guid.TryParse(job.CreatedBy, out var uploaderId))
+            {
+                await notificationService.NotifyImportApprovedAsync(job, uploaderId);
+            }
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "ApproveImport",
+                $"Approved import {id} for publication.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { job.ApprovedAt, job.ApprovedByDisplayName }),
+                ct);
+
+            return Ok(job.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Approval failed: {ex.GetBaseException().Message}" });
+        }
+    }
+
+    [HttpPost("{id:guid}/return-to-review")]
+    [Authorize]
+    public async Task<ActionResult<ImportJobDto>> ReturnToReview(Guid id, CancellationToken ct)
+    {
+        var permissionError = await ValidateApproverPermissionAsync(ct);
+        if (permissionError is not null)
+        {
+            return permissionError;
+        }
+
+        try
+        {
+            var job = await importService.ReturnToReviewAsync(id, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "ReturnImportToReview",
+                $"Returned approved import {id} to review.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK),
+                ct);
+
+            return Ok(job.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = $"Return to review failed: {ex.GetBaseException().Message}" });
+        }
+    }
+
+    [HttpPost("{id:guid}/publish")]
+    [Authorize]
+    public async Task<ActionResult<PublicationResultDto>> Publish(Guid id, CancellationToken ct)
+    {
+        var permissionError = await ValidateApproverPermissionAsync(ct);
+        if (permissionError is not null)
+        {
+            return permissionError;
+        }
+
+        try
+        {
+            var job = await importService.PublishAsync(id, UserId, UserDisplayName, ct);
+
             if (Guid.TryParse(job.CreatedBy, out var uploaderId))
             {
                 await notificationService.NotifyImportCommittedAsync(job, uploaderId);
@@ -320,22 +392,23 @@ public class ImportsController(
 
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,
-                "CommitImport",
-                $"Committed import {id} with {job.CommittedRows} rows.",
+                "PublishImport",
+                $"Published import {id} to CPQ with {job.CommittedRows} rows.",
                 TargetType: "ImportJob",
                 TargetId: id.ToString(),
                 StatusCode: StatusCodes.Status200OK,
-                Metadata: new { job.CommittedRows }),
+                Metadata: new { PublishedRows = job.CommittedRows, job.ApprovedAt, job.ApprovedByDisplayName }),
                 ct);
-            
-            return Ok(new CommitResultDto(job.Id, job.CommittedRows, $"Successfully committed {job.CommittedRows} rows."));
+
+            return Ok(new PublicationResultDto(job.Id, job.CommittedRows, $"Successfully published {job.CommittedRows} rows to CPQ."));
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return Conflict(new { error = ex.Message }); }
         catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError,
-                new { error = $"Commit failed: {ex.GetBaseException().Message}" });
+                new { error = $"Publication failed: {ex.GetBaseException().Message}" });
         }
     }
 

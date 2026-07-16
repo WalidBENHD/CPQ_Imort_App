@@ -664,8 +664,9 @@ export class UploadsComponent implements OnInit {
     { value: 'Pending', label: 'Pending' },
     { value: 'Processing', label: 'Processing' },
     { value: 'AwaitingApproval', label: 'Awaiting approval' },
+    { value: 'Approved', label: 'Ready for publication' },
     { value: 'NeedsCorrection', label: 'Needs correction' },
-    { value: 'Committed', label: 'Committed' },
+    { value: 'Committed', label: 'Published' },
     { value: 'Rejected', label: 'Rejected' },
     { value: 'Failed', label: 'Failed' },
     { value: 'Cancelled', label: 'Cancelled' }

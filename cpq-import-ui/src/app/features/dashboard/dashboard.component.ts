@@ -62,7 +62,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
               <mat-card class="summary-card awaiting">
                 <div class="summary-top">
                   <mat-icon>pending_actions</mat-icon>
-                  <span>Awaiting Approval</span>
+                  <span>Open Workflow</span>
                 </div>
                 <div class="summary-value">{{ overview.summary.awaitingApproval }}</div>
               </mat-card>
@@ -70,7 +70,7 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
               <mat-card class="summary-card committed">
                 <div class="summary-top">
                   <mat-icon>check_circle</mat-icon>
-                  <span>Committed Today</span>
+                  <span>Published Today</span>
                 </div>
                 <div class="summary-value">{{ overview.summary.committedToday }}</div>
               </mat-card>

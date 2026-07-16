@@ -24,6 +24,9 @@ public class ImportJob
     public int WarningRows { get; set; }
     public int ErrorRows { get; set; }
     public int CommittedRows { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApprovedByUserId { get; set; }
+    public string? ApprovedByDisplayName { get; set; }
     public string? ApprovedComparisonJson { get; set; }
     [NotMapped]
     public bool IsActiveBaseline { get; set; }

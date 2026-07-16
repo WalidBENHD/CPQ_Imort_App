@@ -24,6 +24,8 @@ import { AuthFacade } from '../../core/auth/auth.facade';
 import { EditRowDialogComponent } from './edit-row-dialog.component';
 import { AnnualCommitConfirmDialogComponent } from './annual-commit-confirm-dialog.component';
 import { ApprovalRecordComponent } from './approval-record.component';
+import { PublicationApprovalDraft, PublicationReadinessComponent } from './publication-readiness.component';
+import { PublicationConfirmDialogComponent } from './publication-confirm-dialog.component';
 import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -35,7 +37,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     MatChipsModule, MatProgressSpinnerModule, MatPaginatorModule,
     MatTabsModule, MatDialogModule, MatSnackBarModule, MatTooltipModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule,
-    StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent],
+    StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent,
+    PublicationReadinessComponent, PublicationConfirmDialogComponent],
   template: `
     <div class="page-header">
       <div>
@@ -154,15 +157,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
           <div class="commit-box" *ngIf="job.statusLabel === 'Committed'">
             <mat-icon style="color:#2e7d32">check_circle</mat-icon>
             <div>
-              <strong>Committed by {{ job.committedBy }}</strong> on {{ job.committedAt | date:'dd/MM/yyyy HH:mm' }}
-              â€” {{ job.committedRows }} rows written to database.
+              <strong>Published by {{ job.committedBy }}</strong> on {{ job.committedAt | date:'dd/MM/yyyy HH:mm' }}
+              - {{ job.committedRows }} rows written to CPQ.
             </div>
           </div>
         </mat-card-content>
       </mat-card>
 
       <app-approval-record
-        *ngIf="job.statusLabel === 'Committed'"
+        *ngIf="job.statusLabel === 'Approved' || job.statusLabel === 'Committed'"
         [snapshot]="approvalSnapshot"
         [loading]="approvalSnapshotLoading" />
 
@@ -308,54 +311,75 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       </mat-card>
 
       <!-- Approval actions (approvers only, when AwaitingApproval) -->
-      <mat-card class="action-card" *ngIf="job.statusLabel === 'AwaitingApproval' && auth.isApprover">
+      <mat-card class="action-card" *ngIf="(job.statusLabel === 'AwaitingApproval' || job.statusLabel === 'Approved') && auth.isApprover">
         <mat-card-content>
-          <div class="action-bar">
-            <div class="action-info">
-              <mat-icon color="primary">info</mat-icon>
-              <span>
-                <ng-container *ngIf="comparison; else actionFallback">
-                  {{ comparison.newRows + comparison.modifiedRows + comparison.unchangedRows }} rows are compared with the baseline.
-                  {{ comparison.newRows }} new, {{ comparison.modifiedRows }} modified, and {{ comparison.missingBaselineRows }} missing rows need attention.
-                </ng-container>
-                <ng-template #actionFallback>
-                  {{ job.validRows + job.warningRows }} rows are ready to commit
-                  <span *ngIf="job.errorRows > 0"> ({{ job.errorRows }} error rows will be skipped)</span>.
-                </ng-template>
-              </span>
-            </div>
-            <div class="action-buttons">
-              <button mat-raised-button color="primary" class="btn-commit" (click)="commit()" [disabled]="committing">
-                <mat-icon>check</mat-icon> {{ committing ? 'Committing...' : 'Approve annual update' }}
-              </button>
-              <button mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
-                <mat-icon>close</mat-icon> Reject
-              </button>
-            </div>
-          </div>
+          <ng-container *ngIf="publicationApproval; else approvalReview">
+            <app-publication-readiness
+              [approval]="publicationApproval"
+              [publishing]="committing"
+              (publish)="publishToCpq()"
+              (returnToReview)="returnToReview()" />
+          </ng-container>
 
-          <div class="reject-panel" *ngIf="showRejectPanel">
-            <mat-divider></mat-divider>
-            <div class="reject-form">
-              <div class="reject-field">
-                <div class="reject-field__head">
-                  <div class="reject-field__label">Rejection reason</div>
-                  <div class="reject-field__hint">Tell the uploader what must change before resubmitting.</div>
-                </div>
-                <textarea
-                  class="reject-textarea"
-                  [(ngModel)]="rejectionReason"
-                  rows="3"
-                  placeholder="Enter reason..."></textarea>
+          <ng-template #approvalReview>
+            <div class="governance-path">
+              <div class="governance-path__step governance-path__step--active">
+                <span>1</span><div><small>Current gate</small><strong>Review and approve</strong></div>
               </div>
-              <div class="reject-actions">
-                <button mat-raised-button color="warn" (click)="reject()" [disabled]="!rejectionReason || rejecting">
-                  Confirm Rejection
-                </button>
-                <button mat-button (click)="showRejectPanel = false; rejectionReason = ''" class="ml-8">Cancel</button>
+              <mat-icon>arrow_forward</mat-icon>
+              <div class="governance-path__step">
+                <span>2</span><div><small>Next gate</small><strong>Publish to CPQ</strong></div>
               </div>
             </div>
-          </div>
+
+            <div class="action-bar">
+              <div class="action-info">
+                <mat-icon color="primary">info</mat-icon>
+                <span>
+                  <ng-container *ngIf="comparison; else actionFallback">
+                    {{ comparison.newRows + comparison.modifiedRows + comparison.unchangedRows }} rows are compared with the baseline.
+                    {{ comparison.newRows }} new, {{ comparison.modifiedRows }} modified, and {{ comparison.missingBaselineRows }} missing rows need attention.
+                  </ng-container>
+                  <ng-template #actionFallback>
+                    {{ job.validRows + job.warningRows }} rows are ready for approval
+                    <span *ngIf="job.errorRows > 0"> ({{ job.errorRows }} error rows will be skipped)</span>.
+                  </ng-template>
+                </span>
+              </div>
+              <div class="action-buttons">
+                <button mat-raised-button color="primary" class="btn-commit" (click)="approveForPublication()" [disabled]="approving">
+                  <mat-icon>{{ approving ? 'hourglass_top' : 'verified' }}</mat-icon>
+                  {{ approving ? 'Approving...' : 'Approve for publication' }}
+                </button>
+                <button mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
+                  <mat-icon>close</mat-icon> Reject
+                </button>
+              </div>
+            </div>
+
+            <div class="reject-panel" *ngIf="showRejectPanel">
+              <mat-divider></mat-divider>
+              <div class="reject-form">
+                <div class="reject-field">
+                  <div class="reject-field__head">
+                    <div class="reject-field__label">Rejection reason</div>
+                    <div class="reject-field__hint">Tell the uploader what must change before resubmitting.</div>
+                  </div>
+                  <textarea
+                    class="reject-textarea"
+                    [(ngModel)]="rejectionReason"
+                    rows="3"
+                    placeholder="Enter reason..."></textarea>
+                </div>
+                <div class="reject-actions">
+                  <button mat-raised-button color="warn" (click)="reject()" [disabled]="!rejectionReason || rejecting">
+                    Confirm Rejection
+                  </button>
+                  <button mat-button (click)="showRejectPanel = false; rejectionReason = ''" class="ml-8">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </ng-template>
         </mat-card-content>
       </mat-card>
 
@@ -746,6 +770,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       flex-shrink: 0;
     }
     .action-card { margin-bottom: 16px; border: 1px solid #dbe4f0; box-shadow: none; }
+    .governance-path { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid #e0e7ff; border-radius: 14px; background: linear-gradient(90deg,#eef2ff,#f8fafc); }
+    .governance-path > mat-icon { color: #94a3b8; }
+    .governance-path__step { display: flex; align-items: center; gap: 9px; color: #64748b; }
+    .governance-path__step > span { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 auto; border: 2px solid #cbd5e1; border-radius: 50%; background: #fff; font-size: 12px; font-weight: 900; }
+    .governance-path__step > div { display: grid; gap: 1px; }
+    .governance-path__step small { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .governance-path__step strong { color: #475569; font-size: 13px; }
+    .governance-path__step--active > span { color: #fff; border-color: #4f46e5; background: #4f46e5; }
+    .governance-path__step--active strong { color: #312e81; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
     .action-info {
       display: flex;
@@ -900,6 +933,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       border-color: rgba(126, 162, 255, 0.18);
       background: rgba(15, 23, 42, 0.92);
     }
+    :host-context(html.theme-dark) .governance-path { border-color: rgba(129,140,248,.24); background: linear-gradient(90deg,rgba(49,46,129,.25),rgba(15,23,42,.7)); }
+    :host-context(html.theme-dark) .governance-path__step > span { border-color:#475569; background:#172033; }
+    :host-context(html.theme-dark) .governance-path__step strong { color:#cbd5e1; }
+    :host-context(html.theme-dark) .governance-path__step--active > span { border-color:#818cf8; background:#4f46e5; }
+    :host-context(html.theme-dark) .governance-path__step--active strong { color:#c7d2fe; }
 
     :host-context(html.theme-dark) .comparison-card {
       border-color: rgba(126, 162, 255, 0.18);
@@ -1046,6 +1084,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       .ml-8 { margin-left: 0; }
       .btn-commit,
       .btn-reject { min-height: 40px; }
+      .governance-path { align-items: stretch; flex-direction: column; }
+      .governance-path > mat-icon { transform: rotate(90deg); align-self: flex-start; margin-left: 2px; }
       .reject-textarea {
         min-height: 96px;
         padding: 12px 13px;
@@ -1103,9 +1143,12 @@ export class ImportPreviewComponent implements OnInit {
   rowPage = 1;
   rowPageSize = 50;
   committing = false;
+  approving = false;
+  returningToReview = false;
   rejecting = false;
   showRejectPanel = false;
   rejectionReason = '';
+  publicationApproval: PublicationApprovalDraft | null = null;
   private readonly expandedRows = new Set<number>();
   private readonly comparisonMap = new Map<string, ComparisonRow>();
   private readonly fb = inject(FormBuilder);
@@ -1202,7 +1245,8 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   canEditRow(row: StagingRow): boolean {
-    return this.job?.statusLabel !== 'Committed'
+    return this.job?.statusLabel !== 'Approved'
+      && this.job?.statusLabel !== 'Committed'
       && this.job?.statusLabel !== 'Rejected'
       && this.job?.statusLabel !== 'Failed'
       && this.job?.statusLabel !== 'Cancelled'
@@ -1229,7 +1273,7 @@ export class ImportPreviewComponent implements OnInit {
       return false;
     }
 
-    return !['Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
+    return !['Approved', 'Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
   }
 
   canDownloadComparisonReport(): boolean {
@@ -1259,9 +1303,10 @@ export class ImportPreviewComponent implements OnInit {
       this.importService.getJob(id).subscribe({
         next: j => {
           this.job = j;
+          this.hydratePublicationApproval(j);
           this.loading = false;
           this.loadDatasetRequirement(j.entityTypeLabel);
-          if (j.statusLabel === 'Committed') {
+          if (j.statusLabel === 'Approved' || j.statusLabel === 'Committed') {
             this.loadApprovalSnapshot();
           }
           if (this.canRefreshValidation()) {
@@ -1282,6 +1327,7 @@ export class ImportPreviewComponent implements OnInit {
     this.comparison = null;
     this.approvalSnapshot = null;
     this.approvalSnapshotLoading = false;
+    this.publicationApproval = null;
     this.rows = null;
     this.comparisonMap.clear();
     this.rowPage = 1;
@@ -1290,7 +1336,7 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   private loadApprovalSnapshot(): void {
-    if (!this.job || this.job.statusLabel !== 'Committed') {
+    if (!this.job || (this.job.statusLabel !== 'Approved' && this.job.statusLabel !== 'Committed')) {
       this.approvalSnapshot = null;
       return;
     }
@@ -1299,6 +1345,15 @@ export class ImportPreviewComponent implements OnInit {
     this.importService.getApprovalSnapshot(this.job.id).subscribe({
       next: snapshot => {
         this.approvalSnapshot = snapshot;
+        if (snapshot && this.job?.statusLabel === 'Approved') {
+          this.publicationApproval = {
+            approvedAt: snapshot.approvedAtUtc,
+            approvedBy: snapshot.approvedByDisplayName,
+            newRows: snapshot.comparison.newRows,
+            modifiedRows: snapshot.comparison.modifiedRows,
+            missingRows: snapshot.comparison.missingBaselineRows
+          };
+        }
         this.approvalSnapshotLoading = false;
       },
       error: () => {
@@ -1396,8 +1451,8 @@ export class ImportPreviewComponent implements OnInit {
 
   onRowPage(e: PageEvent) { this.rowPage = e.pageIndex + 1; this.rowPageSize = e.pageSize; this.loadRows(); }
 
-  commit(): void {
-    if (!this.job || this.committing) return;
+  approveForPublication(): void {
+    if (!this.job || this.job.statusLabel !== 'AwaitingApproval' || this.approving) return;
 
     const summary: { newRows: number; modifiedRows: number; unchangedRows: number; missingRows: ComparisonMissingItem[] } = this.comparison
       ? {
@@ -1433,16 +1488,77 @@ export class ImportPreviewComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
       if (confirmed) {
-        this.executeCommit();
+        this.approving = true;
+        this.importService.approve(this.job!.id).subscribe({
+          next: approvedJob => {
+            this.job = approvedJob;
+            this.approving = false;
+            this.showRejectPanel = false;
+            this.rejectionReason = '';
+            this.hydratePublicationApproval(approvedJob, summary);
+            this.loadApprovalSnapshot();
+            this.snackBar.open('Approved for publication. CPQ has not been changed yet.', 'Close', { duration: 6000 });
+          },
+          error: err => {
+            this.approving = false;
+            this.snackBar.open(err?.error?.error ?? 'Approval failed.', 'Close', { duration: 7000 });
+          }
+        });
       }
     });
   }
 
-  private executeCommit(): void {
+  publishToCpq(): void {
+    if (!this.job || !this.publicationApproval || this.committing) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(PublicationConfirmDialogComponent, {
+      width: '680px',
+      maxWidth: '94vw',
+      autoFocus: false,
+      data: {
+        datasetLabel: this.job.entityTypeLabel,
+        originalFileName: this.job.originalFileName,
+        approval: this.publicationApproval
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.executePublication();
+      }
+    });
+  }
+
+  returnToReview(): void {
+    if (!this.job || this.job.statusLabel !== 'Approved' || this.committing || this.returningToReview) {
+      return;
+    }
+
+    this.returningToReview = true;
+    this.importService.returnToReview(this.job.id).subscribe({
+      next: reviewedJob => {
+        this.job = reviewedJob;
+        this.publicationApproval = null;
+        this.approvalSnapshot = null;
+        this.returningToReview = false;
+        this.loadComparison();
+        this.snackBar.open('Approval returned to review. CPQ was not changed.', 'Close', { duration: 5000 });
+      },
+      error: err => {
+        this.returningToReview = false;
+        this.snackBar.open(err?.error?.error ?? 'Could not return the submission to review.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
+  private executePublication(): void {
     if (!this.job) return;
     this.committing = true;
-    this.importService.commit(this.job.id).subscribe({
+    this.importService.publish(this.job.id).subscribe({
       next: result => {
+        this.publicationApproval = null;
         this.snackBar.open(result.message, 'Close', { duration: 5000, panelClass: 'snack-success' });
         this.committing = false;
         this.importService.getJob(this.job!.id).subscribe(j => {
@@ -1454,8 +1570,8 @@ export class ImportPreviewComponent implements OnInit {
       error: err => {
         const isForbidden = err?.status === 403;
         const message = isForbidden
-          ? 'You are not authorized to commit yet. If your role was just updated, sign out and sign in again.'
-          : (err?.error?.error ?? 'Commit failed.');
+          ? 'You are not authorized to publish. If your role was just updated, sign out and sign in again.'
+          : (err?.error?.error ?? 'Publication failed.');
 
         this.snackBar.open(message, 'Close', { duration: 7000 });
         this.committing = false;
@@ -1510,6 +1626,24 @@ export class ImportPreviewComponent implements OnInit {
         this.snackBar.open(err?.error?.error ?? 'Cancellation failed.', 'Close', { duration: 7000 });
       }
     });
+  }
+
+  private hydratePublicationApproval(
+    job: ImportJob,
+    summary?: { newRows: number; modifiedRows: number; missingRows: ComparisonMissingItem[] }
+  ): void {
+    this.publicationApproval = null;
+    if (job.statusLabel !== 'Approved' || !job.approvedAt || !job.approvedByDisplayName) {
+      return;
+    }
+
+    this.publicationApproval = {
+      approvedAt: job.approvedAt,
+      approvedBy: job.approvedByDisplayName,
+      newRows: summary?.newRows ?? 0,
+      modifiedRows: summary?.modifiedRows ?? 0,
+      missingRows: summary?.missingRows.length ?? 0
+    };
   }
 
   downloadOriginal() {

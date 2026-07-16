@@ -13,6 +13,9 @@ public record ImportJobDto(
     string CreatedByDisplayName,
     DateTime CreatedAt,
     DateTime? ProcessedAt,
+    DateTime? ApprovedAt,
+    string? ApprovedByUserId,
+    string? ApprovedByDisplayName,
     DateTime? CommittedAt,
     string? CommittedBy,
     string? RejectedBy,
@@ -45,7 +48,7 @@ public record RejectRequest(string Reason);
 
 public record UpdateRowRequest(Dictionary<string, string?> Fields);
 
-public record CommitResultDto(Guid JobId, int CommittedRows, string Message);
+public record PublicationResultDto(Guid JobId, int PublishedRows, string Message);
 
 public record ComparisonFieldChangeDto(
     string Field,

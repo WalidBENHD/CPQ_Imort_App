@@ -15,7 +15,9 @@ public interface IImportService
     Task<ImportJob> RefreshValidationAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
-    Task<ImportJob> CommitAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> ReturnToReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> PublishAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CancelAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> RejectAsync(Guid jobId, string userId, string userDisplayName,
         string reason, CancellationToken ct = default);

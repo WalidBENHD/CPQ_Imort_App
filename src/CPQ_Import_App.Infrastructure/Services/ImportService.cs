@@ -139,7 +139,7 @@ public class ImportService(
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
 
-        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+        if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be refreshed.");
 
         var parser = parsers.FirstOrDefault(p => p.SupportedEntityType == job.EntityType)
@@ -188,7 +188,7 @@ public class ImportService(
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
 
-        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+        if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be edited.");
 
         var row = await repository.GetStagingRowAsync(jobId, rowId, ct)
@@ -220,16 +220,16 @@ public class ImportService(
         return row;
     }
 
-    public async Task<ImportJob> CommitAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    public async Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
     {
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
 
         if (job.Status != ImportStatus.AwaitingApproval)
-            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be committed.");
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be approved.");
 
         if (job.ErrorRows > 0)
-            throw new InvalidOperationException("Blocking errors must be corrected before commit.");
+            throw new InvalidOperationException("Blocking errors must be corrected before approval.");
 
         var comparison = await repository.GetComparisonAsync(jobId, ct);
         var approvedAt = DateTime.UtcNow;
@@ -239,8 +239,87 @@ public class ImportService(
             ApprovedByUserId: userId,
             ApprovedByDisplayName: userDisplayName,
             Comparison: comparison);
-        var removedKeys = comparison.HasBaseline
-            ? comparison.MissingRows
+
+        job.Status = ImportStatus.Approved;
+        job.ApprovedAt = approvedAt;
+        job.ApprovedByUserId = userId;
+        job.ApprovedByDisplayName = userDisplayName;
+        job.ApprovedComparisonJson = JsonSerializer.Serialize(approvalSnapshot, JsonOpts);
+
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Approved",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Approved for publication: {comparison.NewRows} new, {comparison.ModifiedRows} modified, and {comparison.MissingBaselineRows} scoped deletions."
+        }, ct);
+
+        return job;
+    }
+
+    public async Task<ImportJob> ReturnToReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (job.Status != ImportStatus.Approved)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be returned to review.");
+
+        job.Status = ImportStatus.AwaitingApproval;
+        job.ApprovedAt = null;
+        job.ApprovedByUserId = null;
+        job.ApprovedByDisplayName = null;
+        job.ApprovedComparisonJson = null;
+
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "ApprovalReturned",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = "Approval withdrawn and submission returned to review before publication."
+        }, ct);
+
+        return job;
+    }
+
+    public async Task<ImportJob> PublishAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (job.Status != ImportStatus.Approved)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be published.");
+
+        if (string.IsNullOrWhiteSpace(job.ApprovedComparisonJson))
+            throw new InvalidOperationException("The persisted approval record is missing. Return the submission to review and approve it again.");
+
+        ApprovedComparisonSnapshot approvalSnapshot;
+        try
+        {
+            approvalSnapshot = JsonSerializer.Deserialize<ApprovedComparisonSnapshot>(job.ApprovedComparisonJson, JsonOpts)
+                ?? throw new InvalidDataException("The persisted approval record is empty.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("The persisted approval record is invalid.", ex);
+        }
+
+        var approvedComparison = approvalSnapshot.Comparison;
+        var currentComparison = await repository.GetComparisonAsync(jobId, ct);
+        var baselineChanged = approvedComparison.HasBaseline != currentComparison.HasBaseline
+            || (approvedComparison.HasBaseline && approvedComparison.BaselineJobId != currentComparison.BaselineJobId);
+        if (baselineChanged)
+        {
+            throw new InvalidOperationException(
+                "The active baseline changed after this approval. Return the submission to review and approve the recalculated impact before publishing.");
+        }
+
+        var removedKeys = approvedComparison.HasBaseline
+            ? approvedComparison.MissingRows
                 .Select(item => item.Key)
                 .Where(key => !string.IsNullOrWhiteSpace(key))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -248,7 +327,7 @@ public class ImportService(
             : [];
 
         var strategy = commitStrategies.FirstOrDefault(s => s.EntityType == job.EntityType)
-            ?? throw new InvalidOperationException($"No commit strategy for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
+            ?? throw new InvalidOperationException($"No publication strategy for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
 
         // Retrieve all valid + warning rows
         var allRows = new List<StagingRow>();
@@ -268,19 +347,18 @@ public class ImportService(
         await strategy.CommitRowsAsync(rowDicts, removedKeys, ct);
 
         job.Status = ImportStatus.Committed;
-        job.CommittedAt = approvedAt;
+        job.CommittedAt = DateTime.UtcNow;
         job.CommittedBy = userDisplayName;
         job.CommittedRows = rowDicts.Count;
-        job.ApprovedComparisonJson = JsonSerializer.Serialize(approvalSnapshot, JsonOpts);
 
         await repository.UpdateJobAsync(job, ct);
         await repository.AddAuditLogAsync(new AuditLog
         {
             ImportJobId = job.Id,
-            Action = "Committed",
+            Action = "Published",
             PerformedBy = userId,
             PerformedByDisplayName = userDisplayName,
-            Details = $"Committed {job.CommittedRows} rows."
+            Details = $"Published {job.CommittedRows} rows to CPQ using the approval recorded at {approvalSnapshot.ApprovedAtUtc:O}."
         }, ct);
 
         return job;
@@ -291,7 +369,7 @@ public class ImportService(
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
 
-        if (job.Status is ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+        if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be cancelled.");
 
         if (job.Status is not ImportStatus.AwaitingApproval and not ImportStatus.NeedsCorrection and not ImportStatus.Processing)

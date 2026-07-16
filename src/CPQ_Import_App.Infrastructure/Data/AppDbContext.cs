@@ -28,6 +28,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.CreatedBy).HasMaxLength(256);
             e.Property(x => x.CreatedByDisplayName).HasMaxLength(512);
             e.Property(x => x.CommittedBy).HasMaxLength(256);
+            e.Property(x => x.ApprovedByUserId).HasMaxLength(256);
+            e.Property(x => x.ApprovedByDisplayName).HasMaxLength(512);
             e.Property(x => x.RejectedBy).HasMaxLength(256);
             e.Property(x => x.RejectionReason).HasMaxLength(2000);
             e.Property(x => x.ApprovedComparisonJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");

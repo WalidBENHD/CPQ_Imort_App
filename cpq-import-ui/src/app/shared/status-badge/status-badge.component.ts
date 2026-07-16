@@ -23,6 +23,7 @@ type AnyStatus = ImportStatus | RowStatus | string;
     .badge-pending           { background: #e0e0e0; color: #424242; border-color: #bdbdbd; }
     .badge-processing        { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
     .badge-awaiting-approval { background: #fff8e1; color: #f57f17; border-color: #ffe082; font-weight: 700; }
+    .badge-approved          { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; font-weight: 700; }
     .badge-committed         { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; font-weight: 700; }
     .badge-rejected          { background: #ffebee; color: #c62828; border-color: #ef9a9a; font-weight: 700; }
     .badge-failed            { background: #fce4ec; color: #880e4f; border-color: #f8bbd0; }
@@ -38,10 +39,11 @@ export class StatusBadgeComponent {
   get label() {
     const labels: Record<string, string> = {
       AwaitingApproval: 'Awaiting Approval',
+      Approved: 'Ready for Publication',
       NeedsCorrection: 'Needs Correction',
       Pending: 'Pending',
       Processing: 'Processing',
-      Committed: 'Committed',
+      Committed: 'Published',
       Rejected: 'Rejected',
       Failed: 'Failed',
       Cancelled: 'Cancelled',
@@ -57,6 +59,7 @@ export class StatusBadgeComponent {
       Pending: 'badge-pending',
       Processing: 'badge-processing',
       AwaitingApproval: 'badge-awaiting-approval',
+      Approved: 'badge-approved',
       NeedsCorrection: 'badge-warning',
       Committed: 'badge-committed',
       Rejected: 'badge-rejected',

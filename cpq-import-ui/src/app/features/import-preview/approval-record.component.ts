@@ -22,7 +22,7 @@ import { ApprovedComparisonSnapshot, ComparisonFieldChange, ComparisonRow } from
                 <h3>What the approver accepted</h3>
               </div>
             </div>
-            <span class="approval-record-lock"><mat-icon>lock</mat-icon> Recorded at commit</span>
+            <span class="approval-record-lock"><mat-icon>lock</mat-icon> Recorded at approval</span>
           </div>
 
           <p class="approval-record-copy">

@@ -9,8 +9,9 @@ cpq-import-ui/.tsbuildinfo
 **/bin/
 **/obj/
 
-# EF migrations (keep the Migrations folder but ignore generated output)
+# EF migrations require their generated metadata in clean builds and deployments.
 *.Designer.cs
+!src/CPQ_Import_App.Infrastructure/Migrations/*.Designer.cs
 
 # Secrets — never commit
 .env

@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  ApprovedComparisonSnapshot, CommitResult, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, EntityType, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow
+  ApprovedComparisonSnapshot, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, EntityType, ImportComparison, ImportJob, PagedResult, PublicationResult, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -70,8 +70,20 @@ export class ImportService {
     );
   }
 
-  commit(jobId: string): Observable<CommitResult> {
-    return this.http.post<CommitResult>(`${this.base}/${jobId}/commit`, {}).pipe(
+  approve(jobId: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/approve`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
+  returnToReview(jobId: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/return-to-review`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
+  publish(jobId: string): Observable<PublicationResult> {
+    return this.http.post<PublicationResult>(`${this.base}/${jobId}/publish`, {}).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
     );
   }

@@ -115,8 +115,8 @@ public class NotificationService(
         {
             UserId = uploaderId,
             NotificationType = NotificationType.ImportApproved,
-            Title = "Import Approved",
-            Message = $"Your import '{job.OriginalFileName}' has been approved and is being processed.",
+            Title = "Import Ready for Publication",
+            Message = $"Your import '{job.OriginalFileName}' has been approved. CPQ has not changed yet; the update is waiting for publication.",
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -129,8 +129,8 @@ public class NotificationService(
         {
             UserId = uploaderId,
             NotificationType = NotificationType.ImportCommitted,
-            Title = "Import Completed",
-            Message = $"Your import '{job.OriginalFileName}' has been successfully committed. {job.CommittedRows} rows were written to the database.",
+            Title = "Import Published",
+            Message = $"Your import '{job.OriginalFileName}' has been published to CPQ. {job.CommittedRows} rows were written.",
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };

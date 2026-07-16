@@ -18,7 +18,8 @@ public enum ImportStatus
     Committed = 4,
     Rejected = 5,
     Failed = 6,
-    Cancelled = 7
+    Cancelled = 7,
+    Approved = 8
 }
 
 public enum RowStatus

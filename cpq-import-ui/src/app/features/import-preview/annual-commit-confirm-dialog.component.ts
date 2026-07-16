@@ -27,9 +27,9 @@ export interface AnnualCommitConfirmDialogData {
           <mat-icon>warning_amber</mat-icon>
         </div>
         <div class="hero__copy">
-          <h2>Approve annual update?</h2>
+          <h2>Approve for publication?</h2>
           <p>
-            Review the impact before committing <strong>{{ data.datasetLabel }}</strong>.
+            Confirm that this reviewed update is ready for the publication step.
           </p>
           <div class="hero__meta">
             <span class="meta-pill">File: {{ data.originalFileName }}</span>
@@ -47,10 +47,10 @@ export interface AnnualCommitConfirmDialogData {
       <div class="body">
         <section class="overview">
           <div class="summary-banner">
-            <div class="summary-banner__label">Commit impact</div>
+            <div class="summary-banner__label">Approved impact</div>
             <div class="summary-banner__text">
-              New rows will be <strong>added</strong>, modified rows will be <strong>updated</strong>, and rows
-              missing from the previous approved baseline for this same scope will be <strong>deleted</strong>.
+              You are approving the additions, updates and scoped deletions below. <strong>CPQ will not change yet.</strong>
+              A separate publication action will apply this exact impact.
             </div>
           </div>
 
@@ -58,19 +58,19 @@ export interface AnnualCommitConfirmDialogData {
             <article class="impact-card impact-card--new">
               <div class="impact-label">New</div>
               <div class="impact-value">{{ data.newRows }}</div>
-              <div class="impact-note">Rows will be added to CPQ.</div>
+              <div class="impact-note">Approved to be added at publication.</div>
             </article>
 
             <article class="impact-card impact-card--modified">
               <div class="impact-label">Modified</div>
               <div class="impact-value">{{ data.modifiedRows }}</div>
-              <div class="impact-note">Rows will be updated in CPQ.</div>
+              <div class="impact-note">Approved to be updated at publication.</div>
             </article>
 
             <article class="impact-card impact-card--missing">
               <div class="impact-label">Missing</div>
               <div class="impact-value">{{ data.missingRows.length }}</div>
-              <div class="impact-note">Rows will be removed from the previous scoped baseline.</div>
+              <div class="impact-note">Approved for scoped removal at publication.</div>
             </article>
           </div>
 
@@ -115,7 +115,7 @@ export interface AnnualCommitConfirmDialogData {
       <footer class="actions">
         <button mat-button mat-dialog-close>Cancel</button>
         <button mat-raised-button color="primary" [mat-dialog-close]="true">
-          Confirm approval
+          Approve for publication
         </button>
       </footer>
     </div>
