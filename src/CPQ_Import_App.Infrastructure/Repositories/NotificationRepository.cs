@@ -12,6 +12,7 @@ public interface INotificationRepository
     Task MarkAsReadAsync(Guid notificationId);
     Task MarkAllAsReadAsync(Guid userId);
     Task DeleteAsync(Guid notificationId);
+    Task DeleteForImportAsync(Guid importId);
     Task DeleteExpiredAsync();
 }
 
@@ -62,6 +63,13 @@ public class NotificationRepository(AppDbContext db) : INotificationRepository
     {
         await db.Notifications
             .Where(n => n.Id == notificationId)
+            .ExecuteDeleteAsync();
+    }
+
+    public async Task DeleteForImportAsync(Guid importId)
+    {
+        await db.Notifications
+            .Where(n => n.RelatedImportId == importId)
             .ExecuteDeleteAsync();
     }
 

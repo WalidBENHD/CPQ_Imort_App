@@ -1,5 +1,5 @@
 ﻿import { Component, DestroyRef, OnInit, inject } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -73,14 +73,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
           <mat-spinner *ngIf="refreshingValidation" diameter="16"></mat-spinner>
           Refresh validation
         </button>
-        <button
-          mat-stroked-button
-          class="header-action-btn action-cancel"
-          *ngIf="canCancelJob()"
-          (click)="cancelImport()"
-          matTooltip="Cancel this request and upload a corrected file">
-          <mat-icon>block</mat-icon> Cancel request
-        </button>
       </div>
     </div>
 
@@ -95,7 +87,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
           <div class="summary-grid-metadata">
             <div class="summary-item">
               <div class="label">Status</div>
-              <app-status-badge [status]="job.statusLabel" />
+              <span
+                *ngIf="isPrivateWorkspace || isSubmittedOwner; else governedStatus"
+                class="workflow-status-pill"
+                [class.workflow-status-pill--shared]="isSubmittedOwner">
+                <mat-icon>{{ isPrivateWorkspace ? 'lock' : 'group' }}</mat-icon>
+                {{ detailStatusLabel }}
+              </span>
+              <ng-template #governedStatus><app-status-badge [status]="job.statusLabel" /></ng-template>
             </div>
             <div class="summary-item">
               <div class="label">Dataset</div>
@@ -287,7 +286,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="correction-card" *ngIf="job.statusLabel === 'NeedsCorrection' || (job.statusLabel === 'AwaitingApproval' && job.errorRows > 0)">
+      <mat-card class="correction-card" *ngIf="!isPrivateWorkspace && (job.statusLabel === 'NeedsCorrection' || (job.statusLabel === 'AwaitingApproval' && job.errorRows > 0))">
         <div class="correction-copy">
           <mat-icon>error_outline</mat-icon>
           <div>
@@ -310,8 +309,87 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         </div>
       </mat-card>
 
+      <mat-card class="workspace-gate workspace-gate--private" *ngIf="isPrivateWorkspace">
+        <mat-card-content>
+          <div class="workspace-gate__header">
+            <div class="workspace-gate__identity">
+              <span class="workspace-gate__icon"><mat-icon>lock_person</mat-icon></span>
+              <div>
+                <div class="workspace-gate__eyebrow">Private workspace</div>
+                <h2>{{ privateGateTitle }}</h2>
+                <p>{{ privateGateCopy }}</p>
+              </div>
+            </div>
+            <span class="visibility-badge"><mat-icon>visibility_off</mat-icon> Only visible to you</span>
+          </div>
+
+          <div class="workflow-rail" aria-label="Upload workflow">
+            <div class="workflow-rail__step" [class.workflow-rail__step--active]="job.errorRows > 0" [class.workflow-rail__step--done]="job.errorRows === 0">
+              <span>{{ job.errorRows === 0 ? 'check' : '1' }}</span><div><small>Prepare</small><strong>Validate and compare</strong></div>
+            </div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="workflow-rail__step" [class.workflow-rail__step--active]="job.errorRows === 0">
+              <span>2</span><div><small>Submit</small><strong>Share for review</strong></div>
+            </div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="workflow-rail__step"><span>3</span><div><small>Decision</small><strong>Team approval</strong></div></div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="workflow-rail__step"><span>4</span><div><small>Release</small><strong>Publish to CPQ</strong></div></div>
+          </div>
+
+          <div class="workspace-gate__impact">
+            <mat-icon>{{ job.errorRows > 0 ? 'error_outline' : 'fact_check' }}</mat-icon>
+            <div>
+              <strong>{{ job.errorRows > 0 ? job.errorRows + ' blocking rows require attention' : 'Your comparison is ready' }}</strong>
+              <span *ngIf="comparison; else privateFallback">
+                {{ comparison.newRows }} new, {{ comparison.modifiedRows }} modified and {{ comparison.missingBaselineRows }} missing rows were detected.
+              </span>
+              <ng-template #privateFallback><span>{{ job.totalRows }} rows have been prepared in this private version.</span></ng-template>
+            </div>
+          </div>
+
+          <div class="workspace-gate__actions">
+            <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="showErrorRows()"><mat-icon>build</mat-icon> Review and fix errors</button>
+            <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0" mat-raised-button color="primary" class="submit-review-btn" [disabled]="workflowActionRunning" (click)="submitForReview()"><mat-icon>send</mat-icon> {{ workflowActionRunning ? 'Submitting...' : 'Submit for review' }}</button>
+            <button *ngIf="canDownloadComparisonReport()" mat-stroked-button (click)="downloadComparisonReport()"><mat-icon>download</mat-icon> Comparison report</button>
+            <button *ngIf="canCancelJob()" mat-button class="discard-draft-btn" (click)="cancelImport()"><mat-icon>delete_outline</mat-icon> Discard private draft</button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="workspace-gate workspace-gate--submitted" *ngIf="isSubmittedOwner">
+        <mat-card-content>
+          <div class="workspace-gate__header">
+            <div class="workspace-gate__identity">
+              <span class="workspace-gate__icon"><mat-icon>outbox</mat-icon></span>
+              <div>
+                <div class="workspace-gate__eyebrow">Shared review</div>
+                <h2>Submitted to the review team</h2>
+                <p>This exact file and comparison are now shared and locked while a decision is pending.</p>
+              </div>
+            </div>
+            <span class="visibility-badge visibility-badge--shared"><mat-icon>groups</mat-icon> Visible in Review Queue</span>
+          </div>
+
+          <div class="workflow-rail">
+            <div class="workflow-rail__step workflow-rail__step--done"><span>check</span><div><small>Prepare</small><strong>Comparison ready</strong></div></div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="workflow-rail__step workflow-rail__step--done"><span>check</span><div><small>Submit</small><strong>Shared with team</strong></div></div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="workflow-rail__step workflow-rail__step--active"><span>3</span><div><small>Current gate</small><strong>Approval pending</strong></div></div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div class="workflow-rail__step"><span>4</span><div><small>Next gate</small><strong>Publish to CPQ</strong></div></div>
+          </div>
+
+          <div class="submitted-lock-note"><mat-icon>lock</mat-icon><span>Editing is paused to protect the version currently being reviewed. Withdraw it if you need to make changes.</span></div>
+          <div class="workspace-gate__actions workspace-gate__actions--submitted">
+            <button mat-stroked-button class="withdraw-review-btn" [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> {{ workflowActionRunning ? 'Withdrawing...' : 'Withdraw submission' }}</button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Approval actions (approvers only, when AwaitingApproval) -->
-      <mat-card class="action-card" *ngIf="(job.statusLabel === 'AwaitingApproval' && canReviewApproval) || (job.statusLabel === 'Approved' && canControlPublication)">
+      <mat-card class="action-card" *ngIf="canShowApprovalGate || (job.statusLabel === 'Approved' && canControlPublication)">
         <mat-card-content>
           <ng-container *ngIf="publicationApproval; else approvalReview">
             <app-publication-readiness
@@ -640,6 +718,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       background: #fff7ed;
     }
     .action-cancel:hover { background: #ffedd5; }
+    .workflow-status-pill { display:inline-flex; align-items:center; gap:6px; width:max-content; padding:6px 10px; border:1px solid #99f6e4; border-radius:999px; color:#0f766e; background:#f0fdfa; font-size:12px; font-weight:800; }
+    .workflow-status-pill mat-icon { width:16px; height:16px; font-size:16px; line-height:16px; }
+    .workflow-status-pill--shared { color:#1d4ed8; border-color:#bfdbfe; background:#eff6ff; }
     .loading-container { display: flex; justify-content: center; padding: 60px; }
     .summary-card { margin-bottom: 16px; border: 1px solid #e2e8f0; box-shadow: none; }
     .summary-grid-metadata, .summary-grid-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -772,6 +853,45 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       flex-shrink: 0;
     }
     .action-card { margin-bottom: 16px; border: 1px solid #dbe4f0; box-shadow: none; }
+    .workspace-gate { margin-bottom:16px; border-radius:18px; box-shadow:0 12px 30px rgba(15,23,42,.07); overflow:hidden; }
+    .workspace-gate--private { border:1px solid #99f6e4; background:linear-gradient(145deg,#ffffff 0%,#f0fdfa 100%); }
+    .workspace-gate--submitted { border:1px solid #bfdbfe; background:linear-gradient(145deg,#ffffff 0%,#eff6ff 100%); }
+    .workspace-gate .mat-mdc-card-content { padding:22px !important; }
+    .workspace-gate__header { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
+    .workspace-gate__identity { display:flex; align-items:flex-start; gap:14px; min-width:0; }
+    .workspace-gate__icon { display:grid; place-items:center; width:48px; height:48px; flex:0 0 auto; border-radius:14px; color:#fff; background:linear-gradient(135deg,#0f766e,#14b8a6); box-shadow:0 8px 20px rgba(13,148,136,.22); }
+    .workspace-gate--submitted .workspace-gate__icon { background:linear-gradient(135deg,#1d4ed8,#3b82f6); box-shadow:0 8px 20px rgba(37,99,235,.22); }
+    .workspace-gate__eyebrow { margin-bottom:4px; color:#0f766e; font-size:11px; font-weight:900; letter-spacing:.09em; text-transform:uppercase; }
+    .workspace-gate--submitted .workspace-gate__eyebrow { color:#1d4ed8; }
+    .workspace-gate h2 { margin:0 0 5px; color:#0f172a; font-size:21px; line-height:1.25; }
+    .workspace-gate p { margin:0; color:#475569; line-height:1.5; }
+    .visibility-badge { display:inline-flex; align-items:center; gap:6px; flex:0 0 auto; padding:7px 10px; border:1px solid #99f6e4; border-radius:999px; color:#0f766e; background:#fff; font-size:11px; font-weight:800; }
+    .visibility-badge mat-icon { width:16px; height:16px; font-size:16px; line-height:16px; }
+    .visibility-badge--shared { color:#1d4ed8; border-color:#bfdbfe; }
+    .workflow-rail { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:10px; margin:20px 0 16px; padding:14px; border:1px solid #dbe4f0; border-radius:14px; background:rgba(255,255,255,.78); }
+    .workflow-rail > mat-icon { color:#94a3b8; }
+    .workflow-rail__step { display:flex; align-items:center; gap:9px; min-width:0; color:#64748b; }
+    .workflow-rail__step > span { display:grid; place-items:center; width:28px; height:28px; flex:0 0 auto; border:2px solid #cbd5e1; border-radius:50%; background:#fff; font-size:11px; font-weight:900; }
+    .workflow-rail__step > div { display:grid; gap:1px; min-width:0; }
+    .workflow-rail__step small { font-size:9px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+    .workflow-rail__step strong { overflow:hidden; color:#475569; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+    .workflow-rail__step--active > span { color:#fff; border-color:#0f766e; background:#0f766e; box-shadow:0 0 0 4px rgba(20,184,166,.12); }
+    .workspace-gate--submitted .workflow-rail__step--active > span { border-color:#2563eb; background:#2563eb; box-shadow:0 0 0 4px rgba(59,130,246,.12); }
+    .workflow-rail__step--active strong { color:#0f172a; }
+    .workflow-rail__step--done > span { overflow:hidden; color:#fff; border-color:#10b981; background:#10b981; font-family:'Material Icons'; font-size:16px; }
+    .workflow-gate__impact,
+    .workspace-gate__impact { display:flex; align-items:center; gap:11px; padding:13px 14px; border:1px solid #ccfbf1; border-radius:12px; color:#134e4a; background:rgba(240,253,250,.85); }
+    .workspace-gate__impact > mat-icon { color:#0f766e; }
+    .workspace-gate__impact > div { display:grid; gap:2px; }
+    .workspace-gate__impact span { color:#475569; font-size:13px; }
+    .workspace-gate__actions { display:flex; align-items:center; gap:9px; margin-top:16px; }
+    .workspace-gate__actions button { border-radius:999px; font-weight:800; }
+    .submit-review-btn { box-shadow:0 7px 16px rgba(79,70,229,.22); }
+    .discard-draft-btn { margin-left:auto; color:#b91c1c !important; }
+    .submitted-lock-note { display:flex; align-items:center; gap:9px; padding:12px 14px; border:1px solid #dbeafe; border-radius:12px; color:#1e40af; background:rgba(239,246,255,.9); font-size:13px; }
+    .submitted-lock-note mat-icon { flex:0 0 auto; }
+    .workspace-gate__actions--submitted { justify-content:flex-end; }
+    .withdraw-review-btn { color:#1d4ed8 !important; border-color:#93c5fd !important; }
     .governance-path { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding: 12px 14px; border: 1px solid #e0e7ff; border-radius: 14px; background: linear-gradient(90deg,#eef2ff,#f8fafc); }
     .governance-path > mat-icon { color: #94a3b8; }
     .governance-path__step { display: flex; align-items: center; gap: 9px; color: #64748b; }
@@ -931,10 +1051,58 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     .msg-warning { color: #f57f17; }
     .msg-info { color: #1565c0; }
 
+    /* Readability pass for comparison and workflow decisions. */
+    :host { font-size: 15px; }
+    h1 { font-size: 23px; font-weight: 600; }
+    .header-action-btn { min-height: 40px; font-size: 14px; }
+    .summary-item { padding: 13px; }
+    .summary-item .label { font-size: 12px; }
+    .summary-item .value { font-size: 19px; }
+    .workflow-status-pill { padding: 7px 11px; font-size: 13px; }
+    .workflow-status-pill mat-icon { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+    .workspace-gate .mat-mdc-card-content { padding: 26px !important; }
+    .workspace-gate__icon { width: 54px; height: 54px; }
+    .workspace-gate__icon mat-icon { width: 29px; height: 29px; font-size: 29px; }
+    .workspace-gate__eyebrow { font-size: 12px; }
+    .workspace-gate h2 { font-size: 23px; }
+    .workspace-gate p { font-size: 15px; }
+    .visibility-badge { padding: 8px 12px; font-size: 13px; }
+    .visibility-badge mat-icon { width: 18px; height: 18px; font-size: 18px; line-height: 18px; }
+    .workflow-rail { padding: 17px; }
+    .workflow-rail__step > span { width: 32px; height: 32px; font-size: 12px; }
+    .workflow-rail__step small { font-size: 11px; }
+    .workflow-rail__step strong { font-size: 14px; }
+    .workspace-gate__impact { padding: 15px 16px; }
+    .workspace-gate__impact > mat-icon { width: 25px; height: 25px; font-size: 25px; }
+    .workspace-gate__impact strong { font-size: 16px; }
+    .workspace-gate__impact span { font-size: 15px; }
+    .workspace-gate__actions button { min-height: 44px; font-size: 14px; }
+    .submitted-lock-note { padding: 14px 16px; font-size: 14px; }
+
     :host-context(html.theme-dark) .action-card {
       border-color: rgba(126, 162, 255, 0.18);
       background: rgba(15, 23, 42, 0.92);
     }
+    :host-context(html.theme-dark) .workflow-status-pill { color:#5eead4; border-color:rgba(45,212,191,.32); background:rgba(15,118,110,.2); }
+    :host-context(html.theme-dark) .workflow-status-pill--shared { color:#93c5fd; border-color:rgba(96,165,250,.32); background:rgba(30,64,175,.22); }
+    :host-context(html.theme-dark) .workspace-gate--private { border-color:rgba(45,212,191,.28); background:linear-gradient(145deg,#111d2b 0%,#0b1920 100%); box-shadow:0 14px 32px rgba(0,0,0,.28); }
+    :host-context(html.theme-dark) .workspace-gate--submitted { border-color:rgba(96,165,250,.28); background:linear-gradient(145deg,#111a31 0%,#0b1428 100%); box-shadow:0 14px 32px rgba(0,0,0,.28); }
+    :host-context(html.theme-dark) .workspace-gate h2 { color:#f8fafc; }
+    :host-context(html.theme-dark) .workspace-gate p { color:#cbd5e1; }
+    :host-context(html.theme-dark) .workspace-gate__eyebrow { color:#5eead4; }
+    :host-context(html.theme-dark) .workspace-gate--submitted .workspace-gate__eyebrow { color:#93c5fd; }
+    :host-context(html.theme-dark) .visibility-badge { color:#5eead4; border-color:rgba(45,212,191,.3); background:rgba(15,23,42,.7); }
+    :host-context(html.theme-dark) .visibility-badge--shared { color:#93c5fd; border-color:rgba(96,165,250,.3); }
+    :host-context(html.theme-dark) .workflow-rail { border-color:rgba(148,163,184,.2); background:rgba(7,13,27,.55); }
+    :host-context(html.theme-dark) .workflow-rail__step > span { border-color:#475569; background:#172033; }
+    :host-context(html.theme-dark) .workflow-rail__step strong { color:#94a3b8; }
+    :host-context(html.theme-dark) .workflow-rail__step--active strong { color:#f8fafc; }
+    :host-context(html.theme-dark) .workflow-rail__step--done > span { border-color:#059669; background:#059669; }
+    :host-context(html.theme-dark) .workspace-gate__impact { color:#ccfbf1; border-color:rgba(45,212,191,.24); background:rgba(15,118,110,.14); }
+    :host-context(html.theme-dark) .workspace-gate__impact span { color:#cbd5e1; }
+    :host-context(html.theme-dark) .submitted-lock-note { color:#bfdbfe; border-color:rgba(96,165,250,.24); background:rgba(30,64,175,.16); }
+    :host-context(html.theme-dark) .discard-draft-btn { color:#fca5a5 !important; }
+    :host-context(html.theme-dark) .withdraw-review-btn { color:#93c5fd !important; border-color:rgba(96,165,250,.45) !important; }
     :host-context(html.theme-dark) .governance-path { border-color: rgba(129,140,248,.24); background: linear-gradient(90deg,rgba(49,46,129,.25),rgba(15,23,42,.7)); }
     :host-context(html.theme-dark) .governance-path__step > span { border-color:#475569; background:#172033; }
     :host-context(html.theme-dark) .governance-path__step strong { color:#cbd5e1; }
@@ -1049,6 +1217,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       .action-bar { flex-direction: column; align-items: flex-start; }
       .action-buttons { width: 100%; flex-wrap: wrap; }
       .action-buttons button { flex: 1; min-width: 180px; }
+      .workspace-gate__header { flex-direction:column; }
+      .workflow-rail { grid-template-columns:1fr; }
+      .workflow-rail > mat-icon { transform:rotate(90deg); margin-left:2px; }
+      .workflow-rail__step strong { white-space:normal; }
     }
 
     @media (max-width: 600px) {
@@ -1097,6 +1269,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         align-items: stretch;
       }
       .correction-card button { width: 100%; }
+      .workspace-gate .mat-mdc-card-content { padding:16px !important; }
+      .workspace-gate__identity { gap:10px; }
+      .workspace-gate__icon { width:42px; height:42px; border-radius:12px; }
+      .workspace-gate h2 { font-size:18px; }
+      .visibility-badge { width:100%; justify-content:center; box-sizing:border-box; }
+      .workspace-gate__actions { align-items:stretch; flex-direction:column; }
+      .workspace-gate__actions button { width:100%; margin-left:0; }
       .correction-copy,
       .cancelled-copy {
         align-items: flex-start;
@@ -1127,6 +1306,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 })
 export class ImportPreviewComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly importService = inject(ImportService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
@@ -1150,6 +1330,7 @@ export class ImportPreviewComponent implements OnInit {
   rejecting = false;
   showRejectPanel = false;
   rejectionReason = '';
+  workflowActionRunning = false;
   publicationApproval: PublicationApprovalDraft | null = null;
   private readonly expandedRows = new Set<number>();
   private readonly comparisonMap = new Map<string, ComparisonRow>();
@@ -1249,6 +1430,7 @@ export class ImportPreviewComponent implements OnInit {
   canEditRow(row: StagingRow): boolean {
     return this.auth.hasCapability('imports.correct_own')
       && this.job?.createdBy === this.auth.userId
+      && this.isPrivateWorkspace
       && this.job?.statusLabel !== 'Approved'
       && this.job?.statusLabel !== 'Committed'
       && this.job?.statusLabel !== 'Rejected'
@@ -1268,8 +1450,54 @@ export class ImportPreviewComponent implements OnInit {
       return false;
     }
 
-    const canCancelStatus = this.job.statusLabel === 'AwaitingApproval' || this.job.statusLabel === 'NeedsCorrection';
-    return this.auth.hasCapability('imports.withdraw_own') && canCancelStatus && this.auth.userId !== '' && this.job.createdBy === this.auth.userId;
+    return this.auth.hasCapability('imports.withdraw_own')
+      && this.job.workflowStageLabel === 'Private'
+      && this.auth.userId !== ''
+      && this.job.createdBy === this.auth.userId;
+  }
+
+  get isPrivateWorkspace(): boolean {
+    return !!this.job
+      && this.job.createdBy === this.auth.userId
+      && this.job.workflowStageLabel === 'Private';
+  }
+
+  get isSubmittedOwner(): boolean {
+    return !!this.job
+      && this.job.statusLabel === 'AwaitingApproval'
+      && this.job.createdBy === this.auth.userId
+      && this.job.workflowStageLabel === 'Submitted';
+  }
+
+  get canShowApprovalGate(): boolean {
+    return !!this.job
+      && this.job.statusLabel === 'AwaitingApproval'
+      && this.job.workflowStageLabel === 'Submitted'
+      && this.job.createdBy !== this.auth.userId
+      && this.canReviewApproval;
+  }
+
+  get detailStatusLabel(): string {
+    if (this.isSubmittedOwner) return 'In team review';
+    if (!this.job) return '';
+    if (this.job.errorRows > 0 || this.job.statusLabel === 'NeedsCorrection') return 'Needs correction';
+    if (this.job.statusLabel === 'Processing') return 'Validating';
+    if (this.job.statusLabel === 'Pending') return 'Private draft';
+    return 'Ready to submit';
+  }
+
+  get privateGateTitle(): string {
+    if (!this.job) return '';
+    if (this.job.errorRows > 0 || this.job.statusLabel === 'NeedsCorrection') return 'Finish preparing this upload';
+    if (this.job.statusLabel === 'Processing' || this.job.statusLabel === 'Pending') return 'Your upload is being prepared';
+    return 'Ready when you are';
+  }
+
+  get privateGateCopy(): string {
+    if (!this.job) return '';
+    if (this.job.errorRows > 0 || this.job.statusLabel === 'NeedsCorrection') return 'Resolve the blocking rows before sharing this version with the review team.';
+    if (this.job.statusLabel === 'Processing' || this.job.statusLabel === 'Pending') return 'You can inspect and refine this version without anyone else seeing it.';
+    return 'Review the comparison, then deliberately share this exact version for approval.';
   }
 
   get canReviewApproval(): boolean {
@@ -1287,7 +1515,44 @@ export class ImportPreviewComponent implements OnInit {
 
     return this.auth.hasCapability('imports.correct_own')
       && this.job.createdBy === this.auth.userId
+      && this.isPrivateWorkspace
       && !['Approved', 'Committed', 'Rejected', 'Failed', 'Cancelled'].includes(this.job.statusLabel);
+  }
+
+  submitForReview(): void {
+    if (!this.job || !this.isPrivateWorkspace || this.job.statusLabel !== 'AwaitingApproval' || this.job.errorRows > 0) {
+      return;
+    }
+
+    this.workflowActionRunning = true;
+    this.importService.submitForReview(this.job.id).subscribe({
+      next: submitted => {
+        this.job = submitted;
+        this.workflowActionRunning = false;
+        this.snackBar.open('This version is now visible in the Review Queue.', 'Close', { duration: 5000 });
+      },
+      error: error => {
+        this.workflowActionRunning = false;
+        this.snackBar.open(error?.error?.error ?? 'The upload could not be submitted.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
+  withdrawFromReview(): void {
+    if (!this.job || !this.isSubmittedOwner) return;
+
+    this.workflowActionRunning = true;
+    this.importService.withdrawFromReview(this.job.id).subscribe({
+      next: withdrawn => {
+        this.job = withdrawn;
+        this.workflowActionRunning = false;
+        this.snackBar.open('The upload is private again. You can continue refining it.', 'Close', { duration: 5000 });
+      },
+      error: error => {
+        this.workflowActionRunning = false;
+        this.snackBar.open(error?.error?.error ?? 'The submission could not be withdrawn.', 'Close', { duration: 7000 });
+      }
+    });
   }
 
   canDownloadComparisonReport(): boolean {
@@ -1617,27 +1882,23 @@ export class ImportPreviewComponent implements OnInit {
     }
 
     const confirmed = window.confirm(
-      'Cancel this import request? You can upload a corrected file afterwards.'
+      'Permanently delete this private draft and all of its staged rows? This cannot be undone.'
     );
 
     if (!confirmed) {
       return;
     }
 
-    this.loading = true;
-    this.importService.cancel(this.job.id).subscribe({
-      next: updatedJob => {
-        this.job = updatedJob;
-        this.loading = false;
-        this.snackBar.open(
-          'Import request cancelled. Fix the source file and submit a fresh upload.',
-          'Close',
-          { duration: 6000 }
-        );
+    this.workflowActionRunning = true;
+    this.importService.deletePrivateDraft(this.job.id).subscribe({
+      next: () => {
+        this.workflowActionRunning = false;
+        this.snackBar.open('Private draft permanently deleted.', 'Close', { duration: 5000 });
+        this.router.navigate(['/uploads'], { queryParams: { space: 'workspace' } });
       },
       error: err => {
-        this.loading = false;
-        this.snackBar.open(err?.error?.error ?? 'Cancellation failed.', 'Close', { duration: 7000 });
+        this.workflowActionRunning = false;
+        this.snackBar.open(err?.error?.error ?? 'The private draft could not be deleted.', 'Close', { duration: 7000 });
       }
     });
   }

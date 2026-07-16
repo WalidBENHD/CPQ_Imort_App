@@ -16,12 +16,16 @@ public interface INotificationService
     Task NotifyImportRejectedAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportApprovedAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportCommittedAsync(ImportJob job, Guid uploaderId);
+    Task ClearImportNotificationsAsync(Guid importId);
 }
 
 public class NotificationService(
     INotificationRepository notificationRepository) : INotificationService
 {
     private readonly INotificationRepository _notificationRepository = notificationRepository;
+
+    public Task ClearImportNotificationsAsync(Guid importId)
+        => _notificationRepository.DeleteForImportAsync(importId);
 
     public async Task NotifyAdminsAboutPendingUserAsync(TestUser user, List<Guid> adminIds)
     {
@@ -114,8 +118,8 @@ public class NotificationService(
             {
                 UserId = approverId,
                 NotificationType = NotificationType.ImportUploaded,
-                Title = "New Import Awaiting Approval",
-                Message = $"Import '{job.OriginalFileName}' ({job.EntityType}) is ready for review.",
+                Title = "New Submission Waiting for Review",
+                Message = $"{job.CreatedByDisplayName} submitted '{job.OriginalFileName}' ({job.EntityType}) for approval.",
                 RelatedImportId = job.Id,
                 ExpiresAt = DateTime.UtcNow.AddDays(7)
             };

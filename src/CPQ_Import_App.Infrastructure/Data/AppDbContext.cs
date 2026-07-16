@@ -30,6 +30,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.OriginalFileName).HasMaxLength(512);
             e.Property(x => x.CreatedBy).HasMaxLength(256);
             e.Property(x => x.CreatedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.SubmittedByUserId).HasMaxLength(256);
+            e.Property(x => x.SubmittedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.SubmittedComparisonJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
             e.Property(x => x.CommittedBy).HasMaxLength(256);
             e.Property(x => x.ApprovedByUserId).HasMaxLength(256);
             e.Property(x => x.ApprovedByDisplayName).HasMaxLength(512);
@@ -38,6 +41,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.ApprovedComparisonJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
             e.HasMany(x => x.StagingRows).WithOne(x => x.ImportJob).HasForeignKey(x => x.ImportJobId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.AuditLogs).WithOne(x => x.ImportJob).HasForeignKey(x => x.ImportJobId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.WorkflowStage, x.CreatedAt });
         });
 
         modelBuilder.Entity<StagingRow>(e =>
@@ -64,6 +68,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.JobId);
             e.Property(x => x.FileName).HasMaxLength(512);
             e.Property(x => x.Content).HasColumnType(isNpgsql ? "bytea" : "varbinary(max)");
+            e.HasOne<ImportJob>().WithOne().HasForeignKey<UploadedFile>(x => x.JobId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<TestUser>(e =>

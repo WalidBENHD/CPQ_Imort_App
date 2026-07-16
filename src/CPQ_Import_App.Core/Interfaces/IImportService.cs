@@ -9,12 +9,15 @@ public interface IImportService
         string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid jobId, CancellationToken ct = default);
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
-        int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
+        int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
     Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
         Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default);
     Task<ImportJob> RefreshValidationAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> SubmitForReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> WithdrawFromReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task DeletePrivateDraftAsync(Guid jobId, string userId, CancellationToken ct = default);
     Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> ReturnToReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> PublishAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);

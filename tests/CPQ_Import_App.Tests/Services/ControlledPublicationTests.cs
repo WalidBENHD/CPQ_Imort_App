@@ -10,10 +10,61 @@ namespace CPQ_Import_App.Tests.Services;
 public class ControlledPublicationTests
 {
     [Fact]
+    public async Task SubmitForReviewAsync_FreezesComparisonAndSharesPrivateUpload()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var comparison = CreateComparison(Guid.NewGuid(), hasBaseline: true);
+        var repository = new FakeImportRepository(job, comparison);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var result = await service.SubmitForReviewAsync(job.Id, "contributor-id", "Cara Contributor");
+
+        Assert.Equal(ImportWorkflowStage.Submitted, result.WorkflowStage);
+        Assert.NotNull(result.SubmittedAt);
+        Assert.Equal("contributor-id", result.SubmittedByUserId);
+        Assert.NotNull(result.SubmittedComparisonJson);
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "Submitted");
+    }
+
+    [Fact]
+    public async Task WithdrawFromReviewAsync_ReturnsSubmissionToPrivateWorkspace()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        job.SubmittedComparisonJson = JsonSerializer.Serialize(CreateComparison(Guid.NewGuid(), true));
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var result = await service.WithdrawFromReviewAsync(job.Id, "contributor-id", "Cara Contributor");
+
+        Assert.Equal(ImportWorkflowStage.Private, result.WorkflowStage);
+        Assert.NotNull(result.WithdrawnAt);
+        Assert.Null(result.SubmittedComparisonJson);
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "Withdrawn");
+    }
+
+    [Fact]
+    public async Task ApproveAsync_WhenApproverOwnsSubmission_BlocksSelfApproval()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var comparison = CreateComparison(Guid.NewGuid(), true);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        job.SubmittedComparisonJson = JsonSerializer.Serialize(comparison);
+        var service = CreateService(new FakeImportRepository(job, comparison), new FakeCommitStrategy());
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.ApproveAsync(job.Id, "contributor-id", "Cara Contributor"));
+
+        Assert.Contains("own submission", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ApproveAsync_PersistsApprovalEvidenceWithoutPublishing()
     {
         var job = CreateJob(ImportStatus.AwaitingApproval);
         var comparison = CreateComparison(Guid.NewGuid(), hasBaseline: true);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        job.SubmittedComparisonJson = JsonSerializer.Serialize(comparison);
         var repository = new FakeImportRepository(job, comparison);
         var strategy = new FakeCommitStrategy();
         var service = CreateService(repository, strategy);
@@ -40,6 +91,7 @@ public class ControlledPublicationTests
         var result = await service.ReturnToReviewAsync(job.Id, "approver-id", "Anne Approver");
 
         Assert.Equal(ImportStatus.AwaitingApproval, result.Status);
+        Assert.Equal(ImportWorkflowStage.Submitted, result.WorkflowStage);
         Assert.Null(result.ApprovedAt);
         Assert.Null(result.ApprovedByUserId);
         Assert.Null(result.ApprovedByDisplayName);
@@ -67,6 +119,7 @@ public class ControlledPublicationTests
         var result = await service.PublishAsync(job.Id, "publisher-id", "Paul Publisher");
 
         Assert.Equal(ImportStatus.Committed, result.Status);
+        Assert.Equal(ImportWorkflowStage.Published, result.WorkflowStage);
         Assert.Equal("Paul Publisher", result.CommittedBy);
         Assert.Equal(1, result.CommittedRows);
         Assert.True(strategy.WasCalled);
@@ -100,6 +153,9 @@ public class ControlledPublicationTests
         OriginalFileName = "annual-articles.xlsx",
         EntityType = EntityType.Article,
         Status = status,
+        WorkflowStage = ImportWorkflowStage.Private,
+        CreatedBy = "contributor-id",
+        CreatedByDisplayName = "Cara Contributor",
         ErrorRows = 0
     };
 
@@ -108,6 +164,7 @@ public class ControlledPublicationTests
         var approvedAt = DateTime.UtcNow.AddMinutes(-5);
         var snapshot = new ApprovedComparisonSnapshot(1, approvedAt, "approver-id", "Anne Approver", comparison);
         var job = CreateJob(ImportStatus.Approved);
+        job.WorkflowStage = ImportWorkflowStage.Approved;
         job.ApprovedAt = approvedAt;
         job.ApprovedByUserId = snapshot.ApprovedByUserId;
         job.ApprovedByDisplayName = snapshot.ApprovedByDisplayName;
@@ -173,7 +230,8 @@ public class ControlledPublicationTests
         }
 
         public Task<ImportJob> CreateJobAsync(ImportJob newJob, CancellationToken ct = default) => Task.FromResult(newJob);
-        public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task DeleteJobAsync(ImportJob deletedJob, CancellationToken ct = default) => Task.CompletedTask;
         public Task AddStagingRowsAsync(IEnumerable<StagingRow> rows, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows);
         public Task<StagingRow?> GetStagingRowAsync(Guid jobId, Guid rowId, CancellationToken ct = default) => throw new NotSupportedException();

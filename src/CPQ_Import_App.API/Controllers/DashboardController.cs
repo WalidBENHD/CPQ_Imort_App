@@ -8,6 +8,7 @@ using CPQ_Import_App.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace CPQ_Import_App.API.Controllers;
 
@@ -21,6 +22,7 @@ public class DashboardController(
     [HttpGet("overview")]
     public async Task<ActionResult<DashboardOverviewDto>> GetOverview(CancellationToken ct)
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub") ?? "unknown";
         var now = DateTime.UtcNow;
         var today = now.Date;
         var tomorrow = today.AddDays(1);
@@ -28,6 +30,7 @@ public class DashboardController(
 
         var jobs = await db.ImportJobs
             .AsNoTracking()
+            .Where(j => j.WorkflowStage != ImportWorkflowStage.Private)
             .Select(j => new DashboardJobSnapshot(
                 j.Id,
                 j.EntityType,
@@ -46,6 +49,7 @@ public class DashboardController(
 
         var activitySnapshots = await db.AuditLogs
             .AsNoTracking()
+            .Where(a => a.ImportJob.WorkflowStage != ImportWorkflowStage.Private)
             .OrderByDescending(a => a.PerformedAt)
             .Take(10)
             .Select(a => new DashboardActivitySnapshot(
@@ -73,7 +77,7 @@ public class DashboardController(
             })
             .ToList();
 
-        var recentSubmissions = await importService.GetJobsPagedAsync(1, 5, ct: ct);
+        var recentSubmissions = await importService.GetJobsPagedAsync(1, 5, userId, ct: ct);
 
         var openQueue = jobs.Count(j => j.Status == ImportStatus.AwaitingApproval || j.Status == ImportStatus.Approved || j.Status == ImportStatus.NeedsCorrection);
 

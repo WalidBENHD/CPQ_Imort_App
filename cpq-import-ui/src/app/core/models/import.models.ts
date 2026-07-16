@@ -1,5 +1,6 @@
 export type EntityType = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
 export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'NeedsCorrection' | 'Approved' | 'Committed' | 'Rejected' | 'Failed' | 'Cancelled';
+export type ImportWorkflowStage = 'Private' | 'Submitted' | 'Approved' | 'Published' | 'Rejected' | 'Withdrawn';
 export type RowStatus = 'Valid' | 'Warning' | 'Error';
 export type ComparisonStatus = 'New' | 'Modified' | 'Unchanged';
 
@@ -57,10 +58,16 @@ export interface ImportJob {
   entityTypeLabel: string;
   status: number;
   statusLabel: ImportStatus;
+  workflowStage: number;
+  workflowStageLabel: ImportWorkflowStage;
   createdBy: string;
   createdByDisplayName: string;
   createdAt: string;
   processedAt: string | null;
+  submittedAt: string | null;
+  submittedByUserId: string | null;
+  submittedByDisplayName: string | null;
+  withdrawnAt: string | null;
   approvedAt: string | null;
   approvedByUserId: string | null;
   approvedByDisplayName: string | null;

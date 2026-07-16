@@ -1,0 +1,128 @@
+<header class="page-header">
+  <div>
+    <div class="eyebrow">Submission centre</div>
+    <h1>Uploads</h1>
+    <p>Prepare privately, submit deliberately and keep every governed decision traceable.</p>
+  </div>
+  <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" (click)="newImport()">
+    <mat-icon>add</mat-icon> Start private upload
+  </button>
+</header>
+
+<section class="journey" aria-label="Upload workflow">
+  <div><span>1</span><strong>Prepare privately</strong><small>Upload, validate and compare</small></div>
+  <mat-icon>arrow_forward</mat-icon>
+  <div><span>2</span><strong>Share for review</strong><small>Freeze and send your version</small></div>
+  <mat-icon>arrow_forward</mat-icon>
+  <div><span>3</span><strong>Publish with proof</strong><small>Approve, publish and retain</small></div>
+</section>
+
+<nav class="space-switcher" aria-label="Upload spaces">
+  <button
+    *ngFor="let space of spaces"
+    type="button"
+    class="space-card"
+    [class.space-card--active]="activeSpace === space.key"
+    (click)="selectSpace(space.key)">
+    <span class="space-icon"><mat-icon>{{ space.icon }}</mat-icon></span>
+    <span class="space-copy">
+      <small>{{ space.eyebrow }}</small>
+      <strong>{{ space.title }}</strong>
+      <span>{{ space.description }}</span>
+    </span>
+    <span class="space-count">{{ spaceCount(space.key) }}</span>
+  </button>
+</nav>
+
+<mat-card class="workspace-shell">
+  <header class="workspace-heading">
+    <div>
+      <div class="privacy-label" [class.privacy-label--shared]="activeSpace === 'review'" [class.privacy-label--history]="activeSpace === 'history'">
+        <mat-icon>{{ activeSpace === 'workspace' ? 'lock' : activeSpace === 'review' ? 'visibility' : 'verified' }}</mat-icon>
+        {{ activeSpace === 'workspace' ? 'Only visible to you' : activeSpace === 'review' ? 'Visible to the review team' : 'Retained as governed evidence' }}
+      </div>
+      <h2>{{ spaceTitle() }}</h2>
+      <p>{{ spaceDescription() }}</p>
+    </div>
+    <span class="result-count">{{ filteredJobs.length }} {{ filteredJobs.length === 1 ? 'item' : 'items' }}</span>
+  </header>
+
+  <form class="filters" [formGroup]="filtersForm">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Search this space</mat-label>
+      <input matInput formControlName="search" [placeholder]="searchFocused ? 'File name, dataset or contributor' : ''" (focus)="searchFocused = true" (blur)="searchFocused = false" />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Dataset</mat-label>
+      <mat-select formControlName="entityType">
+        <mat-option value="">All datasets</mat-option>
+        <mat-option *ngFor="let dataset of datasetOptions" [value]="dataset.name">{{ dataset.name }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-button type="button" (click)="clearFilters()"><mat-icon>filter_alt_off</mat-icon> Clear</button>
+  </form>
+
+  <div class="loading" *ngIf="loading">
+    <mat-icon>hourglass_top</mat-icon>
+    <span>Loading your submission spaces...</span>
+  </div>
+
+  <div class="upload-list" *ngIf="!loading && filteredJobs.length">
+    <article class="upload-item" *ngFor="let job of filteredJobs" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
+      <div class="file-mark" [class.file-mark--published]="job.statusLabel === 'Committed'">
+        <mat-icon>{{ job.statusLabel === 'Committed' ? 'verified' : 'description' }}</mat-icon>
+      </div>
+
+      <div class="upload-main">
+        <div class="upload-title-row">
+          <strong>{{ job.originalFileName }}</strong>
+          <span class="prototype-status" *ngIf="activeSpace === 'workspace'">{{ workspaceStatus(job) }}</span>
+          <app-status-badge *ngIf="activeSpace !== 'workspace'" [status]="job.statusLabel" />
+        </div>
+        <div class="upload-details">
+          <span><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
+          <span><mat-icon>table_rows</mat-icon>{{ job.totalRows }} rows</span>
+          <span><mat-icon>schedule</mat-icon>{{ job.createdAt | date:'dd MMM yyyy, HH:mm' }}</span>
+          <span *ngIf="activeSpace !== 'workspace'"><mat-icon>person</mat-icon>{{ job.createdByDisplayName }}</span>
+        </div>
+        <div class="quality-line" *ngIf="activeSpace === 'workspace'">
+          <span class="quality quality--valid">{{ job.validRows }} valid</span>
+          <span class="quality quality--warning">{{ job.warningRows }} warnings</span>
+          <span class="quality quality--error">{{ job.errorRows }} errors</span>
+        </div>
+        <p class="item-note" *ngIf="canSubmit(job)">
+          Your comparison is ready. Nobody else can see this version until you submit it.
+        </p>
+      </div>
+
+      <div class="item-actions" (click)="$event.stopPropagation()">
+        <button *ngIf="canSubmit(job)" mat-raised-button color="primary" (click)="submitForReview(job, $event)">
+          <mat-icon>send</mat-icon> Submit for review
+        </button>
+        <button *ngIf="canWithdraw(job)" mat-stroked-button (click)="withdraw(job, $event)">
+          <mat-icon>undo</mat-icon> Withdraw
+        </button>
+        <button mat-stroked-button (click)="view(job)">
+          <mat-icon>{{ activeSpace === 'workspace' ? 'edit_note' : 'visibility' }}</mat-icon>
+          {{ activeSpace === 'workspace' ? 'Continue' : 'Open' }}
+        </button>
+        <button *ngIf="canDiscard(job) && activeSpace === 'workspace'" mat-button class="discard" [disabled]="actionJobId === job.id" (click)="discard(job, $event)">
+          <mat-icon>delete_outline</mat-icon> Discard
+        </button>
+        <button *ngIf="activeSpace === 'history'" mat-icon-button matTooltip="Download original file" (click)="downloadOriginal(job, $event)">
+          <mat-icon>download</mat-icon>
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <div class="empty-state" *ngIf="!loading && !filteredJobs.length">
+    <span><mat-icon>{{ emptyIcon() }}</mat-icon></span>
+    <h3>{{ emptyTitle() }}</h3>
+    <p>{{ emptyCopy() }}</p>
+    <button *ngIf="activeSpace === 'workspace' && auth.hasCapability('imports.upload')" mat-raised-button color="primary" (click)="newImport()">
+      <mat-icon>add</mat-icon> Start private upload
+    </button>
+  </div>
+</mat-card>

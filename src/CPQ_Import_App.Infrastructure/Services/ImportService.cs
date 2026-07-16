@@ -37,6 +37,7 @@ public class ImportService(
             OriginalFileName = fileName,
             EntityType = entityType,
             Status = ImportStatus.Processing,
+            WorkflowStage = ImportWorkflowStage.Private,
             CreatedBy = userId,
             CreatedByDisplayName = userDisplayName
         };
@@ -126,8 +127,8 @@ public class ImportService(
         => repository.GetJobAsync(jobId, ct);
 
     public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
-        int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
-        => repository.GetJobsPagedAsync(page, pageSize, search, status, entityType, ct);
+        int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
+        => repository.GetJobsPagedAsync(page, pageSize, viewerUserId, search, status, entityType, ct);
 
     public Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsAsync(
         Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
@@ -138,6 +139,8 @@ public class ImportService(
     {
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        EnsurePrivateOwner(job, userId, "refresh");
 
         if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be refreshed.");
@@ -188,6 +191,8 @@ public class ImportService(
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
 
+        EnsurePrivateOwner(job, userId, "edit");
+
         if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be edited.");
 
@@ -220,6 +225,73 @@ public class ImportService(
         return row;
     }
 
+    public async Task<ImportJob> SubmitForReviewAsync(
+        Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        EnsurePrivateOwner(job, userId, "submit");
+        if (job.Status != ImportStatus.AwaitingApproval || job.ErrorRows > 0)
+            throw new InvalidOperationException("Blocking errors must be corrected before this upload can be submitted.");
+
+        var comparison = await repository.GetComparisonAsync(jobId, ct);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        job.SubmittedAt = DateTime.UtcNow;
+        job.SubmittedByUserId = userId;
+        job.SubmittedByDisplayName = userDisplayName;
+        job.SubmittedComparisonJson = JsonSerializer.Serialize(comparison, JsonOpts);
+        job.WithdrawnAt = null;
+
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Submitted",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Submitted for review: {comparison.NewRows} new, {comparison.ModifiedRows} modified, and {comparison.MissingBaselineRows} scoped deletions."
+        }, ct);
+
+        return job;
+    }
+
+    public async Task<ImportJob> WithdrawFromReviewAsync(
+        Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+
+        if (!string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Only the original uploader can withdraw this submission.");
+        if (job.WorkflowStage != ImportWorkflowStage.Submitted || job.Status != ImportStatus.AwaitingApproval)
+            throw new InvalidOperationException("Only a submission currently waiting for review can be withdrawn.");
+
+        job.WorkflowStage = ImportWorkflowStage.Private;
+        job.WithdrawnAt = DateTime.UtcNow;
+        job.SubmittedComparisonJson = null;
+
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Withdrawn",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = "Submission withdrawn from team review and returned to the uploader's private workspace."
+        }, ct);
+
+        return job;
+    }
+
+    public async Task DeletePrivateDraftAsync(Guid jobId, string userId, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+        EnsurePrivateOwner(job, userId, "delete");
+        await repository.DeleteJobAsync(job, ct);
+    }
+
     public async Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
     {
         var job = await repository.GetJobAsync(jobId, ct)
@@ -228,19 +300,36 @@ public class ImportService(
         if (job.Status != ImportStatus.AwaitingApproval)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be approved.");
 
+        if (job.WorkflowStage != ImportWorkflowStage.Submitted)
+            throw new InvalidOperationException("The uploader must submit this private upload before it can be approved.");
+
+        if (string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("You cannot approve your own submission.");
+
         if (job.ErrorRows > 0)
             throw new InvalidOperationException("Blocking errors must be corrected before approval.");
 
         var comparison = await repository.GetComparisonAsync(jobId, ct);
+        // Pre-workflow submissions were already shared without a frozen snapshot.
+        var submittedComparison = string.IsNullOrWhiteSpace(job.SubmittedComparisonJson)
+            ? comparison
+            : DeserializeSubmittedComparison(job.SubmittedComparisonJson);
+        if (submittedComparison.HasBaseline != comparison.HasBaseline
+            || (submittedComparison.HasBaseline && submittedComparison.BaselineJobId != comparison.BaselineJobId))
+        {
+            throw new InvalidOperationException("The active baseline changed after submission. The uploader must withdraw, refresh, and submit the comparison again.");
+        }
+
         var approvedAt = DateTime.UtcNow;
         var approvalSnapshot = new ApprovedComparisonSnapshot(
             SchemaVersion: 1,
             ApprovedAtUtc: approvedAt,
             ApprovedByUserId: userId,
             ApprovedByDisplayName: userDisplayName,
-            Comparison: comparison);
+            Comparison: submittedComparison);
 
         job.Status = ImportStatus.Approved;
+        job.WorkflowStage = ImportWorkflowStage.Approved;
         job.ApprovedAt = approvedAt;
         job.ApprovedByUserId = userId;
         job.ApprovedByDisplayName = userDisplayName;
@@ -253,7 +342,7 @@ public class ImportService(
             Action = "Approved",
             PerformedBy = userId,
             PerformedByDisplayName = userDisplayName,
-            Details = $"Approved for publication: {comparison.NewRows} new, {comparison.ModifiedRows} modified, and {comparison.MissingBaselineRows} scoped deletions."
+            Details = $"Approved for publication: {submittedComparison.NewRows} new, {submittedComparison.ModifiedRows} modified, and {submittedComparison.MissingBaselineRows} scoped deletions."
         }, ct);
 
         return job;
@@ -268,10 +357,12 @@ public class ImportService(
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be returned to review.");
 
         job.Status = ImportStatus.AwaitingApproval;
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
         job.ApprovedAt = null;
         job.ApprovedByUserId = null;
         job.ApprovedByDisplayName = null;
         job.ApprovedComparisonJson = null;
+        job.SubmittedComparisonJson = JsonSerializer.Serialize(await repository.GetComparisonAsync(jobId, ct), JsonOpts);
 
         await repository.UpdateJobAsync(job, ct);
         await repository.AddAuditLogAsync(new AuditLog
@@ -347,6 +438,7 @@ public class ImportService(
         await strategy.CommitRowsAsync(rowDicts, removedKeys, ct);
 
         job.Status = ImportStatus.Committed;
+        job.WorkflowStage = ImportWorkflowStage.Published;
         job.CommittedAt = DateTime.UtcNow;
         job.CommittedBy = userDisplayName;
         job.CommittedRows = rowDicts.Count;
@@ -376,6 +468,7 @@ public class ImportService(
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be cancelled.");
 
         job.Status = ImportStatus.Cancelled;
+        job.WorkflowStage = ImportWorkflowStage.Withdrawn;
         await repository.UpdateJobAsync(job, ct);
         await repository.AddAuditLogAsync(new AuditLog
         {
@@ -398,7 +491,14 @@ public class ImportService(
         if (job.Status != ImportStatus.AwaitingApproval)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be rejected.");
 
+        if (job.WorkflowStage != ImportWorkflowStage.Submitted)
+            throw new InvalidOperationException("Only a formally submitted upload can be returned with feedback.");
+
+        if (string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("You cannot review your own submission.");
+
         job.Status = ImportStatus.Rejected;
+        job.WorkflowStage = ImportWorkflowStage.Rejected;
         job.RejectedAt = DateTime.UtcNow;
         job.RejectedBy = userDisplayName;
         job.RejectionReason = reason;
@@ -882,6 +982,27 @@ public class ImportService(
 
     private static string CreateDuplicateArticleMessage(string? articleNumber)
         => $"ArticleNumber value '{articleNumber}' is duplicated within the uploaded file.";
+
+    private static void EnsurePrivateOwner(ImportJob job, string userId, string action)
+    {
+        if (!string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException($"Only the original uploader can {action} this private upload.");
+        if (job.WorkflowStage != ImportWorkflowStage.Private)
+            throw new InvalidOperationException($"This upload is in the '{job.WorkflowStage}' workflow stage and cannot be {action}ed.");
+    }
+
+    private static ImportComparisonResult DeserializeSubmittedComparison(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ImportComparisonResult>(json, JsonOpts)
+                ?? throw new InvalidDataException("The submitted comparison evidence is empty.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("The submitted comparison evidence is invalid.", ex);
+        }
+    }
 
     private static void ApplyJobTotals(ImportJob job, IReadOnlyCollection<StagingRow> rows)
     {

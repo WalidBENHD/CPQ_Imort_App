@@ -22,6 +22,16 @@ public enum ImportStatus
     Approved = 8
 }
 
+public enum ImportWorkflowStage
+{
+    Private = 0,
+    Submitted = 1,
+    Approved = 2,
+    Published = 3,
+    Rejected = 4,
+    Withdrawn = 5
+}
+
 public enum RowStatus
 {
     Valid = 0,

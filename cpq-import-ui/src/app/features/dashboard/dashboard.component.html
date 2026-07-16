@@ -1,0 +1,123 @@
+<div class="dashboard-shell">
+  <header class="page-header">
+    <div>
+      <div class="eyebrow">Your operational day</div>
+      <h1>Good to see you, {{ userFirstName }}</h1>
+      <p>Private preparation, team decisions and CPQ publication in one focused view.</p>
+    </div>
+    <button *ngIf="auth.hasCapability('imports.upload')" mat-raised-button color="primary" (click)="newImport()">
+      <mat-icon>add</mat-icon> Start private upload
+    </button>
+  </header>
+
+  <mat-card class="scope-strip">
+    <div><span>Pilot scope</span><strong>{{ pilotScope.site }} · {{ pilotScope.productFamily }}</strong><small>{{ pilotScope.submissionType }}</small></div>
+    <div class="scope-chips"><span *ngFor="let chip of pilotChips">{{ chip }}</span></div>
+  </mat-card>
+
+  <ng-container *ngIf="!loading; else loadingState">
+    <section class="metric-grid">
+      <button class="metric metric--private" type="button" (click)="openSpace('workspace')">
+        <span class="metric-icon"><mat-icon>lock_person</mat-icon></span>
+        <span class="metric-copy"><small>Only visible to you</small><strong>My drafts</strong></span>
+        <b>{{ privateJobs.length }}</b>
+        <span class="metric-detail">{{ readyToSubmit.length }} ready · {{ privateCorrections.length }} need correction</span>
+      </button>
+
+      <button class="metric metric--attention" type="button" (click)="openAttention()">
+        <span class="metric-icon"><mat-icon>notifications_active</mat-icon></span>
+        <span class="metric-copy"><small>Personal priority</small><strong>Needs my attention</strong></span>
+        <b>{{ needsMyAttentionCount }}</b>
+        <span class="metric-detail">Based on your access capabilities</span>
+      </button>
+
+      <button class="metric metric--review" type="button" (click)="openSpace('review')">
+        <span class="metric-icon"><mat-icon>groups</mat-icon></span>
+        <span class="metric-copy"><small>Shared workflow</small><strong>Team review</strong></span>
+        <b>{{ awaitingApproval.length }}</b>
+        <span class="metric-detail">Formally submitted for approval</span>
+      </button>
+
+      <button class="metric metric--published" type="button" (click)="openSpace('history')">
+        <span class="metric-icon"><mat-icon>verified</mat-icon></span>
+        <span class="metric-copy"><small>Governed evidence</small><strong>Published today</strong></span>
+        <b>{{ overview?.summary?.committedToday ?? 0 }}</b>
+        <span class="metric-detail">Publication records retained</span>
+      </button>
+    </section>
+
+    <mat-card class="attention-card" [class.attention-card--clear]="needsMyAttentionCount === 0 && readyToSubmit.length === 0">
+      <span class="attention-icon"><mat-icon>{{ attentionIcon }}</mat-icon></span>
+      <div><small>Your next best action</small><h2>{{ attentionTitle }}</h2><p>{{ attentionCopy }}</p></div>
+      <button mat-raised-button color="primary" (click)="openAttention()">
+        {{ needsMyAttentionCount || readyToSubmit.length ? 'Open next item' : 'Open my workspace' }}
+        <mat-icon>arrow_forward</mat-icon>
+      </button>
+    </mat-card>
+
+    <div class="work-grid" [class.work-grid--admin]="showAdminInsights">
+      <mat-card class="panel private-panel">
+        <header class="panel-head">
+          <div><span class="panel-eyebrow"><mat-icon>lock</mat-icon> Private</span><h2>My recent work</h2><p>Experiment freely. These files stay invisible until you submit them.</p></div>
+          <button mat-button (click)="openSpace('workspace')">View workspace <mat-icon>arrow_forward</mat-icon></button>
+        </header>
+
+        <div class="job-list" *ngIf="privateJobs.length; else noPrivateWork">
+          <button type="button" class="job-row" *ngFor="let job of privateJobs | slice:0:3" (click)="view(job)">
+            <span class="job-icon"><mat-icon>description</mat-icon></span>
+            <span class="job-main"><strong>{{ job.originalFileName }}</strong><small>{{ job.entityTypeLabel }} · {{ job.totalRows }} rows · {{ job.createdAt | date:'dd MMM, HH:mm' }}</small></span>
+            <span class="private-status" [class.private-status--error]="job.errorRows > 0">{{ privateStatus(job) }}</span>
+            <mat-icon class="chevron">chevron_right</mat-icon>
+          </button>
+        </div>
+        <ng-template #noPrivateWork>
+          <div class="panel-empty"><mat-icon>note_add</mat-icon><strong>No private drafts</strong><span>Start an upload when you are ready to prepare the next update.</span></div>
+        </ng-template>
+      </mat-card>
+
+      <mat-card class="panel shared-panel">
+        <header class="panel-head">
+          <div><span class="panel-eyebrow panel-eyebrow--shared"><mat-icon>visibility</mat-icon> Shared</span><h2>Team workflow</h2><p>Only deliberate submissions and governed decisions appear here.</p></div>
+          <button mat-button (click)="openSpace('review')">Open queue <mat-icon>arrow_forward</mat-icon></button>
+        </header>
+
+        <div class="gate-grid">
+          <button type="button" (click)="openSpace('review')"><span><mat-icon>approval</mat-icon><strong>Awaiting approval</strong></span><b>{{ awaitingApproval.length }}</b></button>
+          <button type="button" (click)="openSpace('review')"><span><mat-icon>rocket_launch</mat-icon><strong>Ready to publish</strong></span><b>{{ readyToPublish.length }}</b></button>
+        </div>
+
+        <div class="latest-publication" *ngIf="latestPublished as published; else noPublication">
+          <span class="published-icon"><mat-icon>verified</mat-icon></span>
+          <div><small>Latest publication</small><strong>{{ published.originalFileName }}</strong><span>{{ published.entityTypeLabel }} · {{ published.committedRows }} rows</span></div>
+          <button mat-icon-button (click)="view(published)"><mat-icon>arrow_forward</mat-icon></button>
+        </div>
+        <ng-template #noPublication><div class="compact-empty">No publication record is available yet.</div></ng-template>
+      </mat-card>
+
+      <mat-card class="panel activity-panel">
+        <header class="panel-head">
+          <div><span class="panel-eyebrow panel-eyebrow--history"><mat-icon>history</mat-icon> Traceable</span><h2>Shared activity</h2><p>What entered the formal workflow, not every private experiment.</p></div>
+          <button mat-button (click)="openSpace('history')">View history <mat-icon>arrow_forward</mat-icon></button>
+        </header>
+        <div class="activity-list" *ngIf="activityJobs.length; else noActivity">
+          <button type="button" *ngFor="let job of activityJobs" (click)="view(job)">
+            <span class="activity-icon"><mat-icon>{{ activityIcon(job) }}</mat-icon></span>
+            <span><strong>{{ activityLabel(job) }}</strong><small>{{ job.originalFileName }} · {{ job.createdByDisplayName }}</small></span>
+            <time>{{ job.committedAt || job.approvedAt || job.rejectedAt || job.createdAt | date:'dd MMM, HH:mm' }}</time>
+          </button>
+        </div>
+        <ng-template #noActivity><div class="compact-empty">Shared workflow activity will appear after a contributor submits a version.</div></ng-template>
+      </mat-card>
+
+      <mat-card class="panel people-panel" *ngIf="showAdminInsights">
+        <header class="panel-head"><div><span class="panel-eyebrow panel-eyebrow--admin"><mat-icon>monitoring</mat-icon> Admin pulse</span><h2>Platform presence</h2><p>{{ liveUsersCount }} live now · {{ currentUsersCount }} approved users</p></div></header>
+        <div class="people-list">
+          <div *ngFor="let user of recentConnections"><span class="presence" [class]="'presence presence--' + getPresenceStatus(user)"></span><strong>{{ user.displayName }}</strong><small>{{ getPresenceLabel(user) }} · {{ formatLastSeen(user) }}</small></div>
+        </div>
+      </mat-card>
+    </div>
+
+  </ng-container>
+
+  <ng-template #loadingState><mat-card class="loading-card"><mat-spinner diameter="34"></mat-spinner><span>Preparing your personalized dashboard...</span></mat-card></ng-template>
+</div>

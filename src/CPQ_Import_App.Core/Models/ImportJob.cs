@@ -10,6 +10,12 @@ public class ImportJob
     public string OriginalFileName { get; set; } = string.Empty;
     public EntityType EntityType { get; set; }
     public ImportStatus Status { get; set; } = ImportStatus.Pending;
+    public ImportWorkflowStage WorkflowStage { get; set; } = ImportWorkflowStage.Private;
+    public DateTime? SubmittedAt { get; set; }
+    public string? SubmittedByUserId { get; set; }
+    public string? SubmittedByDisplayName { get; set; }
+    public string? SubmittedComparisonJson { get; set; }
+    public DateTime? WithdrawnAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public string CreatedByDisplayName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

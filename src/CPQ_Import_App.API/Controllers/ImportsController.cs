@@ -55,17 +55,7 @@ public class ImportsController(
         {
             var job = await importService.UploadAsync(stream, file.FileName, et, UserId, UserDisplayName, ct);
             
-            if (job.Status == ImportStatus.AwaitingApproval)
-            {
-                // Notify approvers/admins about the new import
-                var approverIds = await accessControlService.GetUserIdsWithCapabilityAsync(Capabilities.ImportsApprove, ct);
-
-                if (approverIds.Any())
-                {
-                    await notificationService.NotifyImportUploadedAsync(job, approverIds.ToList());
-                }
-            }
-            else if (job.Status == ImportStatus.NeedsCorrection && Guid.TryParse(job.CreatedBy, out var uploaderId))
+            if (job.Status == ImportStatus.NeedsCorrection && Guid.TryParse(job.CreatedBy, out var uploaderId))
             {
                 await notificationService.NotifyImportNeedsCorrectionAsync(job, uploaderId);
             }
@@ -93,13 +83,15 @@ public class ImportsController(
     public async Task<ActionResult<ImportJobDto>> GetJob(Guid id, CancellationToken ct)
     {
         var job = await importService.GetJobAsync(id, ct);
-        return job is null ? NotFound() : Ok(job.ToDto());
+        return job is null || !CanView(job) ? NotFound() : Ok(job.ToDto());
     }
 
     /// <summary>Get a comparison summary between the upload and the current baseline.</summary>
     [HttpGet("{id:guid}/comparison")]
     public async Task<ActionResult<ImportComparisonDto>> GetComparison(Guid id, CancellationToken ct)
     {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
         try
         {
             var comparison = await importService.GetComparisonAsync(id, ct);
@@ -112,6 +104,8 @@ public class ImportsController(
     [HttpGet("{id:guid}/approval-snapshot")]
     public async Task<ActionResult<ApprovedComparisonSnapshotDto>> GetApprovalSnapshot(Guid id, CancellationToken ct)
     {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
         try
         {
             var snapshot = await importService.GetApprovedComparisonSnapshotAsync(id, ct);
@@ -186,7 +180,7 @@ public class ImportsController(
         if (!string.IsNullOrWhiteSpace(entityType) && Enum.TryParse<EntityType>(entityType, ignoreCase: true, out var et) && et != EntityType.Unknown && DatasetCatalog.IsSupported(et))
             parsedEntityType = et;
 
-        var (items, total) = await importService.GetJobsPagedAsync(page, pageSize, search, parsedStatus, parsedEntityType, ct);
+        var (items, total) = await importService.GetJobsPagedAsync(page, pageSize, UserId, search, parsedStatus, parsedEntityType, ct);
         return Ok(new PagedResult<ImportJobDto>(items.Select(j => j.ToDto()).ToList(), total, page, pageSize));
     }
 
@@ -201,6 +195,9 @@ public class ImportsController(
         [FromQuery] string? comparisonStatus = null,
         CancellationToken ct = default)
     {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
+
         if (page < 1) page = 1;
         if (pageSize is < 1 or > 200) pageSize = 50;
 
@@ -264,7 +261,81 @@ public class ImportsController(
         }
     }
 
-    /// <summary>Cancel a submission so the uploader can correct the source file and re-upload.</summary>
+    /// <summary>Freeze a private upload and share it with the review queue.</summary>
+    [HttpPost("{id:guid}/submit")]
+    [Authorize(Policy = Capabilities.ImportsSubmit)]
+    public async Task<ActionResult<ImportJobDto>> Submit(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var submitted = await importService.SubmitForReviewAsync(id, UserId, UserDisplayName, ct);
+            var approverIds = await accessControlService.GetUserIdsWithCapabilityAsync(Capabilities.ImportsApprove, ct);
+            var recipients = approverIds.Where(userId => userId.ToString() != UserId).ToList();
+            if (recipients.Count > 0)
+                await notificationService.NotifyImportUploadedAsync(submitted, recipients);
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "SubmitImport",
+                $"Submitted {submitted.OriginalFileName} for team review.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK), ct);
+
+            return Ok(submitted.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Return an unpublished submission to its owner's private workspace.</summary>
+    [HttpPost("{id:guid}/withdraw")]
+    [Authorize(Policy = Capabilities.ImportsWithdrawOwn)]
+    public async Task<ActionResult<ImportJobDto>> Withdraw(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var withdrawn = await importService.WithdrawFromReviewAsync(id, UserId, UserDisplayName, ct);
+            await notificationService.ClearImportNotificationsAsync(id);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "WithdrawImport",
+                $"Withdrew {withdrawn.OriginalFileName} from team review.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK), ct);
+            return Ok(withdrawn.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Permanently delete a private draft and its staged data.</summary>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Capabilities.ImportsWithdrawOwn)]
+    public async Task<IActionResult> DeletePrivateDraft(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await importService.DeletePrivateDraftAsync(id, UserId, ct);
+            await notificationService.ClearImportNotificationsAsync(id);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "DeletePrivateImport",
+                $"Permanently deleted private import {id}.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status204NoContent), ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Cancel a legacy submission so the uploader can upload a corrected file.</summary>
     [HttpPost("{id:guid}/cancel")]
     [Authorize(Policy = Capabilities.ImportsWithdrawOwn)]
     public async Task<ActionResult<ImportJobDto>> Cancel(Guid id, CancellationToken ct)
@@ -441,7 +512,7 @@ public class ImportsController(
     public async Task<IActionResult> DownloadOriginal(Guid id, CancellationToken ct)
     {
         var job = await importService.GetJobAsync(id, ct);
-        if (job is null) return NotFound();
+        if (job is null || !CanView(job)) return NotFound();
         var bytes = await importService.GetOriginalFileAsync(id, ct);
         if (bytes is null) return NotFound();
         return File(bytes, "application/octet-stream", job.OriginalFileName);
@@ -451,6 +522,8 @@ public class ImportsController(
     [HttpGet("{id:guid}/error-report")]
     public async Task<IActionResult> DownloadErrorReport(Guid id, CancellationToken ct)
     {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
         try
         {
             var bytes = await importService.GenerateErrorReportAsync(id, ct);
@@ -465,6 +538,8 @@ public class ImportsController(
     [HttpGet("{id:guid}/comparison-report")]
     public async Task<IActionResult> DownloadComparisonReport(Guid id, CancellationToken ct)
     {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
         try
         {
             var bytes = await importService.GenerateComparisonReportAsync(id, ct);
@@ -474,5 +549,9 @@ public class ImportsController(
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
+
+    private bool CanView(CPQ_Import_App.Core.Models.ImportJob job)
+        => job.WorkflowStage != ImportWorkflowStage.Private
+            || string.Equals(job.CreatedBy, UserId, StringComparison.OrdinalIgnoreCase);
 
 }

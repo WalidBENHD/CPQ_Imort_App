@@ -305,6 +305,48 @@ static async Task EnsurePostgresActivityEventsTableAsync(AppDbContext db)
 static async Task EnsurePostgresImportJobsColumnsAsync(AppDbContext db)
 {
     const string sql = """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'import' AND table_name = 'ImportJobs' AND column_name = 'WorkflowStage'
+            ) THEN
+                ALTER TABLE import."ImportJobs" ADD COLUMN "WorkflowStage" integer NOT NULL DEFAULT 0;
+                UPDATE import."ImportJobs"
+                SET "WorkflowStage" = CASE
+                    WHEN "Status" = 2 THEN 1
+                    WHEN "Status" = 8 THEN 2
+                    WHEN "Status" = 4 THEN 3
+                    WHEN "Status" = 5 THEN 4
+                    WHEN "Status" = 7 THEN 5
+                    ELSE 0 END;
+            END IF;
+        END $$;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "SubmittedAt" timestamp with time zone NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "SubmittedByDisplayName" character varying(512) NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "SubmittedByUserId" character varying(256) NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "SubmittedComparisonJson" text NULL;
+
+        ALTER TABLE IF EXISTS import."ImportJobs"
+        ADD COLUMN IF NOT EXISTS "WithdrawnAt" timestamp with time zone NULL;
+
+        UPDATE import."ImportJobs"
+        SET "SubmittedAt" = COALESCE("ProcessedAt", "CreatedAt"),
+            "SubmittedByUserId" = "CreatedBy",
+            "SubmittedByDisplayName" = "CreatedByDisplayName"
+        WHERE "WorkflowStage" IN (1, 2, 3, 4) AND "SubmittedAt" IS NULL;
+
+        CREATE INDEX IF NOT EXISTS "IX_ImportJobs_WorkflowStage_CreatedAt"
+            ON import."ImportJobs" ("WorkflowStage", "CreatedAt");
+
         ALTER TABLE IF EXISTS import."ImportJobs"
         ADD COLUMN IF NOT EXISTS "ApprovedComparisonJson" text NULL;
 

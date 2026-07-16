@@ -76,6 +76,22 @@ export class ImportService {
     );
   }
 
+  submitForReview(jobId: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/submit`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
+  withdrawFromReview(jobId: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/withdraw`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
+  deletePrivateDraft(jobId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${jobId}`);
+  }
+
   returnToReview(jobId: string): Observable<ImportJob> {
     return this.http.post<ImportJob>(`${this.base}/${jobId}/return-to-review`, {}).pipe(
       tap(() => this.notificationService.pollNow().subscribe())

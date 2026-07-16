@@ -32,9 +32,12 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     }
 
     public async Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
-        int page, int pageSize, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
+        int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
     {
-        IQueryable<ImportJob> query = db.ImportJobs.AsNoTracking().OrderByDescending(j => j.CreatedAt);
+        IQueryable<ImportJob> query = db.ImportJobs
+            .AsNoTracking()
+            .Where(j => j.WorkflowStage != ImportWorkflowStage.Private || j.CreatedBy == viewerUserId)
+            .OrderByDescending(j => j.CreatedAt);
 
         if (status.HasValue)
             query = query.Where(j => j.Status == status.Value);
@@ -504,6 +507,15 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             EntityType.CurrencyRate => BuildCompositeKey(Get("FromCurrency"), Get("ToCurrency"), Get("ValidFrom")),
             _ => string.Empty
         };
+    }
+
+    public async Task DeleteJobAsync(ImportJob job, CancellationToken ct = default)
+    {
+        var uploadedFile = await db.UploadedFiles.FindAsync([job.Id], ct);
+        if (uploadedFile is not null)
+            db.UploadedFiles.Remove(uploadedFile);
+        db.ImportJobs.Remove(job);
+        await db.SaveChangesAsync(ct);
     }
 
     private static string BuildCompositeKey(params string?[] values)
