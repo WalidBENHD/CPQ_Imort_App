@@ -26,8 +26,8 @@ import { ApprovedComparisonSnapshot, ComparisonFieldChange, ComparisonRow } from
           </div>
 
           <p class="approval-record-copy">
-            This is the exact server-side comparison approved by <strong>{{ record.approvedByDisplayName }}</strong>
-            on <strong>{{ record.approvedAtUtc | date:'dd/MM/yyyy HH:mm' }}</strong>. It does not change when newer uploads are committed.
+            This shows the approval that was recorded by <strong>{{ record.approvedByDisplayName }}</strong>
+            on <strong>{{ record.approvedAtUtc | date:'dd/MM/yyyy HH:mm' }}</strong>. It stays the same even when newer uploads are approved later.
           </p>
 
           <div class="approval-baseline">
