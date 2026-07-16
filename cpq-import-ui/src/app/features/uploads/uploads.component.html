@@ -70,8 +70,16 @@
 
   <div class="upload-list" *ngIf="!loading && filteredJobs.length">
     <article class="upload-item" *ngFor="let job of filteredJobs" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
-      <div class="file-mark" [class.file-mark--published]="job.statusLabel === 'Committed'">
+      <div
+        class="file-mark"
+        [class.file-mark--published]="job.statusLabel === 'Committed'"
+        [class.file-mark--active]="activeSpace === 'history' && job.isActiveBaseline">
         <mat-icon>{{ job.statusLabel === 'Committed' ? 'verified' : 'description' }}</mat-icon>
+        <span
+          *ngIf="activeSpace === 'history' && job.isActiveBaseline"
+          class="active-baseline-led"
+          matTooltip="Active baseline"
+          aria-label="Active baseline"></span>
       </div>
 
       <div class="upload-main">
