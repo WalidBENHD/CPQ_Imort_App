@@ -161,13 +161,23 @@ import { ThemeService } from './core/services/theme.service';
           </div>
 
           <div class="side-nav-footer" *ngIf="auth.isAuthenticated">
-            <div class="signature-card" [class.signature-card--collapsed]="!isSidebarOpen">
-              <span class="signature-mark" aria-hidden="true">WB</span>
+            <div
+              class="signature-card"
+              [class.signature-card--collapsed]="!isSidebarOpen"
+              [matTooltip]="!isSidebarOpen ? 'Designed and built by Walid Benhamed' : ''"
+            >
+              <a
+                class="signature-mark"
+                href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open Walid Benhamed's LinkedIn profile"
+              >WB</a>
 
               <div class="signature-copy" *ngIf="isSidebarOpen">
-                <span class="signature-label">Created by</span>
-                <span class="signature-name">BENHAMED Walid</span>
-                <span class="signature-role">CPQ specialist &#64; Legrand</span>
+                <span class="signature-label">Designed &amp; built by</span>
+                <span class="signature-name">Walid Benhamed</span>
+                <span class="signature-role">CPQ Application Specialist</span>
               </div>
 
               <a
@@ -175,16 +185,14 @@ import { ThemeService } from './core/services/theme.service';
                 href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Take a look into my profile"
-                aria-label="Take a look into my profile on LinkedIn"
-                [matTooltip]="!isSidebarOpen ? 'Take a look into my profile' : ''"
+                aria-label="Open Walid Benhamed's LinkedIn profile"
+                matTooltip="View LinkedIn profile"
               >
                 <svg class="linkedin-logo" viewBox="0 0 24 24" role="img" aria-hidden="true">
                   <path
                     d="M19 3A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H19ZM8.6 10.4H6.2V17H8.6V10.4ZM8.8 7.95C8.8 7.17 8.19 6.6 7.4 6.6C6.6 6.6 6 7.17 6 7.95C6 8.72 6.6 9.3 7.4 9.3C8.19 9.3 8.8 8.72 8.8 7.95ZM18 13.35C18 11.35 16.9 10.2 15.2 10.2C14.23 10.2 13.64 10.73 13.35 11.1V10.4H11V17H13.4V13.75C13.4 12.9 13.56 12.08 14.62 12.08C15.66 12.08 15.67 13.05 15.67 13.8V17H18V13.35Z"
                   />
                 </svg>
-                <span *ngIf="isSidebarOpen">LinkedIn</span>
               </a>
             </div>
           </div>
@@ -431,29 +439,32 @@ import { ThemeService } from './core/services/theme.service';
 
     .side-nav-footer {
       margin-top: auto;
-      padding-top: 12px;
+      padding: 14px 4px 4px;
     }
 
     .signature-card {
       display: grid;
-      grid-template-columns: 34px minmax(0, 1fr);
-      grid-template-areas:
-        "mark copy"
-        "mark link";
-      column-gap: 10px;
-      row-gap: 4px;
-      padding: 12px 8px 0;
-      margin: 0 4px 4px;
-      border-top: 1px solid var(--app-border);
-      border-radius: 0;
-      background: transparent;
+      grid-template-columns: 44px minmax(0, 1fr) 30px;
+      grid-template-areas: "mark copy link";
+      gap: 11px;
+      align-items: center;
+      padding: 13px;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 16%, var(--app-border));
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--app-accent) 11%, transparent), transparent 48%),
+        var(--app-surface-elevated);
       color: var(--app-text);
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
     }
 
     .signature-card--collapsed {
-      grid-template-areas: "mark link";
-      align-items: center;
-      padding: 12px 8px 0;
+      display: flex;
+      justify-content: center;
+      padding: 8px 4px;
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
     }
 
     .signature-mark {
@@ -461,30 +472,41 @@ import { ThemeService } from './core/services/theme.service';
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      background: rgba(37, 99, 235, 0.14);
-      color: var(--app-accent);
-      font-size: 12px;
-      font-weight: 800;
+      width: 44px;
+      height: 44px;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);
+      border-radius: 14px;
+      background: linear-gradient(145deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 70%, #172554));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 900;
       letter-spacing: 0.04em;
+      text-decoration: none;
       flex: 0 0 auto;
+      box-shadow: 0 6px 14px color-mix(in srgb, var(--app-accent) 24%, transparent);
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .signature-mark:hover,
+    .signature-mark:focus-visible {
+      transform: translateY(-1px);
+      outline: 2px solid color-mix(in srgb, var(--app-accent) 38%, transparent);
+      outline-offset: 2px;
     }
 
     .signature-copy {
       grid-area: copy;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       min-width: 0;
       flex: 1;
     }
 
     .signature-label {
       color: var(--app-text-muted);
-      font-size: 10px;
-      font-weight: 700;
+      font-size: 9px;
+      font-weight: 850;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       line-height: 1;
@@ -493,7 +515,7 @@ import { ThemeService } from './core/services/theme.service';
     .signature-name {
       color: var(--app-text);
       font-size: 13px;
-      font-weight: 800;
+      font-weight: 850;
       line-height: 1.15;
       white-space: normal;
       overflow: visible;
@@ -502,52 +524,57 @@ import { ThemeService } from './core/services/theme.service';
 
     .signature-role {
       color: var(--app-text-muted);
-      font-size: 11px;
+      font-size: 10px;
       line-height: 1.25;
     }
 
     .signature-profile-link {
       grid-area: link;
-      display: inline-flex;
+      display: grid;
+      place-items: center;
       align-items: center;
-      gap: 6px;
+      width: 30px;
+      height: 30px;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 20%, var(--app-border));
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface));
       color: var(--app-accent);
-      font-size: 11px;
-      font-weight: 700;
       text-decoration: none;
-      white-space: nowrap;
       flex-shrink: 0;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
     }
 
     .signature-profile-link:hover,
     .signature-profile-link:focus-visible {
-      text-decoration: underline;
+      background: var(--app-accent);
+      color: #fff;
+      transform: translateY(-1px);
       outline: none;
     }
 
     .signature-card--collapsed .signature-profile-link {
-      justify-content: center;
-    }
-
-    .signature-card--collapsed .signature-profile-link span {
       display: none;
     }
 
     .signature-card .linkedin-logo {
-      width: 16px;
-      height: 16px;
+      width: 17px;
+      height: 17px;
       fill: currentColor;
       flex: 0 0 auto;
     }
 
     html.theme-dark .signature-card {
-      background: transparent;
-      border-top-color: rgba(148, 163, 184, 0.22);
+      border-color: rgba(126, 162, 255, 0.2);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(59, 130, 246, 0.16), transparent 48%),
+        #111a2f;
+      box-shadow: 0 12px 28px rgba(2, 6, 23, 0.3);
     }
 
-    html.theme-dark .signature-mark {
-      background: rgba(126, 162, 255, 0.16);
-      color: #93c5fd;
+    html.theme-dark .signature-card--collapsed {
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
     }
 
     html.theme-dark .signature-label,
@@ -560,6 +587,8 @@ import { ThemeService } from './core/services/theme.service';
     }
 
     html.theme-dark .signature-profile-link {
+      border-color: rgba(147, 197, 253, 0.2);
+      background: rgba(59, 130, 246, 0.1);
       color: #93c5fd;
     }
 
