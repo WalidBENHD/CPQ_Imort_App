@@ -22,6 +22,24 @@ public enum ImportStatus
     Approved = 8
 }
 
+public enum ValidationAnchorKind
+{
+    None = 0,
+    ActiveBaseline = 1,
+    ExplicitVersion = 2,
+    ReleaseCandidate = 3
+}
+
+public enum ReleasePackageStatus
+{
+    Draft = 0,
+    Submitted = 1,
+    Approved = 2,
+    Publishing = 3,
+    Published = 4,
+    Failed = 5
+}
+
 public enum ImportWorkflowStage
 {
     Private = 0,

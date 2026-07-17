@@ -34,6 +34,11 @@ public class ImportJob
     public string? ApprovedByUserId { get; set; }
     public string? ApprovedByDisplayName { get; set; }
     public string? ApprovedComparisonJson { get; set; }
+    public Guid? ValidationAnchorJobId { get; set; }
+    public ValidationAnchorKind ValidationAnchorKind { get; set; }
+    public DateTime? ValidationAnchorPinnedAt { get; set; }
+    public Guid? ReleasePackageId { get; set; }
+    public ReleasePackage? ReleasePackage { get; set; }
     [NotMapped]
     public bool IsActiveBaseline { get; set; }
 

@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AccessRole> AccessRoles => Set<AccessRole>();
     public DbSet<RoleCapability> RoleCapabilities => Set<RoleCapability>();
     public DbSet<UserAccessRole> UserAccessRoles => Set<UserAccessRole>();
+    public DbSet<ReleasePackage> ReleasePackages => Set<ReleasePackage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +41,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.RejectedBy).HasMaxLength(256);
             e.Property(x => x.RejectionReason).HasMaxLength(2000);
             e.Property(x => x.ApprovedComparisonJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
+            e.HasOne(x => x.ReleasePackage).WithMany(x => x.Jobs).HasForeignKey(x => x.ReleasePackageId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.ValidationAnchorJobId);
+            e.HasIndex(x => x.ReleasePackageId);
             e.HasMany(x => x.StagingRows).WithOne(x => x.ImportJob).HasForeignKey(x => x.ImportJobId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.AuditLogs).WithOne(x => x.ImportJob).HasForeignKey(x => x.ImportJobId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.WorkflowStage, x.CreatedAt });
@@ -54,6 +58,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.DeletedByUserId).HasMaxLength(256);
             e.Property(x => x.DeletedByDisplayName).HasMaxLength(512);
             e.HasIndex(x => new { x.ImportJobId, x.IsDeleted, x.RowNumber });
+        });
+
+        modelBuilder.Entity<ReleasePackage>(e =>
+        {
+            e.ToTable("ReleasePackages");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(180);
+            e.Property(x => x.CreatedBy).HasMaxLength(256);
+            e.Property(x => x.CreatedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.SubmittedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.ApprovedByUserId).HasMaxLength(256);
+            e.Property(x => x.ApprovedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.PublishedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.FailureReason).HasMaxLength(2000);
+            e.Property(x => x.ApprovalEvidenceJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
+            e.HasIndex(x => new { x.Status, x.CreatedAt });
+            e.HasIndex(x => x.CreatedBy);
         });
 
         modelBuilder.Entity<AuditLog>(e =>

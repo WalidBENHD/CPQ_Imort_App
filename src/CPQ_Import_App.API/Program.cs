@@ -206,6 +206,7 @@ using (var scope = app.Services.CreateScope())
         await EnsurePostgresActivityEventsTableAsync(db);
         await EnsurePostgresAccessControlTablesAsync(db);
         await EnsurePostgresEvolisDecryptionRunsAsync(db);
+        await EnsurePostgresDependencyWorkflowAsync(db);
     }
     else if (db.Database.IsRelational())
     {
@@ -454,6 +455,58 @@ static async Task EnsurePostgresEvolisDecryptionRunsAsync(AppDbContext db)
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_StartedAtUtc" ON import."EvolisDecryptionRuns" ("StartedAtUtc");
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_UserId_StartedAtUtc" ON import."EvolisDecryptionRuns" ("UserId", "StartedAtUtc");
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_Status_StartedAtUtc" ON import."EvolisDecryptionRuns" ("Status", "StartedAtUtc");
+        """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static async Task EnsurePostgresDependencyWorkflowAsync(AppDbContext db)
+{
+    const string sql = """
+        CREATE TABLE IF NOT EXISTS import."ReleasePackages" (
+            "Id" uuid NOT NULL,
+            "Name" character varying(180) NOT NULL,
+            "Status" integer NOT NULL,
+            "CreatedBy" character varying(256) NOT NULL,
+            "CreatedByDisplayName" character varying(512) NOT NULL,
+            "CreatedAt" timestamp with time zone NOT NULL,
+            "SubmittedAt" timestamp with time zone NULL,
+            "SubmittedByDisplayName" character varying(512) NULL,
+            "ApprovedAt" timestamp with time zone NULL,
+            "ApprovedByUserId" character varying(256) NULL,
+            "ApprovedByDisplayName" character varying(512) NULL,
+            "PublishedAt" timestamp with time zone NULL,
+            "PublishedByDisplayName" character varying(512) NULL,
+            "FailureReason" character varying(2000) NULL,
+            "ApprovalEvidenceJson" text NULL,
+            CONSTRAINT "PK_ReleasePackages" PRIMARY KEY ("Id")
+        );
+
+        ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ValidationAnchorJobId" uuid NULL;
+        ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ValidationAnchorKind" integer NOT NULL DEFAULT 0;
+        ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ValidationAnchorPinnedAt" timestamp with time zone NULL;
+        ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ReleasePackageId" uuid NULL;
+
+        CREATE INDEX IF NOT EXISTS "IX_ImportJobs_ValidationAnchorJobId" ON import."ImportJobs" ("ValidationAnchorJobId");
+        CREATE INDEX IF NOT EXISTS "IX_ImportJobs_ReleasePackageId" ON import."ImportJobs" ("ReleasePackageId");
+        CREATE INDEX IF NOT EXISTS "IX_ReleasePackages_CreatedBy" ON import."ReleasePackages" ("CreatedBy");
+        CREATE INDEX IF NOT EXISTS "IX_ReleasePackages_Status_CreatedAt" ON import."ReleasePackages" ("Status", "CreatedAt");
+
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_ImportJobs_ReleasePackages_ReleasePackageId') THEN
+                ALTER TABLE import."ImportJobs" ADD CONSTRAINT "FK_ImportJobs_ReleasePackages_ReleasePackageId"
+                    FOREIGN KEY ("ReleasePackageId") REFERENCES import."ReleasePackages" ("Id") ON DELETE SET NULL;
+            END IF;
+        END $$;
+
+        UPDATE import."ImportJobs" dependent
+        SET "ValidationAnchorJobId" = active."Id", "ValidationAnchorKind" = 1, "ValidationAnchorPinnedAt" = NOW()
+        FROM (
+            SELECT "Id" FROM import."ImportJobs"
+            WHERE "EntityType" = 1 AND "Status" = 4
+            ORDER BY "CommittedAt" DESC NULLS LAST, "CreatedAt" DESC LIMIT 1
+        ) active
+        WHERE dependent."EntityType" IN (2, 3) AND dependent."ValidationAnchorJobId" IS NULL;
         """;
 
     await db.Database.ExecuteSqlRawAsync(sql);

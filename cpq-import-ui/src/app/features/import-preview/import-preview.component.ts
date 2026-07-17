@@ -176,11 +176,13 @@ import { DependencyContextPrototypeComponent } from './dependency-context-protot
       </mat-card>
 
       <app-dependency-context-prototype
-        *ngIf="isPrivateWorkspace && isDependentDataset"
+        *ngIf="(isDependentDataset && isPrivateWorkspace) || !!job.releasePackageId"
         [datasetName]="job.entityTypeLabel"
         [fileName]="job.originalFileName"
         [totalRows]="job.totalRows"
-        [errorCount]="job.errorRows" />
+        [errorCount]="job.errorRows"
+        [jobId]="job.id"
+        (jobChanged)="handleDependencyJobChanged($event)" />
 
       <app-approval-record
         *ngIf="job.statusLabel === 'Approved' || job.statusLabel === 'Committed'"
@@ -402,13 +404,13 @@ import { DependencyContextPrototypeComponent } from './dependency-context-protot
 
           <div class="submitted-lock-note"><mat-icon>lock</mat-icon><span>Editing is paused to protect the version currently being reviewed. Withdraw it if you need to make changes.</span></div>
           <div class="workspace-gate__actions workspace-gate__actions--submitted">
-            <button mat-stroked-button class="withdraw-review-btn" [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> {{ workflowActionRunning ? 'Withdrawing...' : 'Withdraw submission' }}</button>
+            <button *ngIf="!job.releasePackageId" mat-stroked-button class="withdraw-review-btn" [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> {{ workflowActionRunning ? 'Withdrawing...' : 'Withdraw submission' }}</button>
           </div>
         </mat-card-content>
       </mat-card>
 
       <!-- Approval actions (approvers only, when AwaitingApproval) -->
-      <mat-card class="action-card" *ngIf="canShowApprovalGate || (job.statusLabel === 'Approved' && canControlPublication)">
+      <mat-card class="action-card" *ngIf="!job.releasePackageId && (canShowApprovalGate || (job.statusLabel === 'Approved' && canControlPublication))">
         <mat-card-content>
           <ng-container *ngIf="publicationApproval; else approvalReview">
             <app-publication-readiness
@@ -1837,6 +1839,11 @@ export class ImportPreviewComponent implements OnInit {
 
   get isDependentDataset(): boolean {
     return !!this.job && (this.job.entityType === 2 || this.job.entityType === 3);
+  }
+
+  handleDependencyJobChanged(updated: ImportJob): void {
+    this.job = updated;
+    this.loadRows();
   }
 
   get isSubmittedOwner(): boolean {

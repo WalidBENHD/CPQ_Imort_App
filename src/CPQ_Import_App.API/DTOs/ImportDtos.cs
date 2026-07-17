@@ -35,7 +35,11 @@ public record ImportJobDto(
     bool IsActiveBaseline,
     int DraftAddedRows,
     int DraftModifiedRows,
-    int DraftRemovedRows
+    int DraftRemovedRows,
+    Guid? ValidationAnchorJobId,
+    ValidationAnchorKind ValidationAnchorKind,
+    DateTime? ValidationAnchorPinnedAt,
+    Guid? ReleasePackageId
 );
 
 public record StagingRowDto(
@@ -65,8 +69,65 @@ public record RejectRequest(string Reason);
 public record UpdateRowRequest(Dictionary<string, string?> Fields);
 public record AddRowRequest(Dictionary<string, string?> Fields);
 public record BulkRowRequest(IReadOnlyList<Guid> RowIds);
+public record ApplyValidationAnchorRequest(Guid ArticleMasterJobId);
+public record CreateReleasePackageRequest(Guid ArticleMasterJobId, string Name);
 
 public record PublicationResultDto(Guid JobId, int PublishedRows, string Message);
+
+public record ValidationAnchorSummaryDto(
+    Guid JobId,
+    string FileName,
+    string VersionLabel,
+    DateTime? PublishedAt,
+    int ArticleCount,
+    bool IsActive,
+    bool IsReleaseCandidate);
+
+public record DependencyImpactDto(
+    int TotalRows,
+    int ValidReferences,
+    int MissingReferences,
+    int ArticlesWithoutDependentData,
+    IReadOnlyList<string> MissingArticleNumbers);
+
+public record DependencyContextDto(
+    Guid JobId,
+    bool IsDependentDataset,
+    ValidationAnchorKind AnchorKind,
+    DateTime? PinnedAt,
+    ValidationAnchorSummaryDto? CurrentAnchor,
+    ValidationAnchorSummaryDto? LatestActiveMaster,
+    bool HasNewerMaster,
+    DependencyImpactDto CurrentImpact,
+    DependencyImpactDto? LatestImpact,
+    ReleasePackageDto? ReleasePackage,
+    IReadOnlyList<ValidationAnchorSummaryDto> CandidateMasters);
+
+public record ReleasePackageItemDto(
+    Guid JobId,
+    EntityType EntityType,
+    string DatasetName,
+    string FileName,
+    ImportStatus Status,
+    ImportWorkflowStage WorkflowStage,
+    int TotalRows,
+    int ErrorRows,
+    bool IsValidationAnchor);
+
+public record ReleasePackageDto(
+    Guid Id,
+    string Name,
+    ReleasePackageStatus Status,
+    string CreatedBy,
+    string CreatedByDisplayName,
+    DateTime CreatedAt,
+    DateTime? SubmittedAt,
+    DateTime? ApprovedAt,
+    string? ApprovedByDisplayName,
+    DateTime? PublishedAt,
+    string? PublishedByDisplayName,
+    string? FailureReason,
+    IReadOnlyList<ReleasePackageItemDto> Items);
 
 public record ComparisonFieldChangeDto(
     string Field,

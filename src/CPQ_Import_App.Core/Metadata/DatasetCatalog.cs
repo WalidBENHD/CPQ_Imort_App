@@ -76,6 +76,27 @@ public static class DatasetCatalog
                 new DatasetValidationRule("ValidFrom", "Required and must be a valid date."),
                 new DatasetValidationRule("ValidTo", "Optional; when provided, must be a valid date.", "Warning")
             ]),
+        [EntityType.Description] = new(
+            EntityType.Description,
+            "Article Descriptions",
+            "Saint-Marcellin PDU Content Owner",
+            "Article Description Template",
+            "Active",
+            "v1.0",
+            "Localized short and long descriptions linked to governed Article Master records.",
+            "Article_Descriptions",
+            [
+                new DatasetColumnRequirement("ArticleNumber", true, "Text", "Product identifier validated against the selected Article Master.", "PDU-100245"),
+                new DatasetColumnRequirement("LanguageCode", true, "Text", "ISO language code for this description.", "en"),
+                new DatasetColumnRequirement("ShortDescription", true, "Text", "Concise product description.", "Industrial PDU"),
+                new DatasetColumnRequirement("LongDescription", false, "Text", "Detailed product description.")
+            ],
+            [
+                new DatasetValidationRule("ArticleNumber", "Required and must exist in the selected Article Master validation context."),
+                new DatasetValidationRule("LanguageCode", "Required and must be a valid language code."),
+                new DatasetValidationRule("ShortDescription", "Required and max length 255 characters."),
+                new DatasetValidationRule("LongDescription", "Optional and max length 4000 characters.", "Warning")
+            ]),
     };
 
     public static IReadOnlyList<DatasetDefinition> All =>

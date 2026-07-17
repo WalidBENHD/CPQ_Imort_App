@@ -48,6 +48,17 @@ public class ImportService(
         await repository.CreateJobAsync(job, ct);
         await repository.SaveUploadedFileAsync(job.Id, fileName, fileBytes, ct);
 
+        if (IsDependentDataset(entityType))
+        {
+            var activeMaster = await repository.GetLatestCommittedJobAsync(EntityType.Article, ct);
+            if (activeMaster is not null)
+            {
+                job.ValidationAnchorJobId = activeMaster.Id;
+                job.ValidationAnchorKind = ValidationAnchorKind.ActiveBaseline;
+                job.ValidationAnchorPinnedAt = DateTime.UtcNow;
+            }
+        }
+
         // Find parser
         var parser = parsers.FirstOrDefault(p => p.CanParse(fileName, entityType))
             ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(entityType).DisplayName}'.");
@@ -57,18 +68,17 @@ public class ImportService(
         {
             ms.Position = 0;
             var parsed = await parser.ParseAsync(ms, fileName, ct);
-            IReadOnlySet<string>? approvedArticles = null;
-        if (entityType == EntityType.PriceList)
-        {
-            approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
-        }
+            IReadOnlySet<string>? approvedArticles = job.ValidationAnchorJobId.HasValue
+                ? await repository.GetArticleNumbersForJobAsync(job.ValidationAnchorJobId.Value, ct)
+                : null;
 
         foreach (var row in parsed)
         {
             await ApplyCurrentBaselineValidationAsync(entityType, row.Fields, row.Messages, approvedArticles, ct);
         }
 
-        ApplyDuplicateArticleValidation(parsed);
+        if (entityType is EntityType.Article or EntityType.PriceList)
+            ApplyDuplicateArticleValidation(parsed);
 
         stagingRows = parsed.Select(r =>
         {
@@ -153,10 +163,8 @@ public class ImportService(
 
         var rows = await repository.GetStagingRowsByJobAsync(jobId, ct);
         IReadOnlySet<string>? approvedArticles = null;
-        if (job.EntityType == EntityType.PriceList)
-        {
-            approvedArticles = await repository.GetLatestApprovedArticleNumbersAsync(ct);
-        }
+        if (IsDependentDataset(job.EntityType) && job.ValidationAnchorJobId.HasValue)
+            approvedArticles = await repository.GetArticleNumbersForJobAsync(job.ValidationAnchorJobId.Value, ct);
 
         foreach (var row in rows)
         {
@@ -171,7 +179,8 @@ public class ImportService(
             row.Status = RowValidator.DeriveStatus(messages);
         }
 
-        ApplyDuplicateArticleValidation(rows);
+        if (job.EntityType is EntityType.Article or EntityType.PriceList)
+            ApplyDuplicateArticleValidation(rows);
 
         ApplyJobTotals(job, rows);
         await repository.SaveChangesAsync(ct);
@@ -208,7 +217,7 @@ public class ImportService(
             ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
 
         var messages = parser.ValidateRow(fields);
-        await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, null, ct);
+        await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, await GetAnchoredArticleNumbersAsync(job, ct), ct);
         row.RawData = JsonSerializer.Serialize(fields, JsonOpts);
         row.ValidationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null;
         row.Status = RowValidator.DeriveStatus(messages);
@@ -239,7 +248,7 @@ public class ImportService(
         var job = await GetEditablePrivateJobAsync(jobId, userId, "add rows to", ct);
         var parser = GetParser(job.EntityType);
         var messages = parser.ValidateRow(fields);
-        await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, null, ct);
+        await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, await GetAnchoredArticleNumbersAsync(job, ct), ct);
 
         var activeRows = await repository.GetStagingRowsByJobAsync(jobId, ct);
         var deletedRows = await repository.GetDeletedStagingRowsByJobAsync(jobId, ct);
@@ -335,12 +344,14 @@ public class ImportService(
         => repository.GetDeletedStagingRowsByJobAsync(jobId, ct);
 
     public async Task<ImportJob> SubmitForReviewAsync(
-        Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+        Guid jobId, string userId, string userDisplayName, CancellationToken ct = default, bool coordinatedRelease = false)
     {
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
 
         EnsurePrivateOwner(job, userId, "submit");
+        if (job.ReleasePackageId.HasValue && !coordinatedRelease)
+            throw new InvalidOperationException("This upload belongs to a coordinated release and must be submitted from the release package.");
         if (job.Status != ImportStatus.AwaitingApproval || job.ErrorRows > 0)
             throw new InvalidOperationException("Blocking errors must be corrected before this upload can be submitted.");
         if (job.TotalRows == 0)
@@ -365,6 +376,234 @@ public class ImportService(
         }, ct);
 
         return job;
+    }
+
+    public async Task<DependencyContext> GetDependencyContextAsync(
+        Guid jobId, string userId, CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+        if (!string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase)
+            && job.WorkflowStage == ImportWorkflowStage.Private)
+            throw new UnauthorizedAccessException("This private validation context belongs to another user.");
+
+        if (!IsDependentDataset(job.EntityType))
+        {
+            var linkedPackage = job.ReleasePackageId.HasValue
+                ? await repository.GetReleasePackageAsync(job.ReleasePackageId.Value, ct)
+                : null;
+            return new DependencyContext(job.Id, false, ValidationAnchorKind.None, null, null, null, false,
+                new DependencyImpact(job.TotalRows, job.TotalRows, 0, 0, []), null,
+                linkedPackage is null ? null : ToReleaseSummary(linkedPackage), []);
+        }
+
+        var latest = await repository.GetLatestCommittedJobAsync(EntityType.Article, ct);
+        var anchor = job.ValidationAnchorJobId.HasValue
+            ? await repository.GetJobAsync(job.ValidationAnchorJobId.Value, ct)
+            : latest;
+        var currentImpact = anchor is null
+            ? new DependencyImpact(job.TotalRows, 0, job.TotalRows, 0, [])
+            : await BuildDependencyImpactAsync(job, anchor.Id, ct);
+        var latestImpact = latest is null || anchor?.Id == latest.Id
+            ? null
+            : await BuildDependencyImpactAsync(job, latest.Id, ct);
+        var candidates = (await repository.GetOwnedPrivateJobsAsync(userId, EntityType.Article, ct))
+            .Where(candidate => candidate.Status == ImportStatus.AwaitingApproval
+                && candidate.ErrorRows == 0
+                && !candidate.ReleasePackageId.HasValue)
+            .ToList();
+        var package = job.ReleasePackageId.HasValue
+            ? await repository.GetReleasePackageAsync(job.ReleasePackageId.Value, ct)
+            : null;
+
+        return new DependencyContext(
+            job.Id,
+            true,
+            job.ValidationAnchorKind,
+            job.ValidationAnchorPinnedAt,
+            anchor is null ? null : await ToAnchorSummaryAsync(anchor, latest?.Id, job.ReleasePackageId, ct),
+            latest is null ? null : await ToAnchorSummaryAsync(latest, latest.Id, null, ct),
+            latest is not null && anchor?.Id != latest.Id,
+            currentImpact,
+            latestImpact,
+            package is null ? null : ToReleaseSummary(package),
+            await Task.WhenAll(candidates.Select(candidate => ToAnchorSummaryAsync(candidate, latest?.Id, null, ct))));
+    }
+
+    public async Task<DependencyImpact> PreviewDependencyAnchorAsync(
+        Guid jobId, Guid articleMasterJobId, string userId, CancellationToken ct = default)
+    {
+        var job = await GetEditablePrivateJobAsync(jobId, userId, "preview validation for", ct);
+        EnsureDependentDataset(job);
+        await EnsureSelectableArticleMasterAsync(articleMasterJobId, userId, allowPrivateCandidate: true, ct);
+        return await BuildDependencyImpactAsync(job, articleMasterJobId, ct);
+    }
+
+    public async Task<ImportJob> ApplyDependencyAnchorAsync(
+        Guid jobId,
+        Guid articleMasterJobId,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var job = await GetEditablePrivateJobAsync(jobId, userId, "change validation for", ct);
+        EnsureDependentDataset(job);
+        var master = await EnsureSelectableArticleMasterAsync(articleMasterJobId, userId, allowPrivateCandidate: false, ct);
+        job.ValidationAnchorJobId = master.Id;
+        job.ValidationAnchorKind = ValidationAnchorKind.ExplicitVersion;
+        job.ValidationAnchorPinnedAt = DateTime.UtcNow;
+        job.ReleasePackageId = null;
+        await RevalidateAgainstAnchorAsync(job, master.Id, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "ValidationAnchorChanged",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Revalidated against Article Master '{master.OriginalFileName}' ({master.Id:D}). Result: {job.ErrorRows} error rows."
+        }, ct);
+        return job;
+    }
+
+    public async Task<ReleasePackageSummary> CreateReleasePackageAsync(
+        Guid jobId,
+        Guid articleMasterJobId,
+        string name,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var dependentJob = await GetEditablePrivateJobAsync(jobId, userId, "add to a release package", ct);
+        EnsureDependentDataset(dependentJob);
+        if (dependentJob.ReleasePackageId.HasValue)
+            throw new InvalidOperationException("This draft already belongs to a release package.");
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 180)
+            throw new InvalidDataException("Provide a release name of at most 180 characters.");
+
+        var masterJob = await EnsureSelectableArticleMasterAsync(articleMasterJobId, userId, allowPrivateCandidate: true, ct);
+        if (masterJob.WorkflowStage != ImportWorkflowStage.Private || masterJob.Status == ImportStatus.Committed)
+            throw new InvalidOperationException("A coordinated release requires a private Article Master candidate.");
+        if (masterJob.ReleasePackageId.HasValue)
+            throw new InvalidOperationException("The selected Article Master already belongs to another release package.");
+
+        var package = new ReleasePackage
+        {
+            Name = name.Trim(),
+            CreatedBy = userId,
+            CreatedByDisplayName = userDisplayName
+        };
+        await repository.AddReleasePackageAsync(package, ct);
+
+        masterJob.ReleasePackageId = package.Id;
+        dependentJob.ReleasePackageId = package.Id;
+        dependentJob.ValidationAnchorJobId = masterJob.Id;
+        dependentJob.ValidationAnchorKind = ValidationAnchorKind.ReleaseCandidate;
+        dependentJob.ValidationAnchorPinnedAt = DateTime.UtcNow;
+        await repository.UpdateJobAsync(masterJob, ct);
+        await RevalidateAgainstAnchorAsync(dependentJob, masterJob.Id, ct);
+
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = dependentJob.Id,
+            Action = "ReleasePackageCreated",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Created release package '{package.Name}' with Article Master {masterJob.Id:D}."
+        }, ct);
+
+        return ToReleaseSummary((await repository.GetReleasePackageAsync(package.Id, ct))!);
+    }
+
+    public async Task<ReleasePackageSummary> GetReleasePackageAsync(
+        Guid packageId, string userId, bool canReview, CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (!canReview && !string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("You cannot view this release package.");
+        return ToReleaseSummary(package);
+    }
+
+    public async Task<ReleasePackageSummary> SubmitReleasePackageAsync(
+        Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var package = await GetOwnedDraftPackageAsync(packageId, userId, ct);
+        ValidatePackageComposition(package);
+        if (package.Jobs.Any(job => job.ErrorRows > 0 || job.Status != ImportStatus.AwaitingApproval))
+            throw new InvalidOperationException("Every dataset must be error-free and ready before the release can be submitted.");
+
+        foreach (var job in PackageOrder(package.Jobs))
+            await SubmitForReviewAsync(job.Id, userId, userDisplayName, ct, coordinatedRelease: true);
+
+        package.Status = ReleasePackageStatus.Submitted;
+        package.SubmittedAt = DateTime.UtcNow;
+        package.SubmittedByDisplayName = userDisplayName;
+        await repository.SaveChangesAsync(ct);
+        return ToReleaseSummary(package);
+    }
+
+    public async Task<ReleasePackageSummary> ApproveReleasePackageAsync(
+        Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (package.Status != ReleasePackageStatus.Submitted)
+            throw new InvalidOperationException("Only a submitted release package can be approved.");
+        if (string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("You cannot approve your own release package.");
+        ValidatePackageComposition(package);
+
+        foreach (var job in PackageOrder(package.Jobs))
+            await ApproveAsync(job.Id, userId, userDisplayName, ct, coordinatedRelease: true);
+
+        package.Status = ReleasePackageStatus.Approved;
+        package.ApprovedAt = DateTime.UtcNow;
+        package.ApprovedByUserId = userId;
+        package.ApprovedByDisplayName = userDisplayName;
+        package.ApprovalEvidenceJson = JsonSerializer.Serialize(new
+        {
+            package.Id,
+            package.Name,
+            package.ApprovedAt,
+            package.ApprovedByUserId,
+            Items = package.Jobs.Select(job => new { job.Id, job.EntityType, job.ValidationAnchorJobId, job.ApprovedComparisonJson })
+        }, JsonOpts);
+        await repository.SaveChangesAsync(ct);
+        return ToReleaseSummary(package);
+    }
+
+    public async Task<ReleasePackageSummary> PublishReleasePackageAsync(
+        Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (package.Status is not ReleasePackageStatus.Approved and not ReleasePackageStatus.Failed)
+            throw new InvalidOperationException("Only an approved release package can be published.");
+        ValidatePackageComposition(package);
+        if (package.Jobs.Any(job => job.Status is not ImportStatus.Approved and not ImportStatus.Committed))
+            throw new InvalidOperationException("Every release item must have approval evidence before publication.");
+
+        package.Status = ReleasePackageStatus.Publishing;
+        package.FailureReason = null;
+        await repository.SaveChangesAsync(ct);
+        try
+        {
+            foreach (var job in PackageOrder(package.Jobs).Where(job => job.Status != ImportStatus.Committed))
+                await PublishAsync(job.Id, userId, userDisplayName, ct);
+
+            package.Status = ReleasePackageStatus.Published;
+            package.PublishedAt = DateTime.UtcNow;
+            package.PublishedByDisplayName = userDisplayName;
+            await repository.SaveChangesAsync(ct);
+            return ToReleaseSummary(package);
+        }
+        catch (Exception ex)
+        {
+            package.Status = ReleasePackageStatus.Failed;
+            package.FailureReason = ex.GetBaseException().Message[..Math.Min(ex.GetBaseException().Message.Length, 2000)];
+            await repository.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
     }
 
     public async Task<ImportJob> CopyToWorkspaceAsync(
@@ -413,6 +652,9 @@ public class ImportService(
             ValidRows = sourceRows.Count(row => row.Status == RowStatus.Valid),
             WarningRows = sourceRows.Count(row => row.Status == RowStatus.Warning),
             ErrorRows = sourceRows.Count(row => row.Status == RowStatus.Error)
+            ,ValidationAnchorJobId = source.ValidationAnchorJobId
+            ,ValidationAnchorKind = source.ValidationAnchorKind
+            ,ValidationAnchorPinnedAt = source.ValidationAnchorPinnedAt
         };
         var rows = sourceRows.Select(row => new StagingRow
         {
@@ -445,6 +687,8 @@ public class ImportService(
             throw new UnauthorizedAccessException("Only the original uploader can withdraw this submission.");
         if (job.WorkflowStage != ImportWorkflowStage.Submitted || job.Status != ImportStatus.AwaitingApproval)
             throw new InvalidOperationException("Only a submission currently waiting for review can be withdrawn.");
+        if (job.ReleasePackageId.HasValue)
+            throw new InvalidOperationException("This upload belongs to a coordinated release and cannot be withdrawn individually.");
 
         job.WorkflowStage = ImportWorkflowStage.Private;
         job.WithdrawnAt = DateTime.UtcNow;
@@ -471,7 +715,7 @@ public class ImportService(
         await repository.DeleteJobAsync(job, ct);
     }
 
-    public async Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
+    public async Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default, bool coordinatedRelease = false)
     {
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
@@ -481,6 +725,9 @@ public class ImportService(
 
         if (job.WorkflowStage != ImportWorkflowStage.Submitted)
             throw new InvalidOperationException("The uploader must submit this private upload before it can be approved.");
+
+        if (job.ReleasePackageId.HasValue && !coordinatedRelease)
+            throw new InvalidOperationException("This upload belongs to a coordinated release and must be approved from the release package.");
 
         if (string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("You cannot approve your own submission.");
@@ -534,6 +781,8 @@ public class ImportService(
 
         if (job.Status != ImportStatus.Approved)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be returned to review.");
+        if (job.ReleasePackageId.HasValue)
+            throw new InvalidOperationException("This upload belongs to a coordinated release and cannot be returned individually.");
 
         job.Status = ImportStatus.AwaitingApproval;
         job.WorkflowStage = ImportWorkflowStage.Submitted;
@@ -563,6 +812,14 @@ public class ImportService(
 
         if (job.Status != ImportStatus.Approved)
             throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be published.");
+
+        if (job.ReleasePackageId.HasValue)
+        {
+            var package = await repository.GetReleasePackageAsync(job.ReleasePackageId.Value, ct)
+                ?? throw new InvalidOperationException("The release package linked to this upload no longer exists.");
+            if (package.Status != ReleasePackageStatus.Publishing)
+                throw new InvalidOperationException("This upload belongs to a coordinated release and must be published from the release package.");
+        }
 
         if (string.IsNullOrWhiteSpace(job.ApprovedComparisonJson))
             throw new InvalidOperationException("The persisted approval record is missing. Return the submission to review and approve it again.");
@@ -672,6 +929,8 @@ public class ImportService(
 
         if (job.WorkflowStage != ImportWorkflowStage.Submitted)
             throw new InvalidOperationException("Only a formally submitted upload can be returned with feedback.");
+        if (job.ReleasePackageId.HasValue)
+            throw new InvalidOperationException("This upload belongs to a coordinated release and cannot be rejected individually.");
 
         if (string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("You cannot review your own submission.");
@@ -1112,7 +1371,7 @@ public class ImportService(
         IReadOnlySet<string>? approvedArticles,
         CancellationToken ct)
     {
-        if (entityType != EntityType.PriceList)
+        if (!IsDependentDataset(entityType))
         {
             return;
         }
@@ -1127,9 +1386,181 @@ public class ImportService(
         messages.Add(new ValidationMessage
         {
             Field = "ArticleNumber",
-            Message = $"Article '{articleNumber}' does not exist in the approved Article Master baseline.",
+            Message = $"Article '{articleNumber}' does not exist in the selected Article Master validation context.",
             Severity = ValidationSeverity.Error
         });
+    }
+
+    private async Task<IReadOnlySet<string>?> GetAnchoredArticleNumbersAsync(ImportJob job, CancellationToken ct)
+    {
+        if (!IsDependentDataset(job.EntityType))
+            return null;
+
+        if (!job.ValidationAnchorJobId.HasValue)
+        {
+            var activeMaster = await repository.GetLatestCommittedJobAsync(EntityType.Article, ct);
+            if (activeMaster is null)
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            job.ValidationAnchorJobId = activeMaster.Id;
+            job.ValidationAnchorKind = ValidationAnchorKind.ActiveBaseline;
+            job.ValidationAnchorPinnedAt = DateTime.UtcNow;
+        }
+
+        return await repository.GetArticleNumbersForJobAsync(job.ValidationAnchorJobId.Value, ct);
+    }
+
+    private async Task RevalidateAgainstAnchorAsync(ImportJob job, Guid anchorJobId, CancellationToken ct)
+    {
+        var parser = GetParser(job.EntityType);
+        var articleNumbers = await repository.GetArticleNumbersForJobAsync(anchorJobId, ct);
+        var rows = await repository.GetStagingRowsByJobAsync(job.Id, ct);
+        foreach (var row in rows)
+        {
+            var fields = DeserializeFields(row.RawData);
+            var messages = parser.ValidateRow(fields);
+            await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, articleNumbers, ct);
+            row.RawData = JsonSerializer.Serialize(fields, JsonOpts);
+            row.ValidationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null;
+            row.Status = RowValidator.DeriveStatus(messages);
+        }
+
+        if (job.EntityType is EntityType.Article or EntityType.PriceList)
+            ApplyDuplicateArticleValidation(rows);
+        ApplyJobTotals(job, rows);
+        await repository.SaveChangesAsync(ct);
+    }
+
+    private async Task<DependencyImpact> BuildDependencyImpactAsync(ImportJob job, Guid articleMasterJobId, CancellationToken ct)
+    {
+        var masterArticles = await repository.GetArticleNumbersForJobAsync(articleMasterJobId, ct);
+        var rows = await repository.GetStagingRowsByJobAsync(job.Id, ct);
+        var referenced = rows
+            .Select(row => GetArticleNumber(DeserializeFields(row.RawData)))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToList();
+        var missingRows = referenced.Where(article => !masterArticles.Contains(article)).ToList();
+        var missing = missingRows
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(article => article, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var referencedSet = referenced.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new DependencyImpact(
+            rows.Count,
+            rows.Count(row =>
+            {
+                var article = GetArticleNumber(DeserializeFields(row.RawData));
+                return !string.IsNullOrWhiteSpace(article) && masterArticles.Contains(article);
+            }),
+            missingRows.Count,
+            masterArticles.Count(article => !referencedSet.Contains(article)),
+            missing.Take(100).ToList());
+    }
+
+    private async Task<ValidationAnchorSummary> ToAnchorSummaryAsync(
+        ImportJob job,
+        Guid? activeMasterId,
+        Guid? releasePackageId,
+        CancellationToken ct)
+    {
+        var count = (await repository.GetArticleNumbersForJobAsync(job.Id, ct)).Count;
+        return new ValidationAnchorSummary(
+            job.Id,
+            job.OriginalFileName,
+            job.CommittedAt.HasValue ? $"Published {job.CommittedAt:yyyy.MM.dd HH:mm}" : $"Draft {job.CreatedAt:yyyy.MM.dd HH:mm}",
+            job.CommittedAt,
+            count,
+            activeMasterId == job.Id,
+            releasePackageId.HasValue && job.ReleasePackageId == releasePackageId);
+    }
+
+    private async Task<ImportJob> EnsureSelectableArticleMasterAsync(
+        Guid articleMasterJobId,
+        string userId,
+        bool allowPrivateCandidate,
+        CancellationToken ct)
+    {
+        var master = await repository.GetJobAsync(articleMasterJobId, ct)
+            ?? throw new KeyNotFoundException($"Article Master upload '{articleMasterJobId}' not found.");
+        if (master.EntityType != EntityType.Article)
+            throw new InvalidOperationException("The selected validation anchor is not an Article Master upload.");
+        if (master.Status == ImportStatus.Committed)
+            return master;
+        if (allowPrivateCandidate
+            && master.WorkflowStage == ImportWorkflowStage.Private
+            && string.Equals(master.CreatedBy, userId, StringComparison.OrdinalIgnoreCase)
+            && master.Status == ImportStatus.AwaitingApproval
+            && master.ErrorRows == 0)
+            return master;
+        throw new InvalidOperationException("Select a published Article Master or an error-free private master candidate that you own.");
+    }
+
+    private async Task<ReleasePackage> GetOwnedDraftPackageAsync(Guid packageId, string userId, CancellationToken ct)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (!string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Only the release owner can submit this package.");
+        if (package.Status != ReleasePackageStatus.Draft)
+            throw new InvalidOperationException("Only a draft release package can be submitted.");
+        return package;
+    }
+
+    private static void ValidatePackageComposition(ReleasePackage package)
+    {
+        if (package.Jobs.Count < 2 || package.Jobs.Count(job => job.EntityType == EntityType.Article) != 1)
+            throw new InvalidOperationException("A coordinated release requires exactly one Article Master and at least one dependent dataset.");
+        var masterId = package.Jobs.Single(job => job.EntityType == EntityType.Article).Id;
+        if (package.Jobs.Where(job => IsDependentDataset(job.EntityType))
+            .Any(job => job.ValidationAnchorJobId != masterId || job.ValidationAnchorKind != ValidationAnchorKind.ReleaseCandidate))
+            throw new InvalidOperationException("Every dependent dataset must be validated against the package Article Master.");
+    }
+
+    private static IEnumerable<ImportJob> PackageOrder(IEnumerable<ImportJob> jobs)
+        => jobs.OrderBy(job => job.EntityType switch
+        {
+            EntityType.Article => 0,
+            EntityType.Description => 1,
+            EntityType.PriceList => 2,
+            EntityType.CurrencyRate => 3,
+            _ => 9
+        });
+
+    private static ReleasePackageSummary ToReleaseSummary(ReleasePackage package)
+    {
+        var masterId = package.Jobs.FirstOrDefault(job => job.EntityType == EntityType.Article)?.Id;
+        return new ReleasePackageSummary(
+            package.Id,
+            package.Name,
+            package.Status,
+            package.CreatedBy,
+            package.CreatedByDisplayName,
+            package.CreatedAt,
+            package.SubmittedAt,
+            package.ApprovedAt,
+            package.ApprovedByDisplayName,
+            package.PublishedAt,
+            package.PublishedByDisplayName,
+            package.FailureReason,
+            PackageOrder(package.Jobs).Select(job => new ReleasePackageItemSummary(
+                job.Id,
+                job.EntityType,
+                DatasetCatalog.Get(job.EntityType).DisplayName,
+                job.OriginalFileName,
+                job.Status,
+                job.WorkflowStage,
+                job.TotalRows,
+                job.ErrorRows,
+                job.Id == masterId)).ToList());
+    }
+
+    private static bool IsDependentDataset(EntityType entityType)
+        => entityType is EntityType.PriceList or EntityType.Description;
+
+    private static void EnsureDependentDataset(ImportJob job)
+    {
+        if (!IsDependentDataset(job.EntityType))
+            throw new InvalidOperationException("Only prices and descriptions use an Article Master validation context.");
     }
 
     private static Dictionary<string, string?> DeserializeFields(string rawData)
@@ -1189,6 +1620,9 @@ public class ImportService(
 
     private async Task RevalidateDuplicateArticleRowsAsync(Guid jobId, CancellationToken ct)
     {
+        var job = await repository.GetJobAsync(jobId, ct);
+        if (job?.EntityType is not EntityType.Article and not EntityType.PriceList)
+            return;
         var rows = await repository.GetStagingRowsByJobAsync(jobId, ct);
         ApplyDuplicateArticleValidation(rows);
         await repository.SaveChangesAsync(ct);

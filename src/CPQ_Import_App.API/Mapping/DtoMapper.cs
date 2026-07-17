@@ -61,8 +61,36 @@ public static class DtoMapper
         job.IsActiveBaseline,
         job.DraftAddedRows,
         job.DraftModifiedRows,
-        job.DraftRemovedRows
+        job.DraftRemovedRows,
+        job.ValidationAnchorJobId,
+        job.ValidationAnchorKind,
+        job.ValidationAnchorPinnedAt,
+        job.ReleasePackageId
     );
+
+    public static ValidationAnchorSummaryDto ToDto(this ValidationAnchorSummary anchor) => new(
+        anchor.JobId, anchor.FileName, anchor.VersionLabel, anchor.PublishedAt,
+        anchor.ArticleCount, anchor.IsActive, anchor.IsReleaseCandidate);
+
+    public static DependencyImpactDto ToDto(this DependencyImpact impact) => new(
+        impact.TotalRows, impact.ValidReferences, impact.MissingReferences,
+        impact.ArticlesWithoutDependentData, impact.MissingArticleNumbers);
+
+    public static ReleasePackageItemDto ToDto(this ReleasePackageItemSummary item) => new(
+        item.JobId, item.EntityType, item.DatasetName, item.FileName, item.Status,
+        item.WorkflowStage, item.TotalRows, item.ErrorRows, item.IsValidationAnchor);
+
+    public static ReleasePackageDto ToDto(this ReleasePackageSummary package) => new(
+        package.Id, package.Name, package.Status, package.CreatedBy, package.CreatedByDisplayName,
+        package.CreatedAt, package.SubmittedAt, package.ApprovedAt, package.ApprovedByDisplayName,
+        package.PublishedAt, package.PublishedByDisplayName, package.FailureReason,
+        package.Items.Select(ToDto).ToList());
+
+    public static DependencyContextDto ToDto(this DependencyContext context) => new(
+        context.JobId, context.IsDependentDataset, context.AnchorKind, context.PinnedAt,
+        context.CurrentAnchor?.ToDto(), context.LatestActiveMaster?.ToDto(), context.HasNewerMaster,
+        context.CurrentImpact.ToDto(), context.LatestImpact?.ToDto(), context.ReleasePackage?.ToDto(),
+        context.CandidateMasters.Select(ToDto).ToList());
 
     public static StagingRowDto ToDto(this StagingRow row) => new(
         row.Id,

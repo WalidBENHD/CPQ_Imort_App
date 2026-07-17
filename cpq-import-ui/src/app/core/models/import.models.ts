@@ -3,6 +3,8 @@ export type ImportStatus = 'Pending' | 'Processing' | 'AwaitingApproval' | 'Need
 export type ImportWorkflowStage = 'Private' | 'Submitted' | 'Approved' | 'Published' | 'Rejected' | 'Withdrawn';
 export type RowStatus = 'Valid' | 'Warning' | 'Error';
 export type ComparisonStatus = 'New' | 'Modified' | 'Unchanged';
+export type ValidationAnchorKind = 0 | 1 | 2 | 3;
+export type ReleasePackageStatus = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface DatasetDefinition {
   key: EntityType;
@@ -85,6 +87,70 @@ export interface ImportJob {
   draftAddedRows: number;
   draftModifiedRows: number;
   draftRemovedRows: number;
+  validationAnchorJobId: string | null;
+  validationAnchorKind: ValidationAnchorKind;
+  validationAnchorPinnedAt: string | null;
+  releasePackageId: string | null;
+}
+
+export interface ValidationAnchorSummary {
+  jobId: string;
+  fileName: string;
+  versionLabel: string;
+  publishedAt: string | null;
+  articleCount: number;
+  isActive: boolean;
+  isReleaseCandidate: boolean;
+}
+
+export interface DependencyImpact {
+  totalRows: number;
+  validReferences: number;
+  missingReferences: number;
+  articlesWithoutDependentData: number;
+  missingArticleNumbers: string[];
+}
+
+export interface ReleasePackageItem {
+  jobId: string;
+  entityType: EntityType;
+  datasetName: string;
+  fileName: string;
+  status: number;
+  workflowStage: number;
+  totalRows: number;
+  errorRows: number;
+  isValidationAnchor: boolean;
+}
+
+export interface ReleasePackage {
+  id: string;
+  name: string;
+  status: ReleasePackageStatus;
+  createdBy: string;
+  createdByDisplayName: string;
+  createdAt: string;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  approvedByDisplayName: string | null;
+  publishedAt: string | null;
+  publishedByDisplayName: string | null;
+  failureReason: string | null;
+  items: ReleasePackageItem[];
+}
+
+export interface DependencyContext {
+  jobId: string;
+  isDependentDataset: boolean;
+  anchorKind: ValidationAnchorKind;
+  pinnedAt: string | null;
+  currentAnchor: ValidationAnchorSummary | null;
+  latestActiveMaster: ValidationAnchorSummary | null;
+  hasNewerMaster: boolean;
+  currentImpact: DependencyImpact;
+  latestImpact: DependencyImpact | null;
+  releasePackage: ReleasePackage | null;
+  candidateMasters: ValidationAnchorSummary[];
 }
 
 export interface ValidationMessage {
@@ -246,6 +312,17 @@ export const DATASET_CATALOG: DatasetDefinition[] = [
     currentVersion: 'v1.0',
     icon: 'payments',
     fileNameFragment: 'Basis_Price'
+  },
+  {
+    key: 'Description',
+    name: 'Article Descriptions',
+    description: 'Localized descriptions validated against a governed Article Master version.',
+    owner: 'Saint-Marcellin PDU content owner',
+    template: 'Article Description Template',
+    status: 'Active',
+    currentVersion: 'v1.0',
+    icon: 'description',
+    fileNameFragment: 'Article_Descriptions'
   }
 ];
 

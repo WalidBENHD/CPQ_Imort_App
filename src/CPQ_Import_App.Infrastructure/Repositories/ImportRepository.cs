@@ -328,6 +328,59 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return articleNumbers;
     }
 
+    public async Task<IReadOnlySet<string>> GetArticleNumbersForJobAsync(Guid articleJobId, CancellationToken ct = default)
+    {
+        var isArticleJob = await db.ImportJobs.AsNoTracking()
+            .AnyAsync(job => job.Id == articleJobId && job.EntityType == EntityType.Article, ct);
+        if (!isArticleJob)
+        {
+            throw new KeyNotFoundException($"Article Master upload '{articleJobId}' was not found.");
+        }
+
+        var rows = await db.StagingRows.AsNoTracking()
+            .Where(row => row.ImportJobId == articleJobId && !row.IsDeleted)
+            .Select(row => row.RawData)
+            .ToListAsync(ct);
+
+        return rows.Select(Deserialize)
+            .Select(fields => fields.TryGetValue("ArticleNumber", out var value) ? value?.Trim() : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public Task<ImportJob?> GetLatestCommittedJobAsync(EntityType entityType, CancellationToken ct = default)
+        => db.ImportJobs.AsNoTracking()
+            .Where(job => job.EntityType == entityType && job.Status == ImportStatus.Committed)
+            .OrderByDescending(job => job.CommittedAt)
+            .ThenByDescending(job => job.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<ImportJob>> GetOwnedPrivateJobsAsync(
+        string userId,
+        EntityType? entityType = null,
+        CancellationToken ct = default)
+    {
+        var query = db.ImportJobs.AsNoTracking()
+            .Where(job => job.CreatedBy == userId && job.WorkflowStage == ImportWorkflowStage.Private);
+        if (entityType.HasValue)
+        {
+            query = query.Where(job => job.EntityType == entityType.Value);
+        }
+
+        return await query.OrderByDescending(job => job.CreatedAt).ToListAsync(ct);
+    }
+
+    public Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default)
+        => db.ReleasePackages.Include(package => package.Jobs)
+            .FirstOrDefaultAsync(package => package.Id == packageId, ct);
+
+    public async Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
+    {
+        db.ReleasePackages.Add(package);
+        await db.SaveChangesAsync(ct);
+    }
+
     private async Task MarkActiveBaselinesAsync(IReadOnlyCollection<ImportJob> jobs, CancellationToken ct)
     {
         if (jobs.Count == 0)

@@ -46,6 +46,73 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task CopyToWorkspaceAsync_PreservesDependencyValidationAnchor()
+    {
+        var anchorId = Guid.NewGuid();
+        var source = CreateJob(ImportStatus.Committed);
+        source.WorkflowStage = ImportWorkflowStage.Published;
+        source.ValidationAnchorJobId = anchorId;
+        source.ValidationAnchorKind = ValidationAnchorKind.ExplicitVersion;
+        source.ValidationAnchorPinnedAt = DateTime.UtcNow.AddDays(-2);
+        var repository = new FakeImportRepository(source, CreateComparison(Guid.NewGuid(), true)) { UploadedContent = [1] };
+        repository.Rows.Add(new StagingRow { ImportJobId = source.Id, RowNumber = 1, RawData = "{}" });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var copy = await service.CopyToWorkspaceAsync(source.Id, "copy.xlsx", "new-owner", "New Owner");
+
+        Assert.Equal(anchorId, copy.ValidationAnchorJobId);
+        Assert.Equal(ValidationAnchorKind.ExplicitVersion, copy.ValidationAnchorKind);
+        Assert.Equal(source.ValidationAnchorPinnedAt, copy.ValidationAnchorPinnedAt);
+    }
+
+    [Fact]
+    public async Task ApplyDependencyAnchorAsync_RevalidatesPriceRowsAgainstSelectedMaster()
+    {
+        var priceJob = CreatePriceJob();
+        var master = CreateJob(ImportStatus.Committed);
+        master.EntityType = EntityType.Article;
+        master.WorkflowStage = ImportWorkflowStage.Published;
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(master);
+        repository.ArticleNumbers[master.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.AddRange([
+            PriceRow(priceJob.Id, 2, "A-1"),
+            PriceRow(priceJob.Id, 3, "A-2")
+        ]);
+        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var result = await service.ApplyDependencyAnchorAsync(priceJob.Id, master.Id, "contributor-id", "Cara Contributor");
+
+        Assert.Equal(master.Id, result.ValidationAnchorJobId);
+        Assert.Equal(ValidationAnchorKind.ExplicitVersion, result.ValidationAnchorKind);
+        Assert.Equal(1, result.ErrorRows);
+        Assert.Contains(repository.Rows, row => row.Status == RowStatus.Error && row.ValidationMessages!.Contains("A-2"));
+    }
+
+    [Fact]
+    public async Task CreateReleasePackageAsync_AnchorsDependentDraftToPrivateMasterCandidate()
+    {
+        var priceJob = CreatePriceJob();
+        var master = CreateJob(ImportStatus.AwaitingApproval);
+        master.EntityType = EntityType.Article;
+        master.TotalRows = 1;
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(master);
+        repository.ArticleNumbers[master.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
+        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var package = await service.CreateReleasePackageAsync(
+            priceJob.Id, master.Id, "Annual 2027", "contributor-id", "Cara Contributor");
+
+        Assert.Equal("Annual 2027", package.Name);
+        Assert.Equal(master.Id, priceJob.ValidationAnchorJobId);
+        Assert.Equal(ValidationAnchorKind.ReleaseCandidate, priceJob.ValidationAnchorKind);
+        Assert.Equal(priceJob.ReleasePackageId, master.ReleasePackageId);
+        Assert.Equal(2, package.Items.Count);
+    }
+
+    [Fact]
     public async Task CopyToWorkspaceAsync_RejectsPrivateSource()
     {
         var source = CreateJob(ImportStatus.AwaitingApproval);
@@ -318,6 +385,32 @@ public class ControlledPublicationTests
         return job;
     }
 
+    private static ImportJob CreatePriceJob() => new()
+    {
+        Id = Guid.NewGuid(),
+        OriginalFileName = "annual-prices.xlsx",
+        EntityType = EntityType.PriceList,
+        Status = ImportStatus.AwaitingApproval,
+        WorkflowStage = ImportWorkflowStage.Private,
+        CreatedBy = "contributor-id",
+        CreatedByDisplayName = "Cara Contributor",
+        TotalRows = 2
+    };
+
+    private static StagingRow PriceRow(Guid jobId, int rowNumber, string articleNumber) => new()
+    {
+        ImportJobId = jobId,
+        RowNumber = rowNumber,
+        RawData = JsonSerializer.Serialize(new Dictionary<string, string?>
+        {
+            ["ArticleNumber"] = articleNumber,
+            ["UnitPrice"] = "10.00",
+            ["Currency"] = "EUR",
+            ["ValidFrom"] = "2027-01-01",
+            ["ValidTo"] = "2027-12-31"
+        })
+    };
+
     private static ImportComparisonResult CreateComparison(Guid baselineId, bool hasBaseline) => new(
         JobId: Guid.NewGuid(),
         BaselineJobId: baselineId,
@@ -358,9 +451,12 @@ public class ControlledPublicationTests
         public byte[]? UploadedContent { get; init; }
         public byte[]? CopiedContent { get; private set; }
         public List<StagingRow> CopiedRows { get; } = [];
+        public List<ImportJob> AdditionalJobs { get; } = [];
+        public Dictionary<Guid, IReadOnlySet<string>> ArticleNumbers { get; } = [];
+        public List<ReleasePackage> ReleasePackages { get; } = [];
 
         public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
-            => Task.FromResult<ImportJob?>(id == job.Id ? job : null);
+            => Task.FromResult<ImportJob?>(id == job.Id ? job : AdditionalJobs.FirstOrDefault(item => item.Id == id));
 
         public Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default)
             => Task.FromResult(comparison);
@@ -402,6 +498,32 @@ public class ControlledPublicationTests
         public Task UpdateStagingRowAsync(StagingRow row, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlySet<string>> GetArticleNumbersForJobAsync(Guid articleJobId, CancellationToken ct = default)
+            => Task.FromResult(ArticleNumbers.TryGetValue(articleJobId, out var values)
+                ? values
+                : (IReadOnlySet<string>)new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        public Task<ImportJob?> GetLatestCommittedJobAsync(EntityType entityType, CancellationToken ct = default)
+            => Task.FromResult<ImportJob?>(new[] { job }.Concat(AdditionalJobs)
+                .Where(item => item.EntityType == entityType && item.Status == ImportStatus.Committed)
+                .OrderByDescending(item => item.CommittedAt).FirstOrDefault());
+        public Task<IReadOnlyList<ImportJob>> GetOwnedPrivateJobsAsync(string userId, EntityType? entityType = null, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ImportJob>>(new[] { job }.Concat(AdditionalJobs)
+                .Where(item => item.CreatedBy == userId && item.WorkflowStage == ImportWorkflowStage.Private && (!entityType.HasValue || item.EntityType == entityType))
+                .ToList());
+        public Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default)
+        {
+            var package = ReleasePackages.FirstOrDefault(item => item.Id == packageId);
+            if (package is not null)
+            {
+                package.Jobs = new[] { job }.Concat(AdditionalJobs).Where(item => item.ReleasePackageId == packageId).ToList();
+            }
+            return Task.FromResult(package);
+        }
+        public Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
+        {
+            ReleasePackages.Add(package);
+            return Task.CompletedTask;
+        }
         public Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult(UploadedContent);
         public Task SaveUploadedFileAsync(Guid jobId, string fileName, byte[] content, CancellationToken ct = default) => throw new NotSupportedException();
     }

@@ -39,7 +39,8 @@ public class AdminMaintenanceController(
             "UploadedFiles",
             "AuditLogs",
             "StagingRows",
-            "ImportJobs"
+            "ImportJobs",
+            "ReleasePackages"
         };
 
         var cpqTables = new List<string>
@@ -76,7 +77,8 @@ public class AdminMaintenanceController(
                 """DELETE FROM import."UploadedFiles";""",
                 """DELETE FROM import."AuditLogs";""",
                 """DELETE FROM import."StagingRows";""",
-                """DELETE FROM import."ImportJobs";"""
+                """DELETE FROM import."ImportJobs";""",
+                """DELETE FROM import."ReleasePackages";"""
             }
             : new[]
             {
@@ -86,7 +88,8 @@ public class AdminMaintenanceController(
                 "DELETE FROM [import].[UploadedFiles];",
                 "DELETE FROM [import].[AuditLogs];",
                 "DELETE FROM [import].[StagingRows];",
-                "DELETE FROM [import].[ImportJobs];"
+                "DELETE FROM [import].[ImportJobs];",
+                "DELETE FROM [import].[ReleasePackages];"
             };
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);

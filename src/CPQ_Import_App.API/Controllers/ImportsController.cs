@@ -316,6 +316,139 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    [HttpGet("{id:guid}/dependency-context")]
+    public async Task<ActionResult<DependencyContextDto>> GetDependencyContext(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var context = await importService.GetDependencyContextAsync(id, UserId, ct);
+            return Ok(context.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+    }
+
+    [HttpPost("{id:guid}/dependency-context/preview")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<DependencyImpactDto>> PreviewDependencyAnchor(
+        Guid id, [FromBody] ApplyValidationAnchorRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var impact = await importService.PreviewDependencyAnchorAsync(id, request.ArticleMasterJobId, UserId, ct);
+            return Ok(impact.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpPost("{id:guid}/dependency-context/apply")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ImportJobDto>> ApplyDependencyAnchor(
+        Guid id, [FromBody] ApplyValidationAnchorRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var job = await importService.ApplyDependencyAnchorAsync(id, request.ArticleMasterJobId, UserId, UserDisplayName, ct);
+            return Ok(job.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpPost("{id:guid}/release-package")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ReleasePackageDto>> CreateReleasePackage(
+        Guid id, [FromBody] CreateReleasePackageRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var package = await importService.CreateReleasePackageAsync(
+                id, request.ArticleMasterJobId, request.Name, UserId, UserDisplayName, ct);
+            return CreatedAtAction(nameof(GetReleasePackage), new { packageId = package.Id }, package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpGet("release-packages/{packageId:guid}")]
+    public async Task<ActionResult<ReleasePackageDto>> GetReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            var canReview = User.Claims.Any(claim => claim.Value is Capabilities.ImportsApprove or Capabilities.ImportsPublish);
+            return Ok((await importService.GetReleasePackageAsync(packageId, UserId, canReview, ct)).ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+    }
+
+    [HttpPost("release-packages/{packageId:guid}/submit")]
+    [Authorize(Policy = Capabilities.ImportsSubmit)]
+    public async Task<ActionResult<ReleasePackageDto>> SubmitReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            var package = await importService.SubmitReleasePackageAsync(packageId, UserId, UserDisplayName, ct);
+            var representative = await importService.GetJobAsync(package.Items.First().JobId, ct);
+            if (representative is not null)
+            {
+                var approverIds = await accessControlService.GetUserIdsWithCapabilityAsync(Capabilities.ImportsApprove, ct);
+                await notificationService.NotifyImportUploadedAsync(representative, approverIds.Where(id => id.ToString() != UserId).ToList());
+            }
+            await activityService.LogAsync(new ActivityWriteRequest(ActivityCategory.Import, "SubmitReleasePackage",
+                $"Submitted release package '{package.Name}' with {package.Items.Count} datasets.",
+                TargetType: "ReleasePackage", TargetId: package.Id.ToString(), StatusCode: StatusCodes.Status200OK), ct);
+            return Ok(package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpPost("release-packages/{packageId:guid}/approve")]
+    [Authorize(Policy = Capabilities.ImportsApprove)]
+    public async Task<ActionResult<ReleasePackageDto>> ApproveReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            var package = await importService.ApproveReleasePackageAsync(packageId, UserId, UserDisplayName, ct);
+            var representative = await importService.GetJobAsync(package.Items.First().JobId, ct);
+            if (representative is not null && Guid.TryParse(package.CreatedBy, out var ownerId))
+                await notificationService.NotifyImportApprovedAsync(representative, ownerId);
+            await activityService.LogAsync(new ActivityWriteRequest(ActivityCategory.Import, "ApproveReleasePackage",
+                $"Approved release package '{package.Name}' with immutable evidence.",
+                TargetType: "ReleasePackage", TargetId: package.Id.ToString(), StatusCode: StatusCodes.Status200OK), ct);
+            return Ok(package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpPost("release-packages/{packageId:guid}/publish")]
+    [Authorize(Policy = Capabilities.ImportsPublish)]
+    public async Task<ActionResult<ReleasePackageDto>> PublishReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            var package = await importService.PublishReleasePackageAsync(packageId, UserId, UserDisplayName, ct);
+            var representative = await importService.GetJobAsync(package.Items.First().JobId, ct);
+            if (representative is not null && Guid.TryParse(package.CreatedBy, out var ownerId))
+                await notificationService.NotifyImportCommittedAsync(representative, ownerId);
+            await activityService.LogAsync(new ActivityWriteRequest(ActivityCategory.Import, "PublishReleasePackage",
+                $"Published release package '{package.Name}' in dependency order.",
+                TargetType: "ReleasePackage", TargetId: package.Id.ToString(), StatusCode: StatusCodes.Status200OK), ct);
+            return Ok(package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     /// <summary>Return an unpublished submission to its owner's private workspace.</summary>
     [HttpPost("{id:guid}/withdraw")]
     [Authorize(Policy = Capabilities.ImportsWithdrawOwn)]

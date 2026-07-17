@@ -29,6 +29,11 @@ public interface IImportRepository
     Task SaveChangesAsync(CancellationToken ct = default);
     Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default);
     Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default);
+    Task<IReadOnlySet<string>> GetArticleNumbersForJobAsync(Guid articleJobId, CancellationToken ct = default);
+    Task<ImportJob?> GetLatestCommittedJobAsync(EntityType entityType, CancellationToken ct = default);
+    Task<IReadOnlyList<ImportJob>> GetOwnedPrivateJobsAsync(string userId, EntityType? entityType = null, CancellationToken ct = default);
+    Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default);
+    Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default);
     Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default);
     Task SaveUploadedFileAsync(Guid jobId, string fileName, byte[] content, CancellationToken ct = default);
 }
