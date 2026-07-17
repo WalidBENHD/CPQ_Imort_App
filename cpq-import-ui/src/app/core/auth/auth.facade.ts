@@ -35,6 +35,50 @@ export class AuthFacade {
       || 'User';
   }
 
+  get loginName(): string {
+    if (isLocalAuthMode()) {
+      return this.localAuth.currentUser?.userName
+        ?? (readAccessTokenClaims(this.localAuth.token)['preferred_username'] as string)
+        ?? this.userName;
+    }
+
+    const claims = this.mergedClaims;
+    return (claims['preferred_username'] as string)
+      || (claims['upn'] as string)
+      || (claims['email'] as string)
+      || this.userName;
+  }
+
+  get roleNames(): string[] {
+    if (isLocalAuthMode()) {
+      const user = this.localAuth.currentUser;
+      if (user?.roleNames?.length) return user.roleNames;
+      if (user?.role) return [user.role];
+      return readRoles(readAccessTokenClaims(this.localAuth.token));
+    }
+
+    return readRoles(this.mergedClaims);
+  }
+
+  get capabilities(): string[] {
+    if (isLocalAuthMode()) {
+      return this.localAuth.currentUser?.capabilities
+        ?? readCapabilities(readAccessTokenClaims(this.localAuth.token));
+    }
+
+    return readCapabilities(this.mergedClaims);
+  }
+
+  get userInitials(): string {
+    const initials = this.userName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0]?.toUpperCase())
+      .join('');
+    return initials || 'U';
+  }
+
   get userId(): string {
     if (isLocalAuthMode()) {
       return this.localAuth.currentUser?.id

@@ -26,7 +26,8 @@ import { takeUntil } from 'rxjs/operators';
       mat-icon-button 
       [matMenuTriggerFor]="notificationMenu"
       matTooltip="Notifications"
-      class="notification-button">
+      class="notification-button"
+      aria-label="Open notifications">
       <span
         class="notification-anchor"
         [matBadge]="unreadCount$ | async"
@@ -37,26 +38,26 @@ import { takeUntil } from 'rxjs/operators';
       </span>
     </button>
 
-    <mat-menu #notificationMenu="matMenu" class="notification-menu" panelClass="notification-menu-panel">
+    <mat-menu #notificationMenu="matMenu" class="notification-menu-panel">
       <div class="notification-shell">
         <div class="notification-header">
-          <div>
-            <div class="header-title">Notifications</div>
-            <div class="header-subtitle">
-              {{ unreadCount$ | async }} unread
-            </div>
+          <div class="header-identity">
+            <span class="header-mark"><mat-icon>notifications_active</mat-icon></span>
+            <span>
+              <strong>Activity inbox</strong>
+              <small>Updates that need your awareness</small>
+            </span>
           </div>
+          <span class="unread-summary" [class.unread-summary--clear]="(unreadCount$ | async) === 0">
+            {{ unreadCount$ | async }} unread
+          </span>
+        </div>
 
-          <button 
-            mat-icon-button 
-            *ngIf="(unreadCount$ | async) as unreadCount; else noUnread"
-            [hidden]="!unreadCount"
-            (click)="markAllAsRead($event)" 
-            matTooltip="Mark all as read"
-            class="header-action">
-            <mat-icon>done_all</mat-icon>
+        <div class="notification-toolbar">
+          <strong>Recent updates</strong>
+          <button mat-button type="button" *ngIf="(unreadCount$ | async) as unreadCount" (click)="markAllAsRead($event)" class="header-action">
+            <mat-icon>done_all</mat-icon> Mark all read
           </button>
-          <ng-template #noUnread></ng-template>
         </div>
 
         <div class="notification-list" *ngIf="notifications$ | async as notifications">
@@ -76,7 +77,9 @@ import { takeUntil } from 'rxjs/operators';
             *ngFor="let notification of notifications" 
             class="notification-item" 
             [class.unread]="!notification.isRead"
-            (click)="onNotificationClick(notification)">
+            (click)="onNotificationClick(notification)"
+            (keydown.enter)="onNotificationClick(notification)">
+            <span class="unread-indicator" *ngIf="!notification.isRead" aria-label="Unread"></span>
             <div class="notification-icon" [ngClass]="getNotificationToneClass(notification)">
               <mat-icon>{{ getNotificationIcon(notification) }}</mat-icon>
             </div>
@@ -88,9 +91,8 @@ import { takeUntil } from 'rxjs/operators';
               <div class="notification-meta">
                 <span class="notification-type">{{ getNotificationTypeLabel(notification) }}</span>
                 <span class="notification-dot"></span>
-                <span class="notification-state">{{ notification.isRead ? 'Read' : 'New' }}</span>
-                <span class="notification-dot"></span>
                 <span class="notification-time">{{ notification.createdAt | date:'short' }}</span>
+                <span class="notification-state" *ngIf="!notification.isRead">New</span>
               </div>
             </div>
 
@@ -103,34 +105,47 @@ import { takeUntil } from 'rxjs/operators';
             </button>
           </div>
         </div>
+        <div class="notification-footnote"><mat-icon>shield</mat-icon> Only activity relevant to your access is shown.</div>
       </div>
     </mat-menu>
   `,
   styles: [`
-    .notification-button { position: relative; }
+    :host { display: flex; align-items: center; height: 40px; }
+    .notification-button { position: relative; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; }
     .notification-anchor {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 24px;
-      height: 24px;
+      width: 30px;
+      height: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.16);
       line-height: 1;
     }
-    .notification-menu { min-width: 480px !important; max-width: 480px !important; }
-    .notification-menu-panel { width: clamp(480px, 52vw, 680px); }
+    .notification-anchor mat-icon { width: 19px; height: 19px; font-size: 19px; }
     .notification-shell {
       display: grid;
-      gap: 6px;
-      padding: 6px;
+      padding: 16px;
+      color: var(--app-text);
     }
     .notification-header { 
-      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-      padding: 10px 10px 4px; font-weight: 600; font-size: 14px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding-bottom: 15px; border-bottom: 1px solid var(--app-border);
     }
-    .header-title { flex: 1; font-size: 14px; font-weight: 800; }
-    .header-subtitle { margin-top: 3px; color: #64748b; font-size: 12px; font-weight: 600; }
-    .header-action { color: var(--app-accent); }
-    .notification-list { max-height: 500px; overflow-y: auto; display: grid; gap: 4px; padding: 0 1px 2px; scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, 0.7) transparent; }
+    .header-identity { display: flex; align-items: center; min-width: 0; gap: 11px; }
+    .header-identity > span:last-child { display: flex; min-width: 0; flex-direction: column; }
+    .header-identity strong { font-size: 16px; line-height: 1.2; }
+    .header-identity small { margin-top: 3px; color: var(--app-text-muted); font-size: 11px; }
+    .header-mark { width: 38px; height: 38px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--app-accent) 12%, var(--app-surface)); color: var(--app-accent); }
+    .header-mark mat-icon { width: 20px; height: 20px; font-size: 20px; }
+    .unread-summary { padding: 6px 9px; border: 1px solid color-mix(in srgb, var(--app-accent) 30%, var(--app-border)); border-radius: 999px; background: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface)); color: var(--app-accent); font-size: 10px; font-weight: 900; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.04em; }
+    .unread-summary--clear { border-color: var(--app-border); background: transparent; color: var(--app-text-muted); }
+    .notification-toolbar { display: flex; min-height: 47px; align-items: center; justify-content: space-between; gap: 10px; }
+    .notification-toolbar > strong { color: var(--app-text-muted); font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+    .header-action { color: var(--app-accent); font-size: 11px; font-weight: 850; }
+    .header-action mat-icon { width: 17px; height: 17px; margin-right: 3px; font-size: 17px; }
+    .notification-list { max-height: min(470px, calc(100vh - 190px)); overflow-y: auto; display: grid; gap: 8px; padding: 0 3px 2px 0; scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, 0.7) transparent; }
     .notification-list::-webkit-scrollbar { width: 8px; }
     .notification-list::-webkit-scrollbar-track { background: transparent; }
     .notification-list::-webkit-scrollbar-thumb {
@@ -158,20 +173,21 @@ import { takeUntil } from 'rxjs/operators';
     .empty-copy strong { font-size: 14px; color: #0f172a; }
     .empty-copy span { font-size: 12px; color: #64748b; }
     .notification-item { 
-      padding: 10px 10px 10px 12px; border: 1px solid rgba(226, 232, 240, 0.95); border-radius: 14px; cursor: pointer;
-      display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: start;
+      padding: 12px 10px 12px 13px; border: 1px solid rgba(226, 232, 240, 0.95); border-radius: 14px; cursor: pointer;
+      display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 11px; align-items: start;
       transition: background 0.2s, border-color 0.2s, transform 0.2s; position: relative;
-      background: var(--app-surface-elevated);
+      background: var(--app-surface);
       border-color: var(--app-border);
       box-shadow: none;
       text-align: left;
     }
-    .notification-item:hover { background: var(--app-soft-surface); border-color: rgba(148, 163, 184, 0.38); }
-    .notification-item.unread { border-color: rgba(37, 99, 235, 0.20); }
+    .notification-item:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--app-accent) 3%, var(--app-surface)); border-color: color-mix(in srgb, var(--app-accent) 25%, var(--app-border)); }
+    .notification-item.unread { border-color: color-mix(in srgb, var(--app-accent) 24%, var(--app-border)); background: color-mix(in srgb, var(--app-accent) 4%, var(--app-surface)); }
+    .unread-indicator { position: absolute; top: 15px; left: -4px; width: 7px; height: 7px; border: 2px solid var(--app-surface); border-radius: 50%; background: var(--app-accent); box-sizing: content-box; }
     .notification-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 10px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       display: grid;
       place-items: center;
       background: rgba(37, 99, 235, 0.10);
@@ -181,21 +197,34 @@ import { takeUntil } from 'rxjs/operators';
     .notification-icon.toast-success { background: rgba(16, 185, 129, 0.12); color: #059669; }
     .notification-icon.toast-warning { background: rgba(245, 158, 11, 0.12); color: #d97706; }
     .notification-icon.toast-danger { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
-    .notification-icon mat-icon { font-size: 16px; width: 16px; height: 16px; }
-    .notification-content { min-width: 0; display: grid; gap: 2px; }
-    .notification-title { font-weight: 800; font-size: 12.25px; color: var(--app-text); line-height: 1.22; }
-    .notification-message { font-size: 11.25px; color: var(--app-text-muted); line-height: 1.32; word-break: break-word; }
-    .notification-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; color: var(--app-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .notification-icon mat-icon { font-size: 19px; width: 19px; height: 19px; }
+    .notification-content { min-width: 0; display: grid; gap: 4px; padding-top: 1px; }
+    .notification-title { font-weight: 850; font-size: 13px; color: var(--app-text); line-height: 1.25; }
+    .notification-message { font-size: 11.5px; color: var(--app-text-muted); line-height: 1.42; word-break: break-word; }
+    .notification-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 9.5px; font-weight: 800; color: var(--app-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .notification-type { color: var(--app-accent); }
     .notification-dot { width: 4px; height: 4px; border-radius: 999px; background: #cbd5e1; }
-    .notification-state { color: var(--app-text-muted); }
+    .notification-state { margin-left: auto; padding: 3px 6px; border-radius: 999px; background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface)); color: var(--app-accent); }
     .notification-time { flex-shrink: 0; font-size: 10px; color: var(--app-text-muted); white-space: nowrap; text-transform: none; letter-spacing: 0; }
-    .delete-btn { flex-shrink: 0; margin-top: -2px; color: var(--app-text-muted); width: 28px; height: 28px; }
+    .delete-btn { flex-shrink: 0; margin-top: -4px; color: var(--app-text-muted); width: 30px; height: 30px; }
     .delete-btn:hover { color: #dc2626; }
     .notification-item.unread .notification-title { color: var(--app-text); }
     .notification-item.unread .notification-message { color: var(--app-text); }
     .notification-item.unread .notification-time { color: var(--app-text-muted); }
     .notification-item.unread .notification-state { color: var(--app-accent); }
+    .notification-footnote { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 4px 0; color: var(--app-text-muted); font-size: 10px; }
+    .notification-footnote mat-icon { width: 14px; height: 14px; font-size: 14px; }
+
+    @media (max-width: 520px) {
+      .notification-shell { padding: 14px; }
+      .notification-header { align-items: flex-start; }
+      .header-identity small { max-width: 175px; }
+      .notification-list { max-height: calc(100vh - 205px); }
+      .notification-item { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 9px; padding-inline: 11px 7px; }
+      .notification-icon { width: 34px; height: 34px; border-radius: 10px; }
+      .notification-message { font-size: 11px; }
+      .notification-state { display: none; }
+    }
 
     :host-context(html.theme-dark) .notification-shell {
       background: transparent;

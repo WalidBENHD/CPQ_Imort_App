@@ -41,27 +41,43 @@ import { ThemeService } from './core/services/theme.service';
 
         <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
 
-        <button mat-icon-button *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu" aria-label="Open profile menu">
-          <mat-icon>account_circle</mat-icon>
+        <button mat-icon-button class="profile-trigger" *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu" aria-label="Open profile menu">
+          <span>{{ auth.userInitials }}</span>
         </button>
 
         <a mat-button class="sign-in-link" *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
           <mat-icon>login</mat-icon> Sign in
         </a>
 
-        <mat-menu #userMenu="matMenu" panelClass="user-menu-panel">
-          <button mat-menu-item disabled>
-            <mat-icon class="user-menu-icon">person</mat-icon>
-            <span>{{ auth.userName }}</span>
-          </button>
-          <button mat-menu-item disabled *ngIf="auth.isAdmin">
-            <mat-icon class="user-menu-icon">verified_user</mat-icon>
-            <span>Administrator</span>
-          </button>
-          <button mat-menu-item (click)="auth.logout()">
-            <mat-icon class="user-menu-icon">logout</mat-icon>
-            <span>Sign out</span>
-          </button>
+        <mat-menu #userMenu="matMenu" class="user-menu-panel">
+          <section class="profile-menu" (click)="$event.stopPropagation()">
+            <header class="profile-menu__identity">
+              <span class="profile-menu__avatar">{{ auth.userInitials }}</span>
+              <span class="profile-menu__person">
+                <strong>{{ auth.userName }}</strong>
+                <small>{{ auth.loginName }}</small>
+              </span>
+              <span class="profile-menu__status"><i></i> Active</span>
+            </header>
+
+            <div class="profile-menu__section">
+              <span class="profile-menu__label"><mat-icon>shield_person</mat-icon> Assigned roles</span>
+              <div class="profile-menu__roles" *ngIf="auth.roleNames.length; else noAssignedRole">
+                <span *ngFor="let role of auth.roleNames">{{ role }}</span>
+              </div>
+              <ng-template #noAssignedRole><p class="profile-menu__empty">Standard platform access</p></ng-template>
+            </div>
+
+            <div class="profile-menu__access">
+              <span class="profile-menu__access-icon"><mat-icon>key</mat-icon></span>
+              <span><strong>{{ auth.capabilities.length }} capabilities enabled</strong><small>Access is managed through your assigned roles.</small></span>
+            </div>
+
+            <button mat-flat-button type="button" class="profile-menu__logout" (click)="auth.logout()">
+              <mat-icon>logout</mat-icon>
+              Sign out
+            </button>
+          </section>
         </mat-menu>
       </mat-toolbar>
 
@@ -211,6 +227,27 @@ import { ThemeService } from './core/services/theme.service';
     .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; letter-spacing: 0.01em; }
     .spacer { flex: 1; }
     .sign-in-link { border-radius: 999px; }
+    .profile-trigger {
+      width: 40px;
+      height: 40px;
+      margin: 0 0 0 2px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+    .profile-trigger span {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+    }
 
     .shell-body {
       display: grid;
