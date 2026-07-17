@@ -58,7 +58,10 @@ public static class DtoMapper
         job.WarningRows,
         job.ErrorRows,
         job.CommittedRows,
-        job.IsActiveBaseline
+        job.IsActiveBaseline,
+        job.DraftAddedRows,
+        job.DraftModifiedRows,
+        job.DraftRemovedRows
     );
 
     public static StagingRowDto ToDto(this StagingRow row) => new(
@@ -73,7 +76,12 @@ public static class DtoMapper
             ? JsonSerializer.Deserialize<List<ValidationMessage>>(row.ValidationMessages, JsonOpts)
                 ?.Select(m => new ValidationMessageDto(m.Field, m.Message, m.Severity.ToString()))
                 .ToList() ?? []
-            : []
+            : [],
+        row.IsUserAdded,
+        row.IsUserModified,
+        row.IsDeleted,
+        row.DeletedAt,
+        row.DeletedByDisplayName
     );
 
     public static ComparisonFieldChangeDto ToDto(this ComparisonFieldChange change) => new(

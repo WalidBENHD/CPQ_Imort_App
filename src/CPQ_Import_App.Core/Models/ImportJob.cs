@@ -36,6 +36,15 @@ public class ImportJob
     public string? ApprovedComparisonJson { get; set; }
     [NotMapped]
     public bool IsActiveBaseline { get; set; }
+
+    [NotMapped]
+    public int DraftAddedRows { get; set; }
+
+    [NotMapped]
+    public int DraftModifiedRows { get; set; }
+
+    [NotMapped]
+    public int DraftRemovedRows { get; set; }
     public ICollection<StagingRow> StagingRows { get; set; } = new List<StagingRow>();
     public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }

@@ -17,17 +17,18 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ImportService } from '../../core/services/import.service';
 import { ApprovedComparisonSnapshot, ComparisonFieldChange, ComparisonMissingItem, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
-import { EditRowDialogComponent } from './edit-row-dialog.component';
 import { AnnualCommitConfirmDialogComponent } from './annual-commit-confirm-dialog.component';
 import { ApprovalRecordComponent } from './approval-record.component';
 import { PublicationApprovalDraft, PublicationReadinessComponent } from './publication-readiness.component';
 import { PublicationConfirmDialogComponent } from './publication-confirm-dialog.component';
 import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.component';
 
 @Component({
   selector: 'app-import-preview',
@@ -36,9 +37,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     MatCardModule, MatButtonModule, MatIconModule, MatTableModule,
     MatChipsModule, MatProgressSpinnerModule, MatPaginatorModule,
     MatTabsModule, MatDialogModule, MatSnackBarModule, MatTooltipModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule,
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule, MatCheckboxModule,
     StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent,
-    PublicationReadinessComponent, PublicationConfirmDialogComponent],
+    PublicationReadinessComponent, PublicationConfirmDialogComponent, DraftRowEditorComponent],
   template: `
     <div class="page-header">
       <div>
@@ -50,6 +51,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       <div class="header-actions" *ngIf="job">
         <button mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download original file">
           <mat-icon>download</mat-icon> Original
+        </button>
+        <button
+          mat-stroked-button
+          class="header-action-btn action-working-copy"
+          *ngIf="isPrivateWorkspace"
+          [disabled]="!hasDraftChanges"
+          (click)="downloadWorkingCopy()"
+          [matTooltip]="hasDraftChanges ? 'Download the original file with your draft changes applied' : 'Make a draft change to enable this export'">
+          <mat-icon>file_download</mat-icon> Working copy
         </button>
         <button mat-stroked-button class="header-action-btn action-error" *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
           <mat-icon>error_outline</mat-icon> Error Report
@@ -466,11 +476,74 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       <!-- Rows table -->
       <mat-card class="rows-card">
         <mat-card-header class="rows-header">
-          <mat-card-title>Data Preview</mat-card-title>
+          <div>
+            <div class="editor-eyebrow" *ngIf="isPrivateWorkspace">Private working copy</div>
+            <mat-card-title>{{ isPrivateWorkspace ? 'Draft data editor' : 'Data Preview' }}</mat-card-title>
+            <p *ngIf="isPrivateWorkspace">Refine this dataset here. Nothing is shared until you submit it for review.</p>
+          </div>
           <div class="list-meta">{{ rows?.total ?? job.totalRows }} matching rows</div>
         </mat-card-header>
 
         <mat-card-content>
+          <section class="draft-editor-toolbar" *ngIf="isPrivateWorkspace">
+            <div class="draft-change-summary">
+              <div class="draft-change-heading">
+                <span class="draft-live-dot"></span>
+                <div><strong>Working draft</strong><small>Changes are local to your private workspace</small></div>
+              </div>
+              <div class="draft-change-counts">
+                <span class="change-added"><strong>{{ job.draftAddedRows }}</strong> added</span>
+                <span class="change-modified"><strong>{{ job.draftModifiedRows }}</strong> modified</span>
+                <button type="button" class="change-removed" (click)="showRemovedRows = !showRemovedRows">
+                  <strong>{{ job.draftRemovedRows }}</strong> removed
+                  <mat-icon>{{ showRemovedRows ? 'expand_less' : 'expand_more' }}</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="draft-command-bar" [class.draft-command-bar--selection]="selectedRowIds.size > 0">
+              <div class="selection-copy" *ngIf="selectedRowIds.size; else defaultDraftActions">
+                <span>{{ selectedRowIds.size }}</span>
+                <div><strong>row{{ selectedRowIds.size === 1 ? '' : 's' }} selected</strong><small>Choose an action for this selection</small></div>
+              </div>
+              <ng-template #defaultDraftActions>
+                <div class="selection-copy selection-copy--quiet">
+                  <mat-icon>edit_note</mat-icon>
+                  <div><strong>Edit the working data</strong><small>Select rows for batch actions</small></div>
+                </div>
+              </ng-template>
+
+              <div class="draft-actions">
+                <button mat-stroked-button type="button" [disabled]="draftMutationRunning" (click)="openAddRowEditor()">
+                  <mat-icon>add</mat-icon> Add row
+                </button>
+                <button mat-stroked-button type="button" [disabled]="draftMutationRunning || selectedRowIds.size !== 1" (click)="duplicateSelectedRow()">
+                  <mat-icon>content_copy</mat-icon> Duplicate
+                </button>
+                <button mat-stroked-button type="button" class="delete-selection" [disabled]="draftMutationRunning || !selectedRowIds.size" (click)="removeSelectedRows()">
+                  <mat-icon>delete_outline</mat-icon> Delete
+                </button>
+                <button mat-button type="button" *ngIf="selectedRowIds.size" (click)="clearRowSelection()">Clear</button>
+              </div>
+            </div>
+
+            <div class="removed-rows-tray" *ngIf="showRemovedRows">
+              <div class="removed-tray-heading">
+                <div><mat-icon>restore_from_trash</mat-icon><span><strong>Removed from this draft</strong><small>These rows can be restored before submission.</small></span></div>
+                <button mat-icon-button type="button" (click)="showRemovedRows = false" aria-label="Close removed rows"><mat-icon>close</mat-icon></button>
+              </div>
+              <div class="removed-row-list" *ngIf="removedRows.length; else noRemovedRows">
+                <div *ngFor="let row of removedRows">
+                  <span class="removed-row-number">#{{ row.rowNumber }}</span>
+                  <strong>{{ primaryRowValue(row) }}</strong>
+                  <span>{{ row.statusLabel }}</span>
+                  <button mat-button type="button" [disabled]="draftMutationRunning" (click)="restoreDraftRow(row)"><mat-icon>undo</mat-icon> Restore</button>
+                </div>
+              </div>
+              <ng-template #noRemovedRows><div class="removed-empty">No rows have been removed from this working draft.</div></ng-template>
+            </div>
+          </section>
+
           <mat-card class="filters-card">
             <form class="filters-toolbar" [formGroup]="filtersForm">
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
@@ -514,6 +587,25 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
           <div class="table-wrapper desktop-rows" *ngIf="rows && !rowsLoading">
             <table mat-table [dataSource]="rows.items">
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef>
+                  <mat-checkbox
+                    *ngIf="isPrivateWorkspace"
+                    [checked]="allVisibleRowsSelected"
+                    [indeterminate]="someVisibleRowsSelected"
+                    (change)="toggleAllVisibleRows()"
+                    aria-label="Select all visible rows" />
+                </th>
+                <td mat-cell *matCellDef="let row">
+                  <mat-checkbox
+                    *ngIf="isPrivateWorkspace"
+                    [checked]="selectedRowIds.has(row.id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleRowSelection(row)"
+                    [attr.aria-label]="'Select row ' + row.rowNumber" />
+                </td>
+              </ng-container>
+
               <ng-container matColumnDef="rowNum">
                 <th mat-header-cell *matHeaderCellDef>#</th>
                 <td mat-cell *matCellDef="let row">{{ row.rowNumber }}</td>
@@ -581,7 +673,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                     color="primary"
                     *ngIf="canEditRow(row)"
                     (click)="editRow(row); $event.stopPropagation()"
-                    matTooltip="Correct row">
+                    matTooltip="Edit row">
                     <mat-icon>edit</mat-icon>
                   </button>
                 </td>
@@ -589,6 +681,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
               <tr mat-header-row *matHeaderRowDef="allColumns; sticky: true"></tr>
               <tr mat-row *matRowDef="let row; columns: allColumns"
+                [class.row-selected]="selectedRowIds.has(row.id)"
                 [class.row-valid]="row.statusLabel === 'Valid'"
                 [class.row-warning]="row.statusLabel === 'Warning'"
                 [class.row-error]="row.statusLabel === 'Error'">
@@ -600,10 +693,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
             <article
               class="mobile-row-card"
               *ngFor="let row of rows.items"
+              [class.row-selected]="selectedRowIds.has(row.id)"
               [class.row-valid]="row.statusLabel === 'Valid'"
               [class.row-warning]="row.statusLabel === 'Warning'"
               [class.row-error]="row.statusLabel === 'Error'">
 
+              <div class="mobile-row-select" *ngIf="isPrivateWorkspace">
+                <mat-checkbox [checked]="selectedRowIds.has(row.id)" (change)="toggleRowSelection(row)" [attr.aria-label]="'Select row ' + row.rowNumber" />
+              </div>
               <button type="button" class="mobile-row-toggle" (click)="toggleRow(row.rowNumber)">
                 <div class="mobile-row-head">
                   <div>
@@ -660,7 +757,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
                 <div class="mobile-actions" *ngIf="canEditRow(row)">
                   <button mat-stroked-button color="primary" (click)="editRow(row); $event.stopPropagation()">
                     <mat-icon>edit</mat-icon>
-                    Correct row
+                    Edit row
                   </button>
                 </div>
               </div>
@@ -676,6 +773,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
           </mat-paginator>
         </mat-card-content>
       </mat-card>
+
+      <app-draft-row-editor
+        *ngIf="activeDraftEditorMode"
+        [mode]="activeDraftEditorMode"
+        [row]="activeDraftEditorRow"
+        [columns]="datasetRequirement?.columns || []"
+        [fallbackFields]="dynamicColumns"
+        [saving]="draftMutationRunning"
+        (saved)="applyDraftRowChange($event)"
+        (cancel)="closeDraftEditor()" />
     </ng-container>
   `,
   styles: [`
@@ -700,6 +807,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       background: #eff6ff;
     }
     .action-original:hover { background: #dbeafe; }
+    .action-working-copy {
+      border-color: #99f6e4 !important;
+      color: #0f766e !important;
+      background: #f0fdfa;
+    }
+    .action-working-copy:hover:not(:disabled) { background: #ccfbf1; }
+    .action-working-copy:disabled { opacity: .48; }
     .action-comparison {
       border-color: #bbf7d0 !important;
       color: #166534 !important;
@@ -993,11 +1107,54 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       margin: 0;
       line-height: 1.25;
     }
+    .rows-header p { margin: 5px 0 0; color: var(--app-text-muted); font-size: 13px; }
+    .editor-eyebrow { margin-bottom: 4px; color: #0f766e; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
     .rows-header {
       margin-bottom: 8px;
       padding-bottom: 6px;
       border-bottom: 1px solid #e2e8f0;
     }
+    .draft-editor-toolbar { display: grid; gap: 10px; margin-bottom: 12px; }
+    .draft-change-summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 15px; border: 1px solid color-mix(in srgb, #14b8a6 25%, var(--app-border)); border-radius: 14px; background: linear-gradient(100deg, color-mix(in srgb, #14b8a6 9%, var(--app-surface-elevated)), var(--app-surface-elevated)); }
+    .draft-change-heading { display: flex; align-items: center; gap: 11px; }
+    .draft-live-dot { width: 10px; height: 10px; border: 2px solid var(--app-surface-elevated); border-radius: 50%; background: #14b8a6; box-shadow: 0 0 0 4px color-mix(in srgb, #14b8a6 18%, transparent); }
+    .draft-change-heading > div { display: flex; flex-direction: column; gap: 2px; }
+    .draft-change-heading strong { font-size: 14px; }
+    .draft-change-heading small { color: var(--app-text-muted); font-size: 11px; }
+    .draft-change-counts { display: flex; align-items: center; gap: 7px; }
+    .draft-change-counts > span, .draft-change-counts > button { display: inline-flex; align-items: center; gap: 5px; min-height: 31px; padding: 0 10px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: var(--app-surface); font: inherit; font-size: 11px; }
+    .draft-change-counts strong { color: var(--app-text); font-size: 13px; }
+    .draft-change-counts button { cursor: pointer; }
+    .draft-change-counts mat-icon { width: 16px; height: 16px; font-size: 16px; }
+    .change-added { border-color: color-mix(in srgb, #22c55e 35%, var(--app-border)) !important; }
+    .change-modified { border-color: color-mix(in srgb, #3b82f6 35%, var(--app-border)) !important; }
+    .change-removed { border-color: color-mix(in srgb, #ef4444 30%, var(--app-border)) !important; }
+    .draft-command-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 13px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface); transition: border-color .18s ease, background .18s ease; }
+    .draft-command-bar--selection { border-color: color-mix(in srgb, var(--app-accent) 38%, var(--app-border)); background: color-mix(in srgb, var(--app-accent) 6%, var(--app-surface)); }
+    .selection-copy { display: flex; align-items: center; gap: 10px; }
+    .selection-copy > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: white; background: var(--app-accent); font-weight: 900; }
+    .selection-copy > mat-icon { display: grid; place-items: center; width: 34px; height: 34px; color: var(--app-accent); }
+    .selection-copy > div { display: flex; flex-direction: column; gap: 1px; }
+    .selection-copy strong { font-size: 13px; }
+    .selection-copy small { color: var(--app-text-muted); font-size: 11px; }
+    .draft-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+    .draft-actions button { min-height: 38px; border-radius: 11px; font-weight: 800; }
+    .delete-selection:not(:disabled) { border-color: color-mix(in srgb, #ef4444 40%, var(--app-border)); color: #dc2626; }
+    .removed-rows-tray { overflow: hidden; border: 1px solid color-mix(in srgb, #ef4444 25%, var(--app-border)); border-radius: 14px; background: color-mix(in srgb, #ef4444 4%, var(--app-surface)); }
+    .removed-tray-heading, .removed-tray-heading > div { display: flex; align-items: center; }
+    .removed-tray-heading { justify-content: space-between; gap: 14px; padding: 11px 13px; border-bottom: 1px solid var(--app-border); }
+    .removed-tray-heading > div { gap: 9px; }
+    .removed-tray-heading > div > mat-icon { color: #dc2626; }
+    .removed-tray-heading span { display: flex; flex-direction: column; }
+    .removed-tray-heading strong { font-size: 13px; }
+    .removed-tray-heading small { color: var(--app-text-muted); font-size: 11px; }
+    .removed-row-list { max-height: 190px; overflow: auto; padding: 4px 12px; }
+    .removed-row-list > div { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--app-border); }
+    .removed-row-list > div:last-child { border: 0; }
+    .removed-row-list > div > span { color: var(--app-text-muted); font-size: 11px; }
+    .removed-row-number { padding: 4px 6px; border-radius: 6px; background: color-mix(in srgb, #ef4444 10%, transparent); }
+    .removed-row-list button { color: var(--app-accent); font-weight: 800; }
+    .removed-empty { padding: 18px; color: var(--app-text-muted); text-align: center; font-size: 12px; }
     .table-wrapper { overflow-x: auto; width: 100%; }
     .desktop-rows { display: block; }
     .mobile-rows { display: none; }
@@ -1015,7 +1172,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       padding: 12px 14px;
       word-break: break-word;
     }
-    .desktop-rows .mat-mdc-row:hover { background: #f5f5f5; }
+    .desktop-rows .mat-mdc-row:hover { background: color-mix(in srgb, var(--app-accent) 5%, transparent); }
+    .desktop-rows .mat-mdc-row.row-selected { background: color-mix(in srgb, var(--app-accent) 9%, transparent); }
     .mobile-row-card {
       border: 1px solid #e2e8f0;
       border-radius: 12px;
@@ -1051,6 +1209,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
     .msg-warning { color: #f57f17; }
     .msg-info { color: #1565c0; }
 
+    :host-context(html.theme-dark) .action-working-copy { color: #5eead4 !important; border-color: rgba(45,212,191,.38) !important; background: rgba(15,118,110,.16); }
+    :host-context(html.theme-dark) .action-working-copy:hover:not(:disabled) { background: rgba(15,118,110,.26); }
+    :host-context(html.theme-dark) .editor-eyebrow { color: #5eead4; }
+    :host-context(html.theme-dark) .delete-selection:not(:disabled) { color: #fca5a5; }
+    :host-context(html.theme-dark) .mobile-row-card { border-color: var(--app-border); background: var(--app-surface); }
+    :host-context(html.theme-dark) .mobile-primary { color: var(--app-text); }
+    :host-context(html.theme-dark) .mobile-row-details, :host-context(html.theme-dark) .mobile-validation { border-color: var(--app-border); }
+
     /* Readability pass for comparison and workflow decisions. */
     :host { font-size: 15px; }
     h1 { font-size: 23px; font-weight: 600; }
@@ -1083,6 +1249,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
       border-color: rgba(126, 162, 255, 0.18);
       background: rgba(15, 23, 42, 0.92);
     }
+    .mobile-row-card.row-selected { border-color: var(--app-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 12%, transparent); }
+    .mobile-row-select { display: flex; justify-content: flex-end; padding: 5px 8px 0; }
     :host-context(html.theme-dark) .workflow-status-pill { color:#5eead4; border-color:rgba(45,212,191,.32); background:rgba(15,118,110,.2); }
     :host-context(html.theme-dark) .workflow-status-pill--shared { color:#93c5fd; border-color:rgba(96,165,250,.32); background:rgba(30,64,175,.22); }
     :host-context(html.theme-dark) .workspace-gate--private { border-color:rgba(45,212,191,.28); background:linear-gradient(145deg,#111d2b 0%,#0b1920 100%); box-shadow:0 14px 32px rgba(0,0,0,.28); }
@@ -1242,6 +1410,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         align-items: stretch;
         row-gap: 10px;
       }
+      .draft-change-summary { align-items: flex-start; flex-direction: column; padding: 12px; }
+      .draft-change-counts { width: 100%; flex-wrap: wrap; }
+      .draft-change-counts > span, .draft-change-counts > button { flex: 1; justify-content: center; min-width: 90px; }
+      .draft-command-bar { align-items: stretch; flex-direction: column; }
+      .draft-actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .draft-actions button { width: 100%; }
+      .draft-actions button:first-child { grid-column: 1 / -1; }
+      .removed-row-list > div { grid-template-columns: auto minmax(0,1fr) auto; }
+      .removed-row-list > div > span:not(.removed-row-number) { display: none; }
+      .removed-row-list button { min-width: 0; padding-inline: 7px; }
       .header-actions { grid-template-columns: 1fr; gap: 6px; }
       .header-action-btn { width: 100%; justify-content: center; min-height: 38px; border-radius: 10px; }
       .action-info {
@@ -1332,6 +1510,12 @@ export class ImportPreviewComponent implements OnInit {
   rejectionReason = '';
   workflowActionRunning = false;
   publicationApproval: PublicationApprovalDraft | null = null;
+  activeDraftEditorMode: DraftEditorMode | null = null;
+  activeDraftEditorRow: StagingRow | null = null;
+  showRemovedRows = false;
+  draftMutationRunning = false;
+  readonly selectedRowIds = new Set<string>();
+  removedRows: StagingRow[] = [];
   private readonly expandedRows = new Set<number>();
   private readonly comparisonMap = new Map<string, ComparisonRow>();
   private readonly fb = inject(FormBuilder);
@@ -1356,7 +1540,19 @@ export class ImportPreviewComponent implements OnInit {
   });
 
   dynamicColumns: string[] = [];
-  get allColumns() { return ['rowNum', 'status', 'comparison', ...this.dynamicColumns, 'messages', 'actions']; }
+  get allColumns() { return [...(this.isPrivateWorkspace ? ['select'] : []), 'rowNum', 'status', 'comparison', ...this.dynamicColumns, 'messages', 'actions']; }
+
+  get hasDraftChanges(): boolean {
+    return !!this.job && (this.job.draftAddedRows > 0 || this.job.draftModifiedRows > 0 || this.job.draftRemovedRows > 0);
+  }
+
+  get allVisibleRowsSelected(): boolean {
+    return !!this.rows?.items.length && this.rows.items.every(row => this.selectedRowIds.has(row.id));
+  }
+
+  get someVisibleRowsSelected(): boolean {
+    return !this.allVisibleRowsSelected && !!this.rows?.items.some(row => this.selectedRowIds.has(row.id));
+  }
 
   comparisonForRow(row: StagingRow): ComparisonRow | null {
     return this.comparisonMap.get(row.id) ?? null;
@@ -1435,8 +1631,145 @@ export class ImportPreviewComponent implements OnInit {
       && this.job?.statusLabel !== 'Committed'
       && this.job?.statusLabel !== 'Rejected'
       && this.job?.statusLabel !== 'Failed'
-      && this.job?.statusLabel !== 'Cancelled'
-      && row.statusLabel === 'Error';
+      && this.job?.statusLabel !== 'Cancelled';
+  }
+
+  toggleRowSelection(row: StagingRow): void {
+    if (this.selectedRowIds.has(row.id)) this.selectedRowIds.delete(row.id);
+    else this.selectedRowIds.add(row.id);
+  }
+
+  toggleAllVisibleRows(): void {
+    if (!this.rows) return;
+    if (this.allVisibleRowsSelected) this.rows.items.forEach(row => this.selectedRowIds.delete(row.id));
+    else this.rows.items.forEach(row => this.selectedRowIds.add(row.id));
+  }
+
+  clearRowSelection(): void {
+    this.selectedRowIds.clear();
+  }
+
+  openAddRowEditor(): void {
+    this.activeDraftEditorRow = null;
+    this.activeDraftEditorMode = 'add';
+  }
+
+  duplicateSelectedRow(): void {
+    if (!this.rows || this.selectedRowIds.size !== 1) return;
+    const row = this.rows.items.find(item => this.selectedRowIds.has(item.id));
+    if (!row) return;
+    this.activeDraftEditorRow = row;
+    this.activeDraftEditorMode = 'duplicate';
+  }
+
+  closeDraftEditor(): void {
+    this.activeDraftEditorMode = null;
+    this.activeDraftEditorRow = null;
+  }
+
+  applyDraftRowChange(fields: Record<string, string | null>): void {
+    if (!this.job || !this.activeDraftEditorMode || this.draftMutationRunning) return;
+    const mode = this.activeDraftEditorMode;
+    const request = mode === 'edit' && this.activeDraftEditorRow
+      ? this.importService.updateRow(this.job.id, this.activeDraftEditorRow.id, fields)
+      : this.importService.addRow(this.job.id, fields);
+
+    this.draftMutationRunning = true;
+    request.subscribe({
+      next: updatedJob => {
+        this.job = updatedJob;
+        this.draftMutationRunning = false;
+        this.clearRowSelection();
+        this.closeDraftEditor();
+        this.reloadDraftData();
+        const message = mode === 'edit'
+          ? 'Draft row updated and revalidated.'
+          : mode === 'duplicate' ? 'A validated copy was added to the draft.' : 'A new row was added and validated.';
+        this.snackBar.open(message, 'Close', { duration: 4500 });
+      },
+      error: error => {
+        this.draftMutationRunning = false;
+        this.snackBar.open(error?.error?.error ?? 'The draft row could not be saved.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
+  removeSelectedRows(): void {
+    if (!this.job || !this.selectedRowIds.size || this.draftMutationRunning) return;
+    const rowIds = Array.from(this.selectedRowIds);
+    this.draftMutationRunning = true;
+    this.importService.deleteRows(this.job.id, rowIds).subscribe({
+      next: updatedJob => {
+        this.job = updatedJob;
+        this.draftMutationRunning = false;
+        this.clearRowSelection();
+        this.showRemovedRows = true;
+        this.reloadDraftData();
+        this.snackBar.open(`${rowIds.length} row${rowIds.length === 1 ? '' : 's'} removed from the working draft.`, 'Close', { duration: 4500 });
+      },
+      error: error => {
+        this.draftMutationRunning = false;
+        this.snackBar.open(error?.error?.error ?? 'The selected rows could not be removed.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
+  restoreDraftRow(row: StagingRow): void {
+    if (!this.job || this.draftMutationRunning) return;
+    this.draftMutationRunning = true;
+    this.importService.restoreRows(this.job.id, [row.id]).subscribe({
+      next: updatedJob => {
+        this.job = updatedJob;
+        this.draftMutationRunning = false;
+        this.reloadDraftData();
+        this.snackBar.open(`Row #${row.rowNumber} restored and revalidated.`, 'Close', { duration: 4500 });
+      },
+      error: error => {
+        this.draftMutationRunning = false;
+        this.snackBar.open(error?.error?.error ?? 'The row could not be restored.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
+  primaryRowValue(row: StagingRow): string {
+    const primary = Object.values(row.fields).find(value => !!value);
+    return primary || `Row ${row.rowNumber}`;
+  }
+
+  downloadWorkingCopy(): void {
+    if (!this.job || !this.hasDraftChanges) return;
+    this.importService.downloadWorkingCopy(this.job.id).subscribe({
+      next: blob => {
+        const extension = this.job!.originalFileName.toLowerCase().endsWith('.csv') ? '.csv' : '.xlsx';
+        const stem = this.job!.originalFileName.replace(/\.[^.]+$/, '');
+        const anchor = document.createElement('a');
+        anchor.href = URL.createObjectURL(blob);
+        anchor.download = `${stem}_working-copy${extension}`;
+        anchor.click();
+        URL.revokeObjectURL(anchor.href);
+      },
+      error: error => this.snackBar.open(error?.error?.error ?? 'The working copy could not be generated.', 'Close', { duration: 7000 })
+    });
+  }
+
+  private reloadDraftData(): void {
+    this.loadRows();
+    this.loadComparison();
+    this.loadRemovedRows();
+  }
+
+  private loadRemovedRows(): void {
+    if (!this.job || !this.isPrivateWorkspace) {
+      this.removedRows = [];
+      return;
+    }
+    this.importService.getRemovedRows(this.job.id).subscribe({
+      next: rows => {
+        this.removedRows = rows;
+        if (!rows.length) this.showRemovedRows = false;
+      },
+      error: () => { this.removedRows = []; }
+    });
   }
 
   showErrorRows(): void {
@@ -1583,6 +1916,7 @@ export class ImportPreviewComponent implements OnInit {
         next: j => {
           this.job = j;
           this.hydratePublicationApproval(j);
+          this.loadRemovedRows();
           this.loading = false;
           this.loadDatasetRequirement(j.entityTypeLabel);
           if (j.statusLabel === 'Approved' || j.statusLabel === 'Committed') {
@@ -1609,6 +1943,10 @@ export class ImportPreviewComponent implements OnInit {
     this.publicationApproval = null;
     this.rows = null;
     this.comparisonMap.clear();
+    this.selectedRowIds.clear();
+    this.removedRows = [];
+    this.showRemovedRows = false;
+    this.closeDraftEditor();
     this.rowPage = 1;
     this.filtersForm.reset({ search: '', status: '', comparison: '' }, { emitEvent: false });
     this.expandedRows.clear();
@@ -1984,43 +2322,9 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   editRow(row: StagingRow): void {
-    if (!this.job) return;
-
-    const errorFields = Array.from(new Set(
-      row.validationMessages
-        .filter(m => m.severity === 'Error')
-        .map(m => m.field)
-    ));
-
-    const dialogRef = this.dialog.open(EditRowDialogComponent, {
-      width: '760px',
-      maxWidth: '96vw',
-      disableClose: true,
-      data: {
-        rowNumber: row.rowNumber,
-        fields: row.fields,
-        errorFields
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((fields: Record<string, string | null> | null) => {
-      if (!fields) {
-        return;
-      }
-
-      this.rowsLoading = true;
-      this.importService.updateRow(this.job!.id, row.id, fields).subscribe({
-        next: updatedJob => {
-          this.job = updatedJob;
-          this.snackBar.open(`Row #${row.rowNumber} updated and revalidated.`, 'Close', { duration: 5000 });
-          this.loadRows();
-        },
-        error: err => {
-          this.rowsLoading = false;
-          this.snackBar.open(err?.error?.error ?? 'Unable to update row.', 'Close', { duration: 7000 });
-        }
-      });
-    });
+    if (!this.job || !this.isPrivateWorkspace) return;
+    this.activeDraftEditorRow = row;
+    this.activeDraftEditorMode = 'edit';
   }
 }
 

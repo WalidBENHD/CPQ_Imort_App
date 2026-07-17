@@ -50,6 +50,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.Property(x => x.RawData).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
             e.Property(x => x.ValidationMessages).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");
+            e.Property(x => x.DeletedByUserId).HasMaxLength(256);
+            e.Property(x => x.DeletedByDisplayName).HasMaxLength(512);
+            e.HasIndex(x => new { x.ImportJobId, x.IsDeleted, x.RowNumber });
         });
 
         modelBuilder.Entity<AuditLog>(e =>

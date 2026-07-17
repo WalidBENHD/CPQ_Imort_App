@@ -399,12 +399,87 @@ public class ImportsController(
             return Ok(job.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
         catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new { error = $"Approval failed: {ex.GetBaseException().Message}" });
         }
+    }
+
+    /// <summary>Create a row directly in an owned private draft.</summary>
+    [HttpPost("{jobId:guid}/rows")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ImportJobDto>> AddRow(Guid jobId, [FromBody] AddRowRequest request, CancellationToken ct)
+    {
+        if (request.Fields is null || request.Fields.Count == 0)
+            return BadRequest(new { error = "At least one field must be provided." });
+        try
+        {
+            var updated = await importService.AddStagingRowAsync(jobId, request.Fields, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import, "AddDraftRow", $"Added a row to private import {jobId}.",
+                TargetType: "ImportJob", TargetId: jobId.ToString(), StatusCode: StatusCodes.Status200OK,
+                Metadata: new { FieldCount = request.Fields.Count }), ct);
+            return Ok(updated.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Soft-delete selected rows from an owned private draft.</summary>
+    [HttpPost("{jobId:guid}/rows/delete")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ImportJobDto>> DeleteRows(Guid jobId, [FromBody] BulkRowRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var updated = await importService.DeleteStagingRowsAsync(jobId, request.RowIds, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import, "DeleteDraftRows", $"Removed {request.RowIds.Count} row(s) from private import {jobId}.",
+                TargetType: "ImportJob", TargetId: jobId.ToString(), StatusCode: StatusCodes.Status200OK,
+                Metadata: new { RowIds = request.RowIds }), ct);
+            return Ok(updated.ToDto());
+        }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Restore selected soft-deleted rows to an owned private draft.</summary>
+    [HttpPost("{jobId:guid}/rows/restore")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ImportJobDto>> RestoreRows(Guid jobId, [FromBody] BulkRowRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var updated = await importService.RestoreStagingRowsAsync(jobId, request.RowIds, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import, "RestoreDraftRows", $"Restored {request.RowIds.Count} row(s) in private import {jobId}.",
+                TargetType: "ImportJob", TargetId: jobId.ToString(), StatusCode: StatusCodes.Status200OK,
+                Metadata: new { RowIds = request.RowIds }), ct);
+            return Ok(updated.ToDto());
+        }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>List rows removed from an owned private draft so they can be restored.</summary>
+    [HttpGet("{jobId:guid}/rows/removed")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<IReadOnlyList<StagingRowDto>>> GetRemovedRows(Guid jobId, CancellationToken ct)
+    {
+        var job = await importService.GetJobAsync(jobId, ct);
+        if (job is null || !CanView(job)) return NotFound();
+        if (!string.Equals(job.CreatedBy, UserId, StringComparison.OrdinalIgnoreCase) || job.WorkflowStage != ImportWorkflowStage.Private)
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Removed rows are only available to the owner of a private draft." });
+        var rows = await importService.GetDeletedStagingRowsAsync(jobId, ct);
+        return Ok(rows.Select(row => row.ToDto()).ToList());
     }
 
     [HttpPost("{id:guid}/return-to-review")]
@@ -516,6 +591,24 @@ public class ImportsController(
         var bytes = await importService.GetOriginalFileAsync(id, ct);
         if (bytes is null) return NotFound();
         return File(bytes, "application/octet-stream", job.OriginalFileName);
+    }
+
+    /// <summary>Download the current private working copy with all draft edits applied.</summary>
+    [HttpGet("{id:guid}/working-copy")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<IActionResult> DownloadWorkingCopy(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var file = await importService.GenerateWorkingCopyAsync(id, UserId, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import, "DownloadWorkingCopy", $"Exported the private working copy for import {id}.",
+                TargetType: "ImportJob", TargetId: id.ToString(), StatusCode: StatusCodes.Status200OK), ct);
+            return File(file.Content, file.ContentType, file.FileName);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
     /// <summary>Download an Excel error report for a job.</summary>

@@ -16,5 +16,11 @@ public class StagingRow
     public string? ValidationMessages { get; set; }
 
     public bool IsSelected { get; set; } = true;
+    public bool IsUserAdded { get; set; }
+    public bool IsUserModified { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedByUserId { get; set; }
+    public string? DeletedByDisplayName { get; set; }
     public ImportJob ImportJob { get; set; } = null!;
 }

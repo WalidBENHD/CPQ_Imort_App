@@ -4,6 +4,7 @@ using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Parsers;
 using CPQ_Import_App.Infrastructure.Services;
+using OfficeOpenXml;
 
 namespace CPQ_Import_App.Tests.Services;
 
@@ -144,8 +145,107 @@ public class ControlledPublicationTests
         Assert.False(strategy.WasCalled);
     }
 
+    [Fact]
+    public async Task AddStagingRowAsync_CreatesValidatedUserRowInPrivateDraft()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await service.AddStagingRowAsync(job.Id, new Dictionary<string, string?>
+        {
+            ["ArticleNumber"] = "A-NEW",
+            ["Name"] = "New article",
+            ["Category"] = "Standard",
+            ["Unit"] = "PC"
+        }, "contributor-id", "Cara Contributor");
+
+        var row = Assert.Single(repository.Rows);
+        Assert.True(row.IsUserAdded);
+        Assert.False(row.IsDeleted);
+        Assert.Equal(RowStatus.Valid, row.Status);
+        Assert.Equal(1, job.TotalRows);
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "DraftRowAdded");
+    }
+
+    [Fact]
+    public async Task DeleteAndRestoreStagingRowsAsync_PreservesRecoverableDraftEvidence()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var row = new StagingRow { ImportJobId = job.Id, RowNumber = 2, RawData = "{\"ArticleNumber\":\"A-1\",\"Name\":\"Article\",\"Category\":\"Standard\",\"Unit\":\"PC\"}" };
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        repository.Rows.Add(row);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await service.DeleteStagingRowsAsync(job.Id, [row.Id], "contributor-id", "Cara Contributor");
+
+        Assert.True(row.IsDeleted);
+        Assert.NotNull(row.DeletedAt);
+        Assert.Equal(0, job.TotalRows);
+
+        await service.RestoreStagingRowsAsync(job.Id, [row.Id], "contributor-id", "Cara Contributor");
+
+        Assert.False(row.IsDeleted);
+        Assert.Null(row.DeletedAt);
+        Assert.Equal(1, job.TotalRows);
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "DraftRowsDeleted");
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "DraftRowsRestored");
+    }
+
+    [Fact]
+    public async Task UpdateStagingRowAsync_MarksImportedRowAsUserModified()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var row = new StagingRow { ImportJobId = job.Id, RowNumber = 2, RawData = "{}" };
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        repository.Rows.Add(row);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await service.UpdateStagingRowAsync(job.Id, row.Id, new Dictionary<string, string?>
+        {
+            ["ArticleNumber"] = "A-1",
+            ["Name"] = "Updated article",
+            ["Category"] = "Standard",
+            ["Unit"] = "PC"
+        }, "contributor-id", "Cara Contributor");
+
+        Assert.True(row.IsUserModified);
+        Assert.False(row.IsUserAdded);
+    }
+
+    [Fact]
+    public async Task GenerateWorkingCopyAsync_AppliesActiveRowsAndExcludesDeletedRows()
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var sourcePackage = new ExcelPackage();
+        var sourceSheet = sourcePackage.Workbook.Worksheets.Add("Articles");
+        sourceSheet.Cells[1, 1].Value = "ArticleNumber";
+        sourceSheet.Cells[1, 2].Value = "Name";
+        sourceSheet.Cells[2, 1].Value = "A-OLD";
+        sourceSheet.Cells[2, 2].Value = "Old value";
+
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true))
+        {
+            UploadedContent = sourcePackage.GetAsByteArray()
+        };
+        repository.Rows.Add(new StagingRow { ImportJobId = job.Id, RowNumber = 2, RawData = "{\"ArticleNumber\":\"A-EDITED\",\"Name\":\"Edited value\"}" });
+        repository.Rows.Add(new StagingRow { ImportJobId = job.Id, RowNumber = 3, IsUserAdded = true, RawData = "{\"ArticleNumber\":\"A-ADDED\",\"Name\":\"Added value\"}" });
+        repository.Rows.Add(new StagingRow { ImportJobId = job.Id, RowNumber = 4, IsDeleted = true, RawData = "{\"ArticleNumber\":\"A-DELETED\",\"Name\":\"Deleted value\"}" });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var workingCopy = await service.GenerateWorkingCopyAsync(job.Id, "contributor-id");
+
+        using var exportedPackage = new ExcelPackage(new MemoryStream(workingCopy.Content));
+        var exportedSheet = exportedPackage.Workbook.Worksheets.First();
+        Assert.Equal("A-EDITED", exportedSheet.Cells[2, 1].Text);
+        Assert.Equal("A-ADDED", exportedSheet.Cells[3, 1].Text);
+        Assert.NotEqual("A-DELETED", exportedSheet.Cells[4, 1].Text);
+        Assert.EndsWith("_working-copy.xlsx", workingCopy.FileName);
+    }
+
     private static ImportService CreateService(FakeImportRepository repository, FakeCommitStrategy strategy)
-        => new(repository, Array.Empty<IFileParser>(), [strategy]);
+        => new(repository, [new ArticleParser()], [strategy]);
 
     private static ImportJob CreateJob(ImportStatus status) => new()
     {
@@ -156,6 +256,7 @@ public class ControlledPublicationTests
         WorkflowStage = ImportWorkflowStage.Private,
         CreatedBy = "contributor-id",
         CreatedByDisplayName = "Cara Contributor",
+        TotalRows = 1,
         ErrorRows = 0
     };
 
@@ -209,6 +310,7 @@ public class ControlledPublicationTests
     {
         public List<AuditLog> AuditLogs { get; } = [];
         public List<StagingRow> Rows { get; } = [];
+        public byte[]? UploadedContent { get; init; }
 
         public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<ImportJob?>(id == job.Id ? job : null);
@@ -219,7 +321,10 @@ public class ControlledPublicationTests
         public Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsPagedAsync(
             Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null,
             ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
-            => Task.FromResult(((IReadOnlyList<StagingRow>)Rows, Rows.Count));
+        {
+            var activeRows = Rows.Where(row => !row.IsDeleted).ToList();
+            return Task.FromResult(((IReadOnlyList<StagingRow>)activeRows, activeRows.Count));
+        }
 
         public Task UpdateJobAsync(ImportJob updatedJob, CancellationToken ct = default) => Task.CompletedTask;
 
@@ -232,13 +337,18 @@ public class ControlledPublicationTests
         public Task<ImportJob> CreateJobAsync(ImportJob newJob, CancellationToken ct = default) => Task.FromResult(newJob);
         public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task DeleteJobAsync(ImportJob deletedJob, CancellationToken ct = default) => Task.CompletedTask;
-        public Task AddStagingRowsAsync(IEnumerable<StagingRow> rows, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows);
-        public Task<StagingRow?> GetStagingRowAsync(Guid jobId, Guid rowId, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task UpdateStagingRowAsync(StagingRow row, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task AddStagingRowsAsync(IEnumerable<StagingRow> rows, CancellationToken ct = default)
+        {
+            Rows.AddRange(rows);
+            return Task.CompletedTask;
+        }
+        public Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows.Where(row => !row.IsDeleted).ToList());
+        public Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows.Where(row => row.IsDeleted).ToList());
+        public Task<StagingRow?> GetStagingRowAsync(Guid jobId, Guid rowId, CancellationToken ct = default) => Task.FromResult<StagingRow?>(Rows.FirstOrDefault(row => row.ImportJobId == jobId && row.Id == rowId));
+        public Task UpdateStagingRowAsync(StagingRow row, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlySet<string>> GetLatestApprovedArticleNumbersAsync(CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult(UploadedContent);
         public Task SaveUploadedFileAsync(Guid jobId, string fileName, byte[] content, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }

@@ -82,6 +82,9 @@ export interface ImportJob {
   errorRows: number;
   committedRows: number;
   isActiveBaseline: boolean;
+  draftAddedRows: number;
+  draftModifiedRows: number;
+  draftRemovedRows: number;
 }
 
 export interface ValidationMessage {
@@ -97,6 +100,11 @@ export interface StagingRow {
   statusLabel: RowStatus;
   fields: Record<string, string | null>;
   validationMessages: ValidationMessage[];
+  isUserAdded: boolean;
+  isUserModified: boolean;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  deletedByDisplayName: string | null;
 }
 
 export interface PagedResult<T> {

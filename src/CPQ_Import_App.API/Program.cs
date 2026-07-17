@@ -201,6 +201,7 @@ using (var scope = app.Services.CreateScope())
     {
         await db.Database.EnsureCreatedAsync();
         await EnsurePostgresImportJobsColumnsAsync(db);
+        await EnsurePostgresEditableDraftColumnsAsync(db);
         await EnsurePostgresActivityEventsTableAsync(db);
         await EnsurePostgresAccessControlTablesAsync(db);
     }
@@ -398,6 +399,34 @@ static async Task EnsurePostgresAccessControlTablesAsync(AppDbContext db)
             CONSTRAINT "FK_UserAccessRoles_AccessRoles_RoleId" FOREIGN KEY ("RoleId") REFERENCES import."AccessRoles" ("Id") ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS "IX_UserAccessRoles_RoleId" ON import."UserAccessRoles" ("RoleId");
+        """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static async Task EnsurePostgresEditableDraftColumnsAsync(AppDbContext db)
+{
+    const string sql = """
+        ALTER TABLE IF EXISTS import."StagingRows"
+        ADD COLUMN IF NOT EXISTS "IsUserAdded" boolean NOT NULL DEFAULT false;
+
+        ALTER TABLE IF EXISTS import."StagingRows"
+        ADD COLUMN IF NOT EXISTS "IsUserModified" boolean NOT NULL DEFAULT false;
+
+        ALTER TABLE IF EXISTS import."StagingRows"
+        ADD COLUMN IF NOT EXISTS "IsDeleted" boolean NOT NULL DEFAULT false;
+
+        ALTER TABLE IF EXISTS import."StagingRows"
+        ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone NULL;
+
+        ALTER TABLE IF EXISTS import."StagingRows"
+        ADD COLUMN IF NOT EXISTS "DeletedByUserId" character varying(256) NULL;
+
+        ALTER TABLE IF EXISTS import."StagingRows"
+        ADD COLUMN IF NOT EXISTS "DeletedByDisplayName" character varying(512) NULL;
+
+        CREATE INDEX IF NOT EXISTS "IX_StagingRows_ImportJobId_IsDeleted_RowNumber"
+            ON import."StagingRows" ("ImportJobId", "IsDeleted", "RowNumber");
         """;
 
     await db.Database.ExecuteSqlRawAsync(sql);

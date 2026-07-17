@@ -32,7 +32,10 @@ public record ImportJobDto(
     int WarningRows,
     int ErrorRows,
     int CommittedRows,
-    bool IsActiveBaseline
+    bool IsActiveBaseline,
+    int DraftAddedRows,
+    int DraftModifiedRows,
+    int DraftRemovedRows
 );
 
 public record StagingRowDto(
@@ -41,7 +44,12 @@ public record StagingRowDto(
     RowStatus Status,
     string StatusLabel,
     Dictionary<string, string?> Fields,
-    List<ValidationMessageDto> ValidationMessages
+    List<ValidationMessageDto> ValidationMessages,
+    bool IsUserAdded,
+    bool IsUserModified,
+    bool IsDeleted,
+    DateTime? DeletedAt,
+    string? DeletedByDisplayName
 );
 
 public record ValidationMessageDto(string Field, string Message, string Severity);
@@ -53,6 +61,8 @@ public record UploadRequest(string EntityType);
 public record RejectRequest(string Reason);
 
 public record UpdateRowRequest(Dictionary<string, string?> Fields);
+public record AddRowRequest(Dictionary<string, string?> Fields);
+public record BulkRowRequest(IReadOnlyList<Guid> RowIds);
 
 public record PublicationResultDto(Guid JobId, int PublishedRows, string Message);
 

@@ -15,6 +15,13 @@ public interface IImportService
     Task<ImportJob> RefreshValidationAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> AddStagingRowAsync(
+        Guid jobId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> DeleteStagingRowsAsync(
+        Guid jobId, IReadOnlyCollection<Guid> rowIds, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> RestoreStagingRowsAsync(
+        Guid jobId, IReadOnlyCollection<Guid> rowIds, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsAsync(Guid jobId, CancellationToken ct = default);
     Task<ImportJob> SubmitForReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> WithdrawFromReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task DeletePrivateDraftAsync(Guid jobId, string userId, CancellationToken ct = default);
@@ -31,6 +38,7 @@ public interface IImportService
     Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default);
     Task<byte[]> GenerateErrorReportAsync(Guid jobId, CancellationToken ct = default);
     Task<byte[]> GenerateComparisonReportAsync(Guid jobId, CancellationToken ct = default);
+    Task<DraftWorkingCopy> GenerateWorkingCopyAsync(Guid jobId, string userId, CancellationToken ct = default);
 }
 
 public interface IEvolisDecryptorService

@@ -26,6 +26,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         if (job is not null)
         {
             await MarkActiveBaselineAsync(job, ct);
+            await PopulateDraftCountsAsync([job], ct);
         }
 
         return job;
@@ -61,6 +62,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .ToListAsync(ct);
 
         await MarkActiveBaselinesAsync(items, ct);
+        await PopulateDraftCountsAsync(items, ct);
 
         return (items, total);
     }
@@ -79,14 +81,22 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
     public async Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default)
         => await db.StagingRows
-            .Where(r => r.ImportJobId == jobId)
+            .Where(r => r.ImportJobId == jobId && !r.IsDeleted)
             .OrderBy(r => r.RowNumber)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default)
+        => await db.StagingRows
+            .AsNoTracking()
+            .Where(r => r.ImportJobId == jobId && r.IsDeleted)
+            .OrderByDescending(r => r.DeletedAt)
+            .ThenBy(r => r.RowNumber)
             .ToListAsync(ct);
 
     public async Task<(IReadOnlyList<StagingRow> Items, int Total)> GetStagingRowsPagedAsync(
         Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default)
     {
-        var query = db.StagingRows.AsNoTracking().Where(r => r.ImportJobId == jobId);
+        var query = db.StagingRows.AsNoTracking().Where(r => r.ImportJobId == jobId && !r.IsDeleted);
         if (filterStatus.HasValue)
             query = query.Where(r => r.Status == filterStatus.Value);
 
@@ -161,7 +171,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
         var stagingRows = await db.StagingRows
             .AsNoTracking()
-            .Where(r => r.ImportJobId == jobId)
+            .Where(r => r.ImportJobId == jobId && !r.IsDeleted)
             .OrderBy(r => r.RowNumber)
             .ToListAsync(ct);
 
@@ -281,7 +291,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
         var rows = await db.StagingRows
             .AsNoTracking()
-            .Where(r => r.ImportJobId == articleJob.Id)
+            .Where(r => r.ImportJobId == articleJob.Id && !r.IsDeleted)
             .Select(r => r.RawData)
             .ToListAsync(ct);
 
@@ -371,7 +381,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         {
             var committedRows = await db.StagingRows
                 .AsNoTracking()
-                .Where(r => r.ImportJobId == currentJob.Id)
+                .Where(r => r.ImportJobId == currentJob.Id && !r.IsDeleted)
                 .OrderBy(r => r.RowNumber)
                 .ToListAsync(ct);
 
@@ -380,7 +390,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
 
         var baselineRows = await db.StagingRows
             .AsNoTracking()
-            .Where(r => r.ImportJobId == latestCommittedJob.Id)
+            .Where(r => r.ImportJobId == latestCommittedJob.Id && !r.IsDeleted)
             .OrderBy(r => r.RowNumber)
             .ToListAsync(ct);
 
@@ -507,6 +517,40 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             EntityType.CurrencyRate => BuildCompositeKey(Get("FromCurrency"), Get("ToCurrency"), Get("ValidFrom")),
             _ => string.Empty
         };
+    }
+
+    private async Task PopulateDraftCountsAsync(IReadOnlyCollection<ImportJob> jobs, CancellationToken ct)
+    {
+        if (jobs.Count == 0)
+        {
+            return;
+        }
+
+        var jobIds = jobs.Select(job => job.Id).ToList();
+        var counts = await db.StagingRows
+            .AsNoTracking()
+            .Where(row => jobIds.Contains(row.ImportJobId))
+            .GroupBy(row => row.ImportJobId)
+            .Select(group => new
+            {
+                JobId = group.Key,
+                Added = group.Count(row => row.IsUserAdded && !row.IsDeleted),
+                Modified = group.Count(row => row.IsUserModified && !row.IsDeleted),
+                Removed = group.Count(row => row.IsDeleted)
+            })
+            .ToDictionaryAsync(item => item.JobId, ct);
+
+        foreach (var job in jobs)
+        {
+            if (!counts.TryGetValue(job.Id, out var count))
+            {
+                continue;
+            }
+
+            job.DraftAddedRows = count.Added;
+            job.DraftModifiedRows = count.Modified;
+            job.DraftRemovedRows = count.Removed;
+        }
     }
 
     public async Task DeleteJobAsync(ImportJob job, CancellationToken ct = default)

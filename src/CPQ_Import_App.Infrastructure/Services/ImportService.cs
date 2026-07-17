@@ -8,6 +8,9 @@ using CPQ_Import_App.Infrastructure.Templates;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Drawing;
+using System.Globalization;
+using System.Text;
+using CsvHelper;
 
 namespace CPQ_Import_App.Infrastructure.Services;
 
@@ -198,14 +201,19 @@ public class ImportService(
 
         var row = await repository.GetStagingRowAsync(jobId, rowId, ct)
             ?? throw new KeyNotFoundException($"Row '{rowId}' not found for import job '{jobId}'.");
+        if (row.IsDeleted)
+            throw new InvalidOperationException("Restore this row before editing it.");
 
         var parser = parsers.FirstOrDefault(p => p.SupportedEntityType == job.EntityType)
             ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(job.EntityType).DisplayName}'.");
 
         var messages = parser.ValidateRow(fields);
+        await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, null, ct);
         row.RawData = JsonSerializer.Serialize(fields, JsonOpts);
         row.ValidationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null;
         row.Status = RowValidator.DeriveStatus(messages);
+        if (!row.IsUserAdded)
+            row.IsUserModified = true;
 
         await repository.UpdateStagingRowAsync(row, ct);
 
@@ -225,6 +233,107 @@ public class ImportService(
         return row;
     }
 
+    public async Task<ImportJob> AddStagingRowAsync(
+        Guid jobId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        var job = await GetEditablePrivateJobAsync(jobId, userId, "add rows to", ct);
+        var parser = GetParser(job.EntityType);
+        var messages = parser.ValidateRow(fields);
+        await ApplyCurrentBaselineValidationAsync(job.EntityType, fields, messages, null, ct);
+
+        var activeRows = await repository.GetStagingRowsByJobAsync(jobId, ct);
+        var deletedRows = await repository.GetDeletedStagingRowsByJobAsync(jobId, ct);
+        var row = new StagingRow
+        {
+            ImportJobId = jobId,
+            RowNumber = activeRows.Concat(deletedRows).Select(item => item.RowNumber).DefaultIfEmpty(1).Max() + 1,
+            RawData = JsonSerializer.Serialize(fields, JsonOpts),
+            ValidationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null,
+            Status = RowValidator.DeriveStatus(messages),
+            IsUserAdded = true
+        };
+
+        await repository.AddStagingRowsAsync([row], ct);
+        await RevalidateDuplicateArticleRowsAsync(jobId, ct);
+        await RecalculateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "DraftRowAdded",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Row {row.RowNumber} was created in the private draft and validated as {row.Status}."
+        }, ct);
+
+        return (await repository.GetJobAsync(jobId, ct))!;
+    }
+
+    public async Task<ImportJob> DeleteStagingRowsAsync(
+        Guid jobId, IReadOnlyCollection<Guid> rowIds, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        if (rowIds.Count == 0)
+            throw new InvalidDataException("Select at least one row to delete.");
+
+        var job = await GetEditablePrivateJobAsync(jobId, userId, "delete rows from", ct);
+        var rows = await LoadRequestedRowsAsync(jobId, rowIds, ct);
+        var now = DateTime.UtcNow;
+        foreach (var row in rows.Where(row => !row.IsDeleted))
+        {
+            row.IsDeleted = true;
+            row.DeletedAt = now;
+            row.DeletedByUserId = userId;
+            row.DeletedByDisplayName = userDisplayName;
+        }
+
+        await repository.SaveChangesAsync(ct);
+        await RevalidateDuplicateArticleRowsAsync(jobId, ct);
+        await RecalculateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "DraftRowsDeleted",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Removed {rows.Count} row(s) from the private working draft: {string.Join(", ", rows.Select(row => row.RowNumber))}."
+        }, ct);
+
+        return (await repository.GetJobAsync(jobId, ct))!;
+    }
+
+    public async Task<ImportJob> RestoreStagingRowsAsync(
+        Guid jobId, IReadOnlyCollection<Guid> rowIds, string userId, string userDisplayName, CancellationToken ct = default)
+    {
+        if (rowIds.Count == 0)
+            throw new InvalidDataException("Select at least one row to restore.");
+
+        var job = await GetEditablePrivateJobAsync(jobId, userId, "restore rows in", ct);
+        var rows = await LoadRequestedRowsAsync(jobId, rowIds, ct);
+        foreach (var row in rows.Where(row => row.IsDeleted))
+        {
+            row.IsDeleted = false;
+            row.DeletedAt = null;
+            row.DeletedByUserId = null;
+            row.DeletedByDisplayName = null;
+        }
+
+        await repository.SaveChangesAsync(ct);
+        await RevalidateDuplicateArticleRowsAsync(jobId, ct);
+        await RecalculateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "DraftRowsRestored",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Restored {rows.Count} row(s) to the private working draft: {string.Join(", ", rows.Select(row => row.RowNumber))}."
+        }, ct);
+
+        return (await repository.GetJobAsync(jobId, ct))!;
+    }
+
+    public Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsAsync(Guid jobId, CancellationToken ct = default)
+        => repository.GetDeletedStagingRowsByJobAsync(jobId, ct);
+
     public async Task<ImportJob> SubmitForReviewAsync(
         Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
     {
@@ -234,6 +343,8 @@ public class ImportService(
         EnsurePrivateOwner(job, userId, "submit");
         if (job.Status != ImportStatus.AwaitingApproval || job.ErrorRows > 0)
             throw new InvalidOperationException("Blocking errors must be corrected before this upload can be submitted.");
+        if (job.TotalRows == 0)
+            throw new InvalidOperationException("A draft with no active rows cannot be submitted for review.");
 
         var comparison = await repository.GetComparisonAsync(jobId, ct);
         job.WorkflowStage = ImportWorkflowStage.Submitted;
@@ -546,6 +657,80 @@ public class ImportService(
 
     public Task<byte[]?> GetOriginalFileAsync(Guid jobId, CancellationToken ct = default)
         => repository.GetUploadedFileAsync(jobId, ct);
+
+    public async Task<DraftWorkingCopy> GenerateWorkingCopyAsync(Guid jobId, string userId, CancellationToken ct = default)
+    {
+        var job = await GetEditablePrivateJobAsync(jobId, userId, "export", ct);
+        var original = await repository.GetUploadedFileAsync(jobId, ct)
+            ?? throw new KeyNotFoundException("The original uploaded file is not available.");
+        var rows = await repository.GetStagingRowsByJobAsync(jobId, ct);
+        var dictionaries = rows.Select(row => DeserializeFields(row.RawData)).ToList();
+
+        await using var source = new MemoryStream(original, writable: false);
+        var (originalHeaders, _) = await RawFileReader.ReadAsync(source, job.OriginalFileName, ct);
+        var headers = originalHeaders
+            .Concat(dictionaries.SelectMany(fields => fields.Keys))
+            .Where(header => !string.IsNullOrWhiteSpace(header))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var stem = Path.GetFileNameWithoutExtension(job.OriginalFileName);
+
+        if (Path.GetExtension(job.OriginalFileName).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            using var writer = new StringWriter(CultureInfo.InvariantCulture);
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                foreach (var header in headers) csv.WriteField(header);
+                await csv.NextRecordAsync();
+                foreach (var fields in dictionaries)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    foreach (var header in headers) csv.WriteField(fields.GetValueOrDefault(header));
+                    await csv.NextRecordAsync();
+                }
+            }
+
+            return new DraftWorkingCopy(
+                Encoding.UTF8.GetBytes(writer.ToString()),
+                $"{stem}_working-copy.csv",
+                "text/csv");
+        }
+
+        ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+        using var package = new ExcelPackage(new MemoryStream(original));
+        var worksheet = package.Workbook.Worksheets.First();
+        var columnCount = Math.Max(headers.Count, worksheet.Dimension?.Columns ?? 0);
+        var previousRowCount = worksheet.Dimension?.Rows ?? 1;
+
+        for (var column = 1; column <= headers.Count; column++)
+        {
+            worksheet.Cells[1, column].Value = headers[column - 1];
+        }
+
+        for (var rowIndex = 0; rowIndex < dictionaries.Count; rowIndex++)
+        {
+            var excelRow = rowIndex + 2;
+            if (excelRow > previousRowCount && previousRowCount >= 2)
+            {
+                worksheet.Cells[2, 1, 2, columnCount].Copy(worksheet.Cells[excelRow, 1, excelRow, columnCount]);
+            }
+
+            for (var column = 0; column < headers.Count; column++)
+            {
+                worksheet.Cells[excelRow, column + 1].Value = dictionaries[rowIndex].GetValueOrDefault(headers[column]);
+            }
+        }
+
+        for (var excelRow = dictionaries.Count + 2; excelRow <= previousRowCount; excelRow++)
+        {
+            for (var column = 1; column <= columnCount; column++) worksheet.Cells[excelRow, column].Value = null;
+        }
+
+        return new DraftWorkingCopy(
+            package.GetAsByteArray(),
+            $"{stem}_working-copy.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
 
     public Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default)
         => Task.FromResult(TemplateGenerator.Generate(entityType));
@@ -982,6 +1167,33 @@ public class ImportService(
 
     private static string CreateDuplicateArticleMessage(string? articleNumber)
         => $"ArticleNumber value '{articleNumber}' is duplicated within the uploaded file.";
+
+    private IFileParser GetParser(EntityType entityType)
+        => parsers.FirstOrDefault(parser => parser.SupportedEntityType == entityType)
+           ?? throw new InvalidOperationException($"No parser found for dataset '{DatasetCatalog.Get(entityType).DisplayName}'.");
+
+    private async Task<ImportJob> GetEditablePrivateJobAsync(Guid jobId, string userId, string action, CancellationToken ct)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+        EnsurePrivateOwner(job, userId, action);
+        if (job.Status is ImportStatus.Approved or ImportStatus.Committed or ImportStatus.Rejected or ImportStatus.Failed or ImportStatus.Cancelled)
+            throw new InvalidOperationException($"Job is in status '{job.Status}' and cannot be edited.");
+        return job;
+    }
+
+    private async Task<List<StagingRow>> LoadRequestedRowsAsync(Guid jobId, IReadOnlyCollection<Guid> rowIds, CancellationToken ct)
+    {
+        var distinctIds = rowIds.Distinct().ToList();
+        var rows = new List<StagingRow>(distinctIds.Count);
+        foreach (var rowId in distinctIds)
+        {
+            var row = await repository.GetStagingRowAsync(jobId, rowId, ct)
+                ?? throw new KeyNotFoundException($"Row '{rowId}' not found for import job '{jobId}'.");
+            rows.Add(row);
+        }
+        return rows;
+    }
 
     private static void EnsurePrivateOwner(ImportJob job, string userId, string action)
     {

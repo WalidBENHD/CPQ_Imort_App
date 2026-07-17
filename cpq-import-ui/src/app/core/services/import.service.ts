@@ -76,6 +76,22 @@ export class ImportService {
     );
   }
 
+  addRow(jobId: string, fields: Record<string, string | null>): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/rows`, { fields });
+  }
+
+  deleteRows(jobId: string, rowIds: string[]): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/rows/delete`, { rowIds });
+  }
+
+  restoreRows(jobId: string, rowIds: string[]): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/rows/restore`, { rowIds });
+  }
+
+  getRemovedRows(jobId: string): Observable<StagingRow[]> {
+    return this.http.get<StagingRow[]>(`${this.base}/${jobId}/rows/removed`);
+  }
+
   submitForReview(jobId: string): Observable<ImportJob> {
     return this.http.post<ImportJob>(`${this.base}/${jobId}/submit`, {}).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
@@ -120,6 +136,10 @@ export class ImportService {
 
   downloadOriginal(jobId: string): Observable<Blob> {
     return this.http.get(`${this.base}/${jobId}/download`, { responseType: 'blob' });
+  }
+
+  downloadWorkingCopy(jobId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/${jobId}/working-copy`, { responseType: 'blob' });
   }
 
   downloadErrorReport(jobId: string): Observable<Blob> {
