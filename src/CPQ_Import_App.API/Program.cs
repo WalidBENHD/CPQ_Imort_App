@@ -83,6 +83,7 @@ builder.Services.AddScoped<LocalJwtTokenFactory>();
 builder.Services.AddScoped<AccessControlService>();
 builder.Services.AddScoped<IAuthorizationHandler, CapabilityAuthorizationHandler>();
 builder.Services.AddScoped<IEvolisDecryptorService, EvolisDecryptorService>();
+builder.Services.AddScoped<IEvolisHistoryService, EvolisHistoryService>();
 builder.Services.AddScoped<EvolisWordDocumentBuilder>();
 builder.Services.AddScoped<EvolisPdfDocumentBuilder>();
 
@@ -204,6 +205,7 @@ using (var scope = app.Services.CreateScope())
         await EnsurePostgresEditableDraftColumnsAsync(db);
         await EnsurePostgresActivityEventsTableAsync(db);
         await EnsurePostgresAccessControlTablesAsync(db);
+        await EnsurePostgresEvolisDecryptionRunsAsync(db);
     }
     else if (db.Database.IsRelational())
     {
@@ -427,6 +429,31 @@ static async Task EnsurePostgresEditableDraftColumnsAsync(AppDbContext db)
 
         CREATE INDEX IF NOT EXISTS "IX_StagingRows_ImportJobId_IsDeleted_RowNumber"
             ON import."StagingRows" ("ImportJobId", "IsDeleted", "RowNumber");
+        """;
+
+    await db.Database.ExecuteSqlRawAsync(sql);
+}
+
+static async Task EnsurePostgresEvolisDecryptionRunsAsync(AppDbContext db)
+{
+    const string sql = """
+        CREATE TABLE IF NOT EXISTS import."EvolisDecryptionRuns" (
+            "Id" uuid NOT NULL,
+            "FileName" character varying(512) NOT NULL,
+            "FileSize" bigint NOT NULL,
+            "FileHash" character varying(64) NOT NULL,
+            "UserId" character varying(256) NOT NULL,
+            "UserDisplayName" character varying(512) NOT NULL,
+            "StartedAtUtc" timestamp with time zone NOT NULL,
+            "CompletedAtUtc" timestamp with time zone NULL,
+            "Status" integer NOT NULL,
+            "OutputFormat" character varying(32) NULL,
+            "FailureReason" character varying(1000) NULL,
+            CONSTRAINT "PK_EvolisDecryptionRuns" PRIMARY KEY ("Id")
+        );
+        CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_StartedAtUtc" ON import."EvolisDecryptionRuns" ("StartedAtUtc");
+        CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_UserId_StartedAtUtc" ON import."EvolisDecryptionRuns" ("UserId", "StartedAtUtc");
+        CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_Status_StartedAtUtc" ON import."EvolisDecryptionRuns" ("Status", "StartedAtUtc");
         """;
 
     await db.Database.ExecuteSqlRawAsync(sql);

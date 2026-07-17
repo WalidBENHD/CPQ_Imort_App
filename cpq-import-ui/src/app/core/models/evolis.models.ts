@@ -1,4 +1,5 @@
 export interface EvolisDecryptResponse {
+  runId: string;
   sourceFileName: string;
   downloadFileName: string;
   content: string;
@@ -31,4 +32,33 @@ export interface EvolisTableView {
 export interface EvolisPresentation {
   tables: EvolisTableView[];
   grandTotal: string;
+}
+
+export interface EvolisDecryptionRun {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  userId: string;
+  userDisplayName: string;
+  startedAtUtc: string;
+  completedAtUtc: string | null;
+  status: number;
+  statusLabel: 'Processing' | 'Successful' | 'Failed';
+  outputFormat: string | null;
+  failureReason: string | null;
+}
+
+export interface EvolisDecryptionHistory {
+  items: EvolisDecryptionRun[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EvolisDecryptionMetrics {
+  total: number;
+  thisMonth: number;
+  successful: number;
+  failed: number;
+  failedThisMonth: number;
 }

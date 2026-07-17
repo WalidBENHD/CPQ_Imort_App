@@ -17,6 +17,8 @@ namespace CPQ_Import_App.API.Controllers;
 [Authorize(Policy = Capabilities.ImportsView)]
 public class DashboardController(
     IImportService importService,
+    IEvolisHistoryService evolisHistoryService,
+    IAuthorizationService authorizationService,
     AppDbContext db) : ControllerBase
 {
     [HttpGet("overview")]
@@ -91,13 +93,20 @@ public class DashboardController(
 
         var attentionItems = BuildAttentionItems(jobs);
         var datasetHealth = BuildDatasetHealth(jobs);
+        EvolisDecryptionMetricsDto? evolisMetrics = null;
+        if ((await authorizationService.AuthorizeAsync(User, Capabilities.ToolsEvolisAudit)).Succeeded)
+        {
+            var metrics = await evolisHistoryService.GetMetricsAsync(null, ct);
+            evolisMetrics = new EvolisDecryptionMetricsDto(metrics.Total, metrics.ThisMonth, metrics.Successful, metrics.Failed, metrics.FailedThisMonth);
+        }
 
         return Ok(new DashboardOverviewDto(
             summary,
             attentionItems,
             datasetHealth,
             activityFeed,
-            recentSubmissions.Items.Select(j => j.ToDto()).ToList()));
+            recentSubmissions.Items.Select(j => j.ToDto()).ToList(),
+            evolisMetrics));
     }
 
     private static IReadOnlyList<DashboardAttentionDto> BuildAttentionItems(

@@ -150,7 +150,8 @@ public record DashboardOverviewDto(
     IReadOnlyList<DashboardAttentionDto> AttentionItems,
     IReadOnlyList<DashboardDatasetHealthDto> DatasetHealth,
     IReadOnlyList<DashboardActivityDto> ActivityFeed,
-    IReadOnlyList<ImportJobDto> RecentSubmissions);
+    IReadOnlyList<ImportJobDto> RecentSubmissions,
+    EvolisDecryptionMetricsDto? EvolisMetrics);
 
 public record DatasetColumnRequirementDto(
     string Name,

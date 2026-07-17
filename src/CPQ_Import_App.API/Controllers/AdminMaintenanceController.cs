@@ -35,6 +35,7 @@ public class AdminMaintenanceController(
         {
             "Notifications",
             "ActivityEvents",
+            "EvolisDecryptionRuns",
             "UploadedFiles",
             "AuditLogs",
             "StagingRows",
@@ -71,6 +72,7 @@ public class AdminMaintenanceController(
             {
                 """DELETE FROM import."Notifications";""",
                 """DELETE FROM import."ActivityEvents";""",
+                """DELETE FROM import."EvolisDecryptionRuns";""",
                 """DELETE FROM import."UploadedFiles";""",
                 """DELETE FROM import."AuditLogs";""",
                 """DELETE FROM import."StagingRows";""",
@@ -80,6 +82,7 @@ public class AdminMaintenanceController(
             {
                 "DELETE FROM [import].[Notifications];",
                 "DELETE FROM [import].[ActivityEvents];",
+                "DELETE FROM [import].[EvolisDecryptionRuns];",
                 "DELETE FROM [import].[UploadedFiles];",
                 "DELETE FROM [import].[AuditLogs];",
                 "DELETE FROM [import].[StagingRows];",

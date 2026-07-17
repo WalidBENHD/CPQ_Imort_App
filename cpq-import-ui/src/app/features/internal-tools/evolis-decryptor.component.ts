@@ -1,16 +1,23 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { EvolisDecryptorService } from '../../core/services/evolis-decryptor.service';
-import { EvolisDecryptResponse, EvolisPresentation } from '../../core/models/evolis.models';
+import { EvolisDecryptResponse, EvolisDecryptionMetrics, EvolisDecryptionRun, EvolisPresentation } from '../../core/models/evolis.models';
 import { parseEvolisPresentation } from './evolis-parser';
+import { AuthFacade } from '../../core/auth/auth.facade';
+import { forkJoin } from 'rxjs';
+
+type HistoryScope = 'mine' | 'all';
+type DecryptionStatus = 'Successful' | 'Failed';
 
 @Component({
   selector: 'app-evolis-decryptor',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatIconModule],
   template: `
     <section class="page-shell evolis-decryptor-page">
       <header class="page-header">
@@ -22,6 +29,68 @@ import { parseEvolisPresentation } from './evolis-parser';
           </p>
         </div>
       </header>
+
+      <button *ngIf="historyExpanded" class="history-backdrop" type="button" aria-label="Close full decryption history" (click)="historyExpanded = false"></button>
+      <mat-card class="panel history-panel" id="decryption-history" [class.history-panel--expanded]="historyExpanded">
+        <header class="history-head">
+          <div class="history-title">
+            <span class="history-mark"><mat-icon>manage_history</mat-icon></span>
+            <div>
+              <div class="eyebrow">Decryption records</div>
+              <h2>{{ historyExpanded ? (historyScope === 'mine' ? 'My decryption history' : 'All decryptions') : 'Recent decryptions' }}</h2>
+              <p>{{ historyScope === 'mine' ? 'Your recent Evolis operations, visible only to you.' : 'Administrative view across all authorised users.' }}</p>
+            </div>
+          </div>
+
+          <button class="history-expand" type="button" (click)="historyExpanded = !historyExpanded">
+            <mat-icon>{{ historyExpanded ? 'close' : 'open_in_full' }}</mat-icon>
+            {{ historyExpanded ? 'Close' : 'View full history' }}
+          </button>
+
+          <div class="history-scope" *ngIf="canViewAllHistory">
+            <button type="button" [class.active]="historyScope === 'mine'" (click)="setHistoryScope('mine')"><mat-icon>person</mat-icon> My history</button>
+            <button type="button" [class.active]="historyScope === 'all'" (click)="setHistoryScope('all')"><mat-icon>admin_panel_settings</mat-icon> All decryptions</button>
+          </div>
+        </header>
+
+        <div class="history-stats">
+          <div><span class="stat-icon stat-icon--total"><mat-icon>lock_open</mat-icon></span><p><small>{{ historyScope === 'mine' ? 'My decryptions' : 'Total decryptions' }}</small><strong>{{ historyMetrics.total }}</strong></p></div>
+          <div><span class="stat-icon stat-icon--month"><mat-icon>calendar_month</mat-icon></span><p><small>This month</small><strong>{{ monthCount }}</strong></p></div>
+          <div><span class="stat-icon stat-icon--success"><mat-icon>check_circle</mat-icon></span><p><small>Successful</small><strong>{{ successCount }}</strong></p></div>
+          <div><span class="stat-icon stat-icon--failed"><mat-icon>error</mat-icon></span><p><small>Failed</small><strong>{{ failedCount }}</strong></p></div>
+        </div>
+
+        <div class="history-toolbar">
+          <label class="history-search"><mat-icon>search</mat-icon><input [(ngModel)]="historySearch" (ngModelChange)="onHistorySearch()" placeholder="Search file or user" aria-label="Search decryption history" /></label>
+          <div class="history-filters" aria-label="Filter by status">
+            <button type="button" [class.active]="historyStatus === 'All'" (click)="setHistoryStatus('All')">All</button>
+            <button type="button" [class.active]="historyStatus === 'Successful'" (click)="setHistoryStatus('Successful')">Successful</button>
+            <button type="button" [class.active]="historyStatus === 'Failed'" (click)="setHistoryStatus('Failed')">Failed</button>
+          </div>
+        </div>
+
+        <div class="history-table-wrap" *ngIf="filteredHistory.length; else noHistory">
+          <table class="history-table">
+            <thead><tr><th>File</th><th *ngIf="historyScope === 'all'">User</th><th>Date and time</th><th>Size</th><th>Result</th><th>Output</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let item of (historyExpanded ? filteredHistory : (filteredHistory | slice:0:5))">
+                <td class="history-file" data-label="File"><span class="file-cell"><span><mat-icon>description</mat-icon></span><strong>{{ item.fileName }}</strong></span></td>
+                <td class="history-user" data-label="User" *ngIf="historyScope === 'all'"><span class="user-cell"><i>{{ initials(item.userDisplayName) }}</i>{{ item.userDisplayName }}</span></td>
+                <td class="history-date" data-label="Date"><time>{{ item.startedAtUtc | date:'dd MMM yyyy, HH:mm' }}</time></td>
+                <td class="history-size" data-label="Size">{{ formatHistorySize(item.fileSize) }}</td>
+                <td class="history-result" data-label="Result"><span class="history-status" [class.history-status--failed]="item.statusLabel === 'Failed'"><i></i>{{ item.statusLabel }}</span></td>
+                <td class="history-output" data-label="Output"><span class="output-chip" [class.output-chip--empty]="!item.outputFormat"><mat-icon>{{ item.outputFormat ? 'picture_as_pdf' : 'remove' }}</mat-icon>{{ item.outputFormat ?? 'None' }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noHistory><div class="history-empty"><mat-icon>history_toggle_off</mat-icon><strong>{{ historyLoading ? 'Loading history...' : 'No matching decryptions' }}</strong><span *ngIf="!historyLoading">Try changing the search or status filter.</span></div></ng-template>
+
+        <footer class="history-pagination" *ngIf="historyExpanded && historyTotal > historyPageSize">
+          <span>Page {{ historyPage }} of {{ historyPageCount }} &middot; {{ historyTotal }} records</span>
+          <div><button type="button" [disabled]="historyPage === 1 || historyLoading" (click)="changeHistoryPage(-1)"><mat-icon>chevron_left</mat-icon> Previous</button><button type="button" [disabled]="historyPage === historyPageCount || historyLoading" (click)="changeHistoryPage(1)">Next <mat-icon>chevron_right</mat-icon></button></div>
+        </footer>
+      </mat-card>
 
       <div class="layout-grid layout-grid--summary">
         <mat-card class="panel upload-panel">
@@ -280,10 +349,13 @@ import { parseEvolisPresentation } from './evolis-parser';
   styles: [`
     .page-shell {
       display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
       gap: 18px;
+      align-items: start;
     }
 
     .page-header {
+      grid-column: 1 / -1;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
@@ -323,6 +395,8 @@ import { parseEvolisPresentation } from './evolis-parser';
 
     .layout-grid {
       display: grid;
+      grid-column: 1;
+      grid-row: 2;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
       gap: 16px;
       align-items: stretch;
@@ -653,8 +727,101 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
 
     .details-panel {
+      grid-column: 1;
+      grid-row: 3;
       padding: 20px;
     }
+
+    .history-panel { position: sticky; top: 78px; grid-column: 2; grid-row: 2 / span 2; max-height: calc(100vh - 96px); overflow: auto; }
+    .history-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; border-bottom: 1px solid var(--app-border); }
+    .history-title { display: flex; align-items: center; gap: 14px; }
+    .history-title h2 { margin: 3px 0 4px; font-size: 22px; }
+    .history-title p { margin: 0; color: var(--app-text-muted); font-size: 13px; }
+    .history-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; color: #0f766e; background: color-mix(in srgb, #14b8a6 13%, var(--app-surface)); }
+    .history-mark mat-icon { width: 27px; height: 27px; font-size: 27px; }
+    .history-scope, .history-filters { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-surface); }
+    .history-scope button, .history-filters button { display: inline-flex; align-items: center; gap: 6px; min-height: 35px; padding: 0 11px; color: var(--app-text-muted); border: 0; border-radius: 9px; background: transparent; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+    .history-scope button.active, .history-filters button.active { color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 11%, var(--app-surface)); box-shadow: 0 1px 4px rgba(15, 23, 42, .08); }
+    .history-scope mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .history-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 18px 24px 8px; }
+    .history-stats > div { display: flex; align-items: center; gap: 11px; padding: 13px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface); }
+    .history-stats p { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+    .history-stats small { color: var(--app-text-muted); font-size: 10px; font-weight: 850; text-transform: uppercase; }
+    .history-stats strong { font-size: 22px; }
+    .stat-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: #2563eb; background: color-mix(in srgb, #2563eb 11%, transparent); }
+    .stat-icon--month { color: #7c3aed; background: color-mix(in srgb, #7c3aed 11%, transparent); }
+    .stat-icon--success { color: #15803d; background: color-mix(in srgb, #16a34a 11%, transparent); }
+    .stat-icon--failed { color: #dc2626; background: color-mix(in srgb, #dc2626 10%, transparent); }
+    .history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 24px; }
+    .history-search { display: flex; align-items: center; gap: 8px; width: min(420px, 100%); min-height: 42px; padding: 0 12px; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-surface); color: var(--app-text-muted); }
+    .history-search:focus-within { border-color: var(--app-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 12%, transparent); }
+    .history-search input { width: 100%; color: var(--app-text); border: 0; outline: 0; background: transparent; font: inherit; }
+    .history-search input::placeholder { color: var(--app-text-muted); }
+    .history-table-wrap { overflow-x: auto; margin: 0 24px 20px; border: 1px solid var(--app-border); border-radius: 14px; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .history-table th { padding: 11px 14px; color: var(--app-text-muted); background: var(--app-surface); font-size: 10px; letter-spacing: .06em; text-align: left; text-transform: uppercase; }
+    .history-table td { padding: 12px 14px; color: var(--app-text-muted); border-top: 1px solid var(--app-border); }
+    .history-table tbody tr:hover { background: color-mix(in srgb, var(--app-accent) 4%, transparent); }
+    .file-cell, .user-cell { display: flex; align-items: center; gap: 9px; color: var(--app-text); white-space: nowrap; }
+    .file-cell > span { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 10%, transparent); }
+    .file-cell mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .user-cell i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 11%, transparent); font-size: 9px; font-style: normal; font-weight: 900; }
+    .history-status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; color: #15803d; background: color-mix(in srgb, #16a34a 10%, transparent); font-weight: 800; }
+    .history-status i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .history-status--failed { color: #dc2626; background: color-mix(in srgb, #dc2626 9%, transparent); }
+    .output-chip { display: inline-flex; align-items: center; gap: 5px; color: #b45309; font-weight: 800; }
+    .output-chip mat-icon { width: 16px; height: 16px; font-size: 16px; }
+    .output-chip--empty { color: var(--app-text-muted); font-weight: 600; }
+    .history-empty { display: flex; min-height: 160px; align-items: center; justify-content: center; flex-direction: column; gap: 5px; color: var(--app-text-muted); }
+    .history-empty mat-icon { color: var(--app-accent); }
+    .history-empty strong { color: var(--app-text); }
+    .history-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; color: var(--app-text-muted); border-top: 1px solid var(--app-border); font-size: 11px; }
+    .history-pagination div { display: flex; gap: 7px; }
+    .history-pagination button { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 0 10px; color: var(--app-accent); border: 1px solid var(--app-border); border-radius: 9px; background: var(--app-surface); font: inherit; font-weight: 800; cursor: pointer; }
+    .history-pagination button:disabled { opacity: .45; cursor: default; }
+    .history-pagination mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .history-expand { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 11px; color: var(--app-accent); border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border)); border-radius: 10px; background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface)); font: inherit; font-size: 11px; font-weight: 850; cursor: pointer; }
+    .history-expand mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .history-expand:hover { background: color-mix(in srgb, var(--app-accent) 13%, var(--app-surface)); }
+    .history-backdrop { position: fixed; inset: 0; z-index: 1200; border: 0; background: rgba(2, 6, 23, .58); backdrop-filter: blur(4px); }
+
+    .history-panel:not(.history-panel--expanded) .history-head { align-items: stretch; flex-direction: column; gap: 13px; padding: 18px; }
+    .history-panel:not(.history-panel--expanded) .history-title { align-items: flex-start; }
+    .history-panel:not(.history-panel--expanded) .history-title p { font-size: 11px; }
+    .history-panel:not(.history-panel--expanded) .history-mark { width: 42px; height: 42px; flex: 0 0 auto; }
+    .history-panel:not(.history-panel--expanded) .history-expand { order: 3; width: 100%; }
+    .history-panel:not(.history-panel--expanded) .history-scope { order: 2; width: 100%; }
+    .history-panel:not(.history-panel--expanded) .history-scope button { flex: 1; justify-content: center; padding: 0 7px; }
+    .history-panel:not(.history-panel--expanded) .history-stats { grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px 6px; }
+    .history-panel:not(.history-panel--expanded) .history-stats > div { gap: 8px; padding: 10px; }
+    .history-panel:not(.history-panel--expanded) .history-stats small { font-size: 8px; }
+    .history-panel:not(.history-panel--expanded) .history-stats strong { font-size: 18px; }
+    .history-panel:not(.history-panel--expanded) .stat-icon { width: 32px; height: 32px; }
+    .history-panel:not(.history-panel--expanded) .stat-icon mat-icon { width: 18px; height: 18px; font-size: 18px; }
+    .history-panel:not(.history-panel--expanded) .history-toolbar { padding: 12px 18px; }
+    .history-panel:not(.history-panel--expanded) .history-search { display: none; }
+    .history-panel:not(.history-panel--expanded) .history-filters { width: 100%; }
+    .history-panel:not(.history-panel--expanded) .history-filters button { flex: 1; justify-content: center; padding: 0 6px; }
+    .history-panel:not(.history-panel--expanded) .history-table-wrap { margin: 0 18px 15px; border: 0; overflow: visible; }
+    .history-panel:not(.history-panel--expanded) .history-table,
+    .history-panel:not(.history-panel--expanded) .history-table tbody { display: block; }
+    .history-panel:not(.history-panel--expanded) .history-table thead { display: none; }
+    .history-panel:not(.history-panel--expanded) .history-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; margin-bottom: 8px; padding: 11px; border: 1px solid var(--app-border); border-radius: 13px; background: var(--app-surface); }
+    .history-panel:not(.history-panel--expanded) .history-table td { padding: 0; border: 0; }
+    .history-panel:not(.history-panel--expanded) .history-file { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--app-border); }
+    .history-panel:not(.history-panel--expanded) .history-file strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-panel:not(.history-panel--expanded) .history-user { grid-column: 1 / -1; }
+    .history-panel:not(.history-panel--expanded) .history-size,
+    .history-panel:not(.history-panel--expanded) .history-output { display: none; }
+    .history-panel:not(.history-panel--expanded) .history-date { align-self: center; font-size: 10px; }
+    .history-panel:not(.history-panel--expanded) .history-result { justify-self: end; }
+
+    .history-panel--expanded { position: fixed; z-index: 1201; inset: 5vh auto auto 50%; width: min(1120px, calc(100vw - 36px)); max-height: 90vh; transform: translateX(-50%); overflow: auto; box-shadow: 0 30px 90px rgba(2, 6, 23, .42); }
+    .history-panel--expanded .history-head { position: sticky; top: 0; z-index: 2; background: var(--app-surface-elevated); }
+    .history-panel--expanded .history-title { flex: 1; }
+    .history-panel--expanded .history-expand { order: 2; }
+    .history-panel--expanded .history-scope { order: 3; }
+    .history-panel--expanded .history-table-wrap { max-height: 42vh; overflow: auto; }
 
     .details-head {
       display: flex;
@@ -834,10 +1001,20 @@ import { parseEvolisPresentation } from './evolis-parser';
       color: var(--app-accent);
     }
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1350px) {
+      .page-shell { grid-template-columns: 1fr; }
+      .page-header { grid-column: 1; grid-row: 1; }
+      .history-panel { position: relative; top: auto; grid-column: 1; grid-row: 2; max-height: none; }
       .layout-grid {
-        grid-template-columns: 1fr;
+        grid-column: 1;
+        grid-row: 3;
       }
+      .details-panel { grid-column: 1; grid-row: 4; }
+      .history-panel--expanded { position: fixed; top: 5vh; }
+    }
+
+    @media (max-width: 1024px) {
+      .layout-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 768px) {
@@ -862,6 +1039,21 @@ import { parseEvolisPresentation } from './evolis-parser';
       .details-panel {
         padding: 16px;
       }
+      .history-head, .history-toolbar { align-items: stretch; flex-direction: column; }
+      .history-scope { width: 100%; }
+      .history-scope button { flex: 1; justify-content: center; }
+      .history-stats { grid-template-columns: 1fr 1fr; padding: 15px; }
+      .history-toolbar { padding: 10px 15px 14px; }
+      .history-search { width: auto; }
+      .history-table-wrap { margin: 0 15px 15px; border: 0; overflow: visible; }
+      .history-table, .history-table tbody { display: block; }
+      .history-table thead { display: none; }
+      .history-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 10px; padding: 13px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface); }
+      .history-table td { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0; border: 0; }
+      .history-table td:first-child { grid-column: 1 / -1; padding-bottom: 9px; border-bottom: 1px solid var(--app-border); }
+      .history-table td::before { content: attr(data-label); color: var(--app-text-muted); font-size: 9px; font-weight: 850; text-transform: uppercase; }
+      .history-table td:first-child::before { display: none; }
+      .history-pagination { align-items: stretch; flex-direction: column; padding: 11px 15px; }
 
       .dropzone {
         padding: 18px;
@@ -899,17 +1091,63 @@ import { parseEvolisPresentation } from './evolis-parser';
     }
   `]
 })
-export class EvolisDecryptorComponent {
+export class EvolisDecryptorComponent implements OnInit {
+  readonly auth = inject(AuthFacade);
   private readonly decryptorService = inject(EvolisDecryptorService);
+  private readonly route = inject(ActivatedRoute);
   selectedFile: File | null = null;
   dragActive = false;
   processing = false;
   errorMessage = '';
   result: EvolisDecryptResponse | null = null;
   presentation: EvolisPresentation | null = null;
+  historyScope: HistoryScope = this.route.snapshot.queryParamMap.get('history') === 'all'
+    && this.auth.hasCapability('tools.evolis.audit') ? 'all' : 'mine';
+  historySearch = '';
+  historyStatus: 'All' | DecryptionStatus = 'All';
+  historyExpanded = false;
+  historyItems: EvolisDecryptionRun[] = [];
+  historyMetrics: EvolisDecryptionMetrics = { total: 0, thisMonth: 0, successful: 0, failed: 0, failedThisMonth: 0 };
+  historyPage = 1;
+  readonly historyPageSize = 20;
+  historyTotal = 0;
+  historyLoading = false;
+  private historySearchTimer: number | null = null;
 
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
   private readonly expandedTables = new Set<number>();
+
+  ngOnInit(): void {
+    this.loadHistory();
+  }
+
+  get canViewAllHistory(): boolean {
+    return this.auth.hasCapability('tools.evolis.audit');
+  }
+
+  get visibleHistory(): EvolisDecryptionRun[] {
+    return this.historyItems;
+  }
+
+  get filteredHistory(): EvolisDecryptionRun[] {
+    return this.historyItems;
+  }
+
+  get monthCount(): number {
+    return this.historyMetrics.thisMonth;
+  }
+
+  get successCount(): number {
+    return this.historyMetrics.successful;
+  }
+
+  get failedCount(): number {
+    return this.historyMetrics.failed;
+  }
+
+  get historyPageCount(): number {
+    return Math.max(1, Math.ceil(this.historyTotal / this.historyPageSize));
+  }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -943,6 +1181,7 @@ export class EvolisDecryptorComponent {
         this.presentation = parseEvolisPresentation(response.content);
         this.expandedTables.clear();
         this.processing = false;
+        this.loadHistory();
       },
       error: (error) => {
         const status = error?.status as number | undefined;
@@ -962,6 +1201,7 @@ export class EvolisDecryptorComponent {
         }
 
         this.processing = false;
+        this.loadHistory();
       }
     });
   }
@@ -1011,6 +1251,64 @@ export class EvolisDecryptorComponent {
     if (this.fileInput?.nativeElement) {
       this.fileInput.nativeElement.value = '';
     }
+  }
+
+  initials(name: string): string {
+    return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() ?? '').join('');
+  }
+
+  formatHistorySize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    return `${(bytes / 1024).toFixed(bytes >= 102400 ? 0 : 1)} KB`;
+  }
+
+  setHistoryScope(scope: HistoryScope): void {
+    if (scope === 'all' && !this.canViewAllHistory) return;
+    this.historyScope = scope;
+    this.historyPage = 1;
+    this.loadHistory();
+  }
+
+  setHistoryStatus(status: 'All' | DecryptionStatus): void {
+    this.historyStatus = status;
+    this.historyPage = 1;
+    this.loadHistory();
+  }
+
+  onHistorySearch(): void {
+    if (this.historySearchTimer !== null) window.clearTimeout(this.historySearchTimer);
+    this.historySearchTimer = window.setTimeout(() => {
+      this.historyPage = 1;
+      this.loadHistory();
+    }, 250);
+  }
+
+  changeHistoryPage(direction: -1 | 1): void {
+    const target = this.historyPage + direction;
+    if (target < 1 || target > this.historyPageCount) return;
+    this.historyPage = target;
+    this.loadHistory();
+  }
+
+  private loadHistory(): void {
+    this.historyLoading = true;
+    const allUsers = this.historyScope === 'all' && this.canViewAllHistory;
+    forkJoin({
+      history: this.decryptorService.getHistory(allUsers, this.historyPage, this.historyPageSize, this.historySearch, this.historyStatus),
+      metrics: this.decryptorService.getMetrics(allUsers)
+    }).subscribe({
+      next: result => {
+        this.historyItems = result.history.items;
+        this.historyTotal = result.history.total;
+        this.historyMetrics = result.metrics;
+        this.historyLoading = false;
+      },
+      error: () => {
+        this.historyItems = [];
+        this.historyTotal = 0;
+        this.historyLoading = false;
+      }
+    });
   }
 
   private setFile(file: File | null): void {

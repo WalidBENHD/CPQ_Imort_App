@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TestUser> TestUsers => Set<TestUser>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ActivityEvent> ActivityEvents => Set<ActivityEvent>();
+    public DbSet<EvolisDecryptionRun> EvolisDecryptionRuns => Set<EvolisDecryptionRun>();
     public DbSet<AccessRole> AccessRoles => Set<AccessRole>();
     public DbSet<RoleCapability> RoleCapabilities => Set<RoleCapability>();
     public DbSet<UserAccessRole> UserAccessRoles => Set<UserAccessRole>();
@@ -158,6 +159,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.Action);
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => new { x.OccurredAtUtc, x.Category });
+        });
+
+        modelBuilder.Entity<EvolisDecryptionRun>(e =>
+        {
+            e.ToTable("EvolisDecryptionRuns");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.FileName).HasMaxLength(512);
+            e.Property(x => x.FileHash).HasMaxLength(64);
+            e.Property(x => x.UserId).HasMaxLength(256);
+            e.Property(x => x.UserDisplayName).HasMaxLength(512);
+            e.Property(x => x.OutputFormat).HasMaxLength(32);
+            e.Property(x => x.FailureReason).HasMaxLength(1000);
+            e.HasIndex(x => x.StartedAtUtc);
+            e.HasIndex(x => new { x.UserId, x.StartedAtUtc });
+            e.HasIndex(x => new { x.Status, x.StartedAtUtc });
         });
     }
 }

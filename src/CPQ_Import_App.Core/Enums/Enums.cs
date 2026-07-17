@@ -70,3 +70,10 @@ public enum ActivityCategory
     Navigation = 4,
     System = 5
 }
+
+public enum EvolisDecryptionStatus
+{
+    Processing = 0,
+    Successful = 1,
+    Failed = 2
+}

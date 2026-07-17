@@ -16,7 +16,7 @@
   </mat-card>
 
   <ng-container *ngIf="!loading; else loadingState">
-    <section class="metric-grid">
+    <section class="metric-grid" [class.metric-grid--admin]="showEvolisAdminMetric">
       <button class="metric metric--private" type="button" (click)="openSpace('workspace')">
         <span class="metric-icon"><mat-icon>lock_person</mat-icon></span>
         <span class="metric-copy"><small>Only visible to you</small><strong>My drafts</strong></span>
@@ -43,6 +43,13 @@
         <span class="metric-copy"><small>Governed evidence</small><strong>Published today</strong></span>
         <b>{{ overview?.summary?.committedToday ?? 0 }}</b>
         <span class="metric-detail">Publication records retained</span>
+      </button>
+
+      <button *ngIf="showEvolisAdminMetric" class="metric metric--evolis" type="button" (click)="openEvolisHistory()">
+        <span class="metric-icon"><mat-icon>enhanced_encryption</mat-icon></span>
+        <span class="metric-copy"><small>Admin visibility</small><strong>Evolis decryptions</strong></span>
+        <b>{{ overview?.evolisMetrics?.total ?? 0 }}</b>
+        <span class="metric-detail">{{ overview?.evolisMetrics?.thisMonth ?? 0 }} this month &middot; {{ overview?.evolisMetrics?.failedThisMonth ?? 0 }} failed</span>
       </button>
     </section>
 

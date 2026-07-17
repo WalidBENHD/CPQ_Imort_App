@@ -205,7 +205,7 @@ import { ThemeService } from './core/services/theme.service';
           aria-label="Close navigation"
         ></button>
 
-        <main class="page-content">
+        <main class="page-content" [class.page-content--evolis]="isEvolisRoute">
           <router-outlet />
         </main>
       </div>
@@ -611,6 +611,10 @@ import { ThemeService } from './core/services/theme.service';
       padding: 0;
       overflow-x: hidden;
     }
+
+    .page-content--evolis {
+      max-width: 1760px;
+    }
     .mobile-backdrop {
       display: none;
     }
@@ -729,6 +733,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get showAppChrome(): boolean {
     return !this.router.url.startsWith('/login') && !this.router.url.startsWith('/register');
+  }
+
+  get isEvolisRoute(): boolean {
+    return this.router.url.startsWith('/internal-tools/evolis-decryptor');
   }
 
   ngOnInit(): void {

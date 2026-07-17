@@ -106,6 +106,10 @@ export class DashboardComponent implements OnInit {
     return this.auth.userName.trim().split(/\s+/)[0] || 'there';
   }
 
+  get showEvolisAdminMetric(): boolean {
+    return this.auth.hasCapability('tools.evolis.audit');
+  }
+
   get attentionTitle(): string {
     if (this.privateCorrections.length) return `${this.privateCorrections.length} private ${this.privateCorrections.length === 1 ? 'draft needs' : 'drafts need'} correction`;
     if (this.auth.hasCapability('imports.approve') && this.awaitingApproval.length) return `${this.awaitingApproval.length} ${this.awaitingApproval.length === 1 ? 'submission is' : 'submissions are'} waiting for approval`;
@@ -165,6 +169,10 @@ export class DashboardComponent implements OnInit {
 
   newImport(): void {
     this.router.navigate(['/import/new']);
+  }
+
+  openEvolisHistory(): void {
+    this.router.navigate(['/internal-tools/evolis-decryptor'], { queryParams: { history: 'all' }, fragment: 'decryption-history' });
   }
 
   privateStatus(job: ImportJob): string {

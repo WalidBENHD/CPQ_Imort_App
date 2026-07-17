@@ -42,6 +42,7 @@ const CAPABILITIES: CapabilityDefinition[] = [
   { key: 'imports.return_to_review', label: 'Withdraw approval', description: 'Move an approved submission back to review before publication.', group: 'Approval & publication', icon: 'assignment_return' },
   { key: 'imports.publish', label: 'Publish to CPQ', description: 'Apply the approved impact to CPQ.', group: 'Approval & publication', icon: 'rocket_launch', risk: 'high' },
   { key: 'tools.evolis', label: 'Use Evolis decryptor', description: 'Access the protected Evolis internal utility.', group: 'Internal tools', icon: 'lock_open' },
+  { key: 'tools.evolis.audit', label: 'Audit Evolis decryptions', description: 'View all users\' history and administrative metrics.', group: 'Internal tools', icon: 'manage_history' },
   { key: 'audit.view', label: 'View audit history', description: 'Inspect user activity, approvals and publications.', group: 'Governance & administration', icon: 'history' },
   { key: 'users.manage', label: 'Manage users', description: 'Approve accounts and maintain user access.', group: 'Governance & administration', icon: 'manage_accounts', risk: 'high' },
   { key: 'roles.manage', label: 'Manage roles', description: 'Create roles and choose their capabilities.', group: 'Governance & administration', icon: 'shield', risk: 'high' },
