@@ -29,6 +29,7 @@ import { PublicationConfirmDialogComponent } from './publication-confirm-dialog.
 import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.component';
+import { DependencyContextPrototypeComponent } from './dependency-context-prototype.component';
 
 @Component({
   selector: 'app-import-preview',
@@ -39,12 +40,13 @@ import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.com
     MatTabsModule, MatDialogModule, MatSnackBarModule, MatTooltipModule,
     MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule, MatCheckboxModule,
     StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent,
-    PublicationReadinessComponent, PublicationConfirmDialogComponent, DraftRowEditorComponent],
+    PublicationReadinessComponent, PublicationConfirmDialogComponent, DraftRowEditorComponent,
+    DependencyContextPrototypeComponent],
   template: `
     <div class="page-header">
       <div>
-        <a mat-button routerLink="/dashboard" class="back-btn">
-          <mat-icon>arrow_back</mat-icon> Dashboard
+        <a mat-button routerLink="/uploads" class="back-btn">
+          <mat-icon>arrow_back</mat-icon> Uploads
         </a>
         <h1 *ngIf="job">{{ job.originalFileName }}</h1>
       </div>
@@ -172,6 +174,13 @@ import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.com
           </div>
         </mat-card-content>
       </mat-card>
+
+      <app-dependency-context-prototype
+        *ngIf="isPrivateWorkspace && isDependentDataset"
+        [datasetName]="job.entityTypeLabel"
+        [fileName]="job.originalFileName"
+        [totalRows]="job.totalRows"
+        [errorCount]="job.errorRows" />
 
       <app-approval-record
         *ngIf="job.statusLabel === 'Approved' || job.statusLabel === 'Committed'"
@@ -1824,6 +1833,10 @@ export class ImportPreviewComponent implements OnInit {
     return !!this.job
       && this.job.createdBy === this.auth.userId
       && this.job.workflowStageLabel === 'Private';
+  }
+
+  get isDependentDataset(): boolean {
+    return !!this.job && (this.job.entityType === 2 || this.job.entityType === 3);
   }
 
   get isSubmittedOwner(): boolean {
