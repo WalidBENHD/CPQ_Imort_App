@@ -530,7 +530,13 @@ import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.com
             <div class="removed-rows-tray" *ngIf="showRemovedRows">
               <div class="removed-tray-heading">
                 <div><mat-icon>restore_from_trash</mat-icon><span><strong>Removed from this draft</strong><small>These rows can be restored before submission.</small></span></div>
-                <button mat-icon-button type="button" (click)="showRemovedRows = false" aria-label="Close removed rows"><mat-icon>close</mat-icon></button>
+                <div class="removed-tray-actions">
+                  <button mat-stroked-button type="button" class="restore-all" *ngIf="removedRows.length" [disabled]="draftMutationRunning" (click)="restoreAllDraftRows()">
+                    <mat-icon>settings_backup_restore</mat-icon>
+                    Restore all <span>({{ removedRows.length }})</span>
+                  </button>
+                  <button mat-icon-button type="button" (click)="showRemovedRows = false" aria-label="Close removed rows"><mat-icon>close</mat-icon></button>
+                </div>
               </div>
               <div class="removed-row-list" *ngIf="removedRows.length; else noRemovedRows">
                 <div *ngFor="let row of removedRows">
@@ -1148,6 +1154,10 @@ import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.com
     .removed-tray-heading span { display: flex; flex-direction: column; }
     .removed-tray-heading strong { font-size: 13px; }
     .removed-tray-heading small { color: var(--app-text-muted); font-size: 11px; }
+    .removed-tray-heading .removed-tray-actions { display: flex; align-items: center; gap: 5px; }
+    .removed-tray-actions .restore-all { color: var(--app-accent); border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border)); font-weight: 800; white-space: nowrap; }
+    .removed-tray-actions .restore-all mat-icon { color: inherit; }
+    .removed-tray-actions .restore-all span { display: inline; margin-left: 3px; }
     .removed-row-list { max-height: 190px; overflow: auto; padding: 4px 12px; }
     .removed-row-list > div { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--app-border); }
     .removed-row-list > div:last-child { border: 0; }
@@ -1420,6 +1430,9 @@ import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.com
       .removed-row-list > div { grid-template-columns: auto minmax(0,1fr) auto; }
       .removed-row-list > div > span:not(.removed-row-number) { display: none; }
       .removed-row-list button { min-width: 0; padding-inline: 7px; }
+      .removed-tray-heading { align-items: flex-start; }
+      .removed-tray-actions .restore-all { padding-inline: 9px; }
+      .removed-tray-actions .restore-all span { display: none; }
       .header-actions { grid-template-columns: 1fr; gap: 6px; }
       .header-action-btn { width: 100%; justify-content: center; min-height: 38px; border-radius: 10px; }
       .action-info {
@@ -1727,6 +1740,24 @@ export class ImportPreviewComponent implements OnInit {
       error: error => {
         this.draftMutationRunning = false;
         this.snackBar.open(error?.error?.error ?? 'The row could not be restored.', 'Close', { duration: 7000 });
+      }
+    });
+  }
+
+  restoreAllDraftRows(): void {
+    if (!this.job || !this.removedRows.length || this.draftMutationRunning) return;
+    const rowIds = this.removedRows.map(row => row.id);
+    this.draftMutationRunning = true;
+    this.importService.restoreRows(this.job.id, rowIds).subscribe({
+      next: updatedJob => {
+        this.job = updatedJob;
+        this.draftMutationRunning = false;
+        this.reloadDraftData();
+        this.snackBar.open(`${rowIds.length} rows restored and revalidated.`, 'Close', { duration: 4500 });
+      },
+      error: error => {
+        this.draftMutationRunning = false;
+        this.snackBar.open(error?.error?.error ?? 'The removed rows could not be restored.', 'Close', { duration: 7000 });
       }
     });
   }
