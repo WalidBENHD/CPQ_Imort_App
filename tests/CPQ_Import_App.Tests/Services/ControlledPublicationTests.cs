@@ -113,6 +113,39 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task CreateReleasePackageAsync_CopiesPublishedMasterWithoutChangingSource()
+    {
+        var priceJob = CreatePriceJob();
+        var publishedMaster = CreateJob(ImportStatus.Committed);
+        publishedMaster.WorkflowStage = ImportWorkflowStage.Published;
+        publishedMaster.OriginalFileName = "published-master.xlsx";
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true))
+        {
+            UploadedContent = [1, 2, 3]
+        };
+        repository.AdditionalJobs.Add(publishedMaster);
+        repository.Rows.Add(new StagingRow
+        {
+            ImportJobId = publishedMaster.Id,
+            RowNumber = 2,
+            RawData = "{\"ArticleNumber\":\"A-1\",\"Name\":\"Article\",\"Category\":\"Standard\",\"Unit\":\"PC\"}"
+        });
+        repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
+        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var package = await service.CreateReleasePackageAsync(
+            priceJob.Id, publishedMaster.Id, "Annual 2027", "contributor-id", "Cara Contributor");
+
+        var copiedMaster = Assert.Single(repository.AdditionalJobs, item =>
+            item.Id != publishedMaster.Id && item.EntityType == EntityType.Article);
+        Assert.Null(publishedMaster.ReleasePackageId);
+        Assert.Equal(ImportWorkflowStage.Private, copiedMaster.WorkflowStage);
+        Assert.Equal(copiedMaster.Id, priceJob.ValidationAnchorJobId);
+        Assert.Equal(priceJob.ReleasePackageId, copiedMaster.ReleasePackageId);
+        Assert.Equal(2, package.Items.Count);
+    }
+
+    [Fact]
     public async Task CopyToWorkspaceAsync_RejectsPrivateSource()
     {
         var source = CreateJob(ImportStatus.AwaitingApproval);
@@ -481,6 +514,17 @@ public class ControlledPublicationTests
         public Task<ImportJob> CreateCopiedJobAsync(ImportJob newJob, IReadOnlyCollection<StagingRow> rows, string uploadedFileName, byte[] uploadedFileContent, AuditLog auditLog, CancellationToken ct = default)
         {
             CopiedRows.AddRange(rows);
+            Rows.AddRange(rows);
+            AdditionalJobs.Add(newJob);
+            if (newJob.EntityType == EntityType.Article)
+            {
+                ArticleNumbers[newJob.Id] = rows
+                    .Select(row => JsonSerializer.Deserialize<Dictionary<string, string?>>(row.RawData ?? "{}"))
+                    .Select(values => values?.GetValueOrDefault("ArticleNumber"))
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value!)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
             CopiedContent = uploadedFileContent;
             AuditLogs.Add(auditLog);
             return Task.FromResult(newJob);
@@ -492,8 +536,8 @@ public class ControlledPublicationTests
             Rows.AddRange(rows);
             return Task.CompletedTask;
         }
-        public Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows.Where(row => !row.IsDeleted).ToList());
-        public Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows.Where(row => row.IsDeleted).ToList());
+        public Task<IReadOnlyList<StagingRow>> GetStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows.Where(row => row.ImportJobId == jobId && !row.IsDeleted).ToList());
+        public Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsByJobAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<StagingRow>>(Rows.Where(row => row.ImportJobId == jobId && row.IsDeleted).ToList());
         public Task<StagingRow?> GetStagingRowAsync(Guid jobId, Guid rowId, CancellationToken ct = default) => Task.FromResult<StagingRow?>(Rows.FirstOrDefault(row => row.ImportJobId == jobId && row.Id == rowId));
         public Task UpdateStagingRowAsync(StagingRow row, CancellationToken ct = default) => Task.CompletedTask;
         public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
@@ -509,6 +553,14 @@ public class ControlledPublicationTests
         public Task<IReadOnlyList<ImportJob>> GetOwnedPrivateJobsAsync(string userId, EntityType? entityType = null, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ImportJob>>(new[] { job }.Concat(AdditionalJobs)
                 .Where(item => item.CreatedBy == userId && item.WorkflowStage == ImportWorkflowStage.Private && (!entityType.HasValue || item.EntityType == entityType))
+                .ToList());
+        public Task<IReadOnlyList<ImportJob>> GetArticleMasterCandidatesAsync(string userId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ImportJob>>(new[] { job }.Concat(AdditionalJobs)
+                .Where(item => item.EntityType == EntityType.Article
+                    && ((item.WorkflowStage == ImportWorkflowStage.Private && item.CreatedBy == userId)
+                        || item.WorkflowStage is ImportWorkflowStage.Submitted
+                            or ImportWorkflowStage.Approved
+                            or ImportWorkflowStage.Published))
                 .ToList());
         public Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default)
         {

@@ -371,6 +371,20 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return await query.OrderByDescending(job => job.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<ImportJob>> GetArticleMasterCandidatesAsync(
+        string userId,
+        CancellationToken ct = default)
+        => await db.ImportJobs.AsNoTracking()
+            .Where(job => job.EntityType == EntityType.Article
+                && ((job.WorkflowStage == ImportWorkflowStage.Private && job.CreatedBy == userId)
+                    || job.WorkflowStage == ImportWorkflowStage.Submitted
+                    || job.WorkflowStage == ImportWorkflowStage.Approved
+                    || job.WorkflowStage == ImportWorkflowStage.Published))
+            .OrderByDescending(job => job.WorkflowStage == ImportWorkflowStage.Published)
+            .ThenByDescending(job => job.CommittedAt)
+            .ThenByDescending(job => job.CreatedAt)
+            .ToListAsync(ct);
+
     public Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default)
         => db.ReleasePackages.Include(package => package.Jobs)
             .FirstOrDefaultAsync(package => package.Id == packageId, ct);

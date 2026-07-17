@@ -72,6 +72,13 @@ public static class DtoMapper
         anchor.JobId, anchor.FileName, anchor.VersionLabel, anchor.PublishedAt,
         anchor.ArticleCount, anchor.IsActive, anchor.IsReleaseCandidate);
 
+    public static ArticleMasterCandidateSummaryDto ToDto(this ArticleMasterCandidateSummary candidate) => new(
+        candidate.JobId, candidate.FileName, candidate.VersionLabel, candidate.CreatedAt,
+        candidate.PublishedAt, candidate.ArticleCount, candidate.IsActive, candidate.Source,
+        candidate.OwnerDisplayName, candidate.Status, candidate.WorkflowStage, candidate.ErrorRows,
+        candidate.IsEligible, candidate.RequiresWorkingCopy, candidate.IneligibleReason,
+        candidate.ValidReferences, candidate.MissingReferences);
+
     public static DependencyImpactDto ToDto(this DependencyImpact impact) => new(
         impact.TotalRows, impact.ValidReferences, impact.MissingReferences,
         impact.ArticlesWithoutDependentData, impact.MissingArticleNumbers);

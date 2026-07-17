@@ -11,6 +11,25 @@ public sealed record ValidationAnchorSummary(
     bool IsActive,
     bool IsReleaseCandidate);
 
+public sealed record ArticleMasterCandidateSummary(
+    Guid JobId,
+    string FileName,
+    string VersionLabel,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    int ArticleCount,
+    bool IsActive,
+    string Source,
+    string OwnerDisplayName,
+    ImportStatus Status,
+    ImportWorkflowStage WorkflowStage,
+    int ErrorRows,
+    bool IsEligible,
+    bool RequiresWorkingCopy,
+    string? IneligibleReason,
+    int ValidReferences,
+    int MissingReferences);
+
 public sealed record DependencyImpact(
     int TotalRows,
     int ValidReferences,
@@ -29,7 +48,7 @@ public sealed record DependencyContext(
     DependencyImpact CurrentImpact,
     DependencyImpact? LatestImpact,
     ReleasePackageSummary? ReleasePackage,
-    IReadOnlyList<ValidationAnchorSummary> CandidateMasters);
+    IReadOnlyList<ArticleMasterCandidateSummary> CandidateMasters);
 
 public sealed record ReleasePackageSummary(
     Guid Id,

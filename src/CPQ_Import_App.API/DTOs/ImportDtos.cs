@@ -83,6 +83,25 @@ public record ValidationAnchorSummaryDto(
     bool IsActive,
     bool IsReleaseCandidate);
 
+public record ArticleMasterCandidateSummaryDto(
+    Guid JobId,
+    string FileName,
+    string VersionLabel,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    int ArticleCount,
+    bool IsActive,
+    string Source,
+    string OwnerDisplayName,
+    ImportStatus Status,
+    ImportWorkflowStage WorkflowStage,
+    int ErrorRows,
+    bool IsEligible,
+    bool RequiresWorkingCopy,
+    string? IneligibleReason,
+    int ValidReferences,
+    int MissingReferences);
+
 public record DependencyImpactDto(
     int TotalRows,
     int ValidReferences,
@@ -101,7 +120,7 @@ public record DependencyContextDto(
     DependencyImpactDto CurrentImpact,
     DependencyImpactDto? LatestImpact,
     ReleasePackageDto? ReleasePackage,
-    IReadOnlyList<ValidationAnchorSummaryDto> CandidateMasters);
+    IReadOnlyList<ArticleMasterCandidateSummaryDto> CandidateMasters);
 
 public record ReleasePackageItemDto(
     Guid JobId,

@@ -103,6 +103,26 @@ export interface ValidationAnchorSummary {
   isReleaseCandidate: boolean;
 }
 
+export interface ArticleMasterCandidateSummary {
+  jobId: string;
+  fileName: string;
+  versionLabel: string;
+  createdAt: string;
+  publishedAt: string | null;
+  articleCount: number;
+  isActive: boolean;
+  source: 'Workspace' | 'Review' | 'Published';
+  ownerDisplayName: string;
+  status: number;
+  workflowStage: number;
+  errorRows: number;
+  isEligible: boolean;
+  requiresWorkingCopy: boolean;
+  ineligibleReason: string | null;
+  validReferences: number;
+  missingReferences: number;
+}
+
 export interface DependencyImpact {
   totalRows: number;
   validReferences: number;
@@ -150,7 +170,7 @@ export interface DependencyContext {
   currentImpact: DependencyImpact;
   latestImpact: DependencyImpact | null;
   releasePackage: ReleasePackage | null;
-  candidateMasters: ValidationAnchorSummary[];
+  candidateMasters: ArticleMasterCandidateSummary[];
 }
 
 export interface ValidationMessage {

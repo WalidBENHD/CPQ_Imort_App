@@ -407,14 +407,15 @@ public class ImportService(
         var latestImpact = latest is null || anchor?.Id == latest.Id
             ? null
             : await BuildDependencyImpactAsync(job, latest.Id, ct);
-        var candidates = (await repository.GetOwnedPrivateJobsAsync(userId, EntityType.Article, ct))
-            .Where(candidate => candidate.Status == ImportStatus.AwaitingApproval
-                && candidate.ErrorRows == 0
-                && !candidate.ReleasePackageId.HasValue)
-            .ToList();
+        var candidates = await repository.GetArticleMasterCandidatesAsync(userId, ct);
         var package = job.ReleasePackageId.HasValue
             ? await repository.GetReleasePackageAsync(job.ReleasePackageId.Value, ct)
             : null;
+        var candidateSummaries = new List<ArticleMasterCandidateSummary>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            candidateSummaries.Add(await ToCandidateSummaryAsync(candidate, job, latest?.Id, userId, ct));
+        }
 
         return new DependencyContext(
             job.Id,
@@ -427,7 +428,7 @@ public class ImportService(
             currentImpact,
             latestImpact,
             package is null ? null : ToReleaseSummary(package),
-            await Task.WhenAll(candidates.Select(candidate => ToAnchorSummaryAsync(candidate, latest?.Id, null, ct))));
+            candidateSummaries);
     }
 
     public async Task<DependencyImpact> PreviewDependencyAnchorAsync(
@@ -480,9 +481,34 @@ public class ImportService(
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 180)
             throw new InvalidDataException("Provide a release name of at most 180 characters.");
 
-        var masterJob = await EnsureSelectableArticleMasterAsync(articleMasterJobId, userId, allowPrivateCandidate: true, ct);
-        if (masterJob.WorkflowStage != ImportWorkflowStage.Private || masterJob.Status == ImportStatus.Committed)
-            throw new InvalidOperationException("A coordinated release requires a private Article Master candidate.");
+        var selectedMaster = await repository.GetJobAsync(articleMasterJobId, ct)
+            ?? throw new KeyNotFoundException($"Article Master upload '{articleMasterJobId}' not found.");
+        if (selectedMaster.EntityType != EntityType.Article)
+            throw new InvalidOperationException("The selected release candidate is not an Article Master upload.");
+
+        ImportJob masterJob;
+        if (selectedMaster.WorkflowStage == ImportWorkflowStage.Private)
+        {
+            masterJob = await EnsureSelectableArticleMasterAsync(articleMasterJobId, userId, allowPrivateCandidate: true, ct);
+        }
+        else
+        {
+            if (selectedMaster.WorkflowStage is not (ImportWorkflowStage.Submitted
+                or ImportWorkflowStage.Approved
+                or ImportWorkflowStage.Published))
+                throw new InvalidOperationException("Select an Article Master from your workspace, review, or publication history.");
+            if (selectedMaster.ErrorRows > 0)
+                throw new InvalidOperationException("The selected Article Master contains blocking errors and cannot start a release.");
+
+            var extension = Path.GetExtension(selectedMaster.OriginalFileName);
+            var stem = Path.GetFileNameWithoutExtension(selectedMaster.OriginalFileName);
+            var suffix = " - Release Copy";
+            var maxStemLength = Math.Max(1, 180 - extension.Length - suffix.Length);
+            var workingCopyName = $"{stem[..Math.Min(stem.Length, maxStemLength)]}{suffix}{extension}";
+            masterJob = await CopyToWorkspaceAsync(
+                selectedMaster.Id, workingCopyName, userId, userDisplayName, ct);
+        }
+
         if (masterJob.ReleasePackageId.HasValue)
             throw new InvalidOperationException("The selected Article Master already belongs to another release package.");
 
@@ -1455,6 +1481,63 @@ public class ImportService(
             missingRows.Count,
             masterArticles.Count(article => !referencedSet.Contains(article)),
             missing.Take(100).ToList());
+    }
+
+    private async Task<ArticleMasterCandidateSummary> ToCandidateSummaryAsync(
+        ImportJob candidate,
+        ImportJob dependentJob,
+        Guid? activeMasterId,
+        string userId,
+        CancellationToken ct)
+    {
+        var isWorkspace = candidate.WorkflowStage == ImportWorkflowStage.Private;
+        var source = isWorkspace
+            ? "Workspace"
+            : candidate.WorkflowStage == ImportWorkflowStage.Published || candidate.Status == ImportStatus.Committed
+                ? "Published"
+                : "Review";
+        var isOwnedWorkspace = isWorkspace
+            && string.Equals(candidate.CreatedBy, userId, StringComparison.OrdinalIgnoreCase);
+        var isEligible = candidate.ErrorRows == 0
+            && (isWorkspace
+                ? isOwnedWorkspace
+                    && candidate.Status == ImportStatus.AwaitingApproval
+                    && !candidate.ReleasePackageId.HasValue
+                : candidate.WorkflowStage is ImportWorkflowStage.Submitted
+                    or ImportWorkflowStage.Approved
+                    or ImportWorkflowStage.Published);
+        var reason = isEligible
+            ? null
+            : candidate.ErrorRows > 0
+                ? $"Contains {candidate.ErrorRows} blocking error row(s)."
+                : candidate.ReleasePackageId.HasValue && isWorkspace
+                    ? "Already belongs to another coordinated release."
+                    : isWorkspace && !isOwnedWorkspace
+                        ? "Private uploads are only available to their owner."
+                        : "This upload is not ready to be used in a release.";
+        var articleCount = (await repository.GetArticleNumbersForJobAsync(candidate.Id, ct)).Count;
+        var impact = await BuildDependencyImpactAsync(dependentJob, candidate.Id, ct);
+
+        return new ArticleMasterCandidateSummary(
+            candidate.Id,
+            candidate.OriginalFileName,
+            candidate.CommittedAt.HasValue
+                ? $"Published {candidate.CommittedAt:yyyy.MM.dd HH:mm}"
+                : $"Uploaded {candidate.CreatedAt:yyyy.MM.dd HH:mm}",
+            candidate.CreatedAt,
+            candidate.CommittedAt,
+            articleCount,
+            activeMasterId == candidate.Id,
+            source,
+            candidate.CreatedByDisplayName,
+            candidate.Status,
+            candidate.WorkflowStage,
+            candidate.ErrorRows,
+            isEligible,
+            !isWorkspace,
+            reason,
+            impact.ValidReferences,
+            impact.MissingReferences);
     }
 
     private async Task<ValidationAnchorSummary> ToAnchorSummaryAsync(
