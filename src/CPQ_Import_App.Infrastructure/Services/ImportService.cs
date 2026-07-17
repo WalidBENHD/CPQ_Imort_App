@@ -367,6 +367,74 @@ public class ImportService(
         return job;
     }
 
+    public async Task<ImportJob> CopyToWorkspaceAsync(
+        Guid sourceJobId,
+        string fileName,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var source = await repository.GetJobAsync(sourceJobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{sourceJobId}' not found.");
+
+        if (source.WorkflowStage == ImportWorkflowStage.Private)
+            throw new InvalidOperationException("Only uploads in the shared workflow or publication history can be copied.");
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new InvalidDataException("Provide a working-copy file name.");
+
+        var requestedName = fileName.Trim();
+        if (requestedName.Length > 180 || Path.GetFileName(requestedName) != requestedName)
+            throw new InvalidDataException("Provide a valid working-copy file name of at most 180 characters.");
+
+        var sourceExtension = Path.GetExtension(source.OriginalFileName);
+        if (string.IsNullOrWhiteSpace(sourceExtension)
+            || !string.Equals(Path.GetExtension(requestedName), sourceExtension, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"The working-copy name must keep the '{sourceExtension}' file extension.");
+
+        var sourceFile = await repository.GetUploadedFileAsync(source.Id, ct)
+            ?? throw new InvalidDataException("The source file is no longer available and cannot be copied.");
+        var sourceRows = await repository.GetStagingRowsByJobAsync(source.Id, ct);
+        var now = DateTime.UtcNow;
+        var job = new ImportJob
+        {
+            FileName = $"{Guid.NewGuid()}{sourceExtension}",
+            OriginalFileName = requestedName,
+            EntityType = source.EntityType,
+            Status = sourceRows.Any(row => row.Status == RowStatus.Error)
+                ? ImportStatus.NeedsCorrection
+                : ImportStatus.AwaitingApproval,
+            WorkflowStage = ImportWorkflowStage.Private,
+            CreatedBy = userId,
+            CreatedByDisplayName = userDisplayName,
+            CreatedAt = now,
+            ProcessedAt = now,
+            TotalRows = sourceRows.Count,
+            ValidRows = sourceRows.Count(row => row.Status == RowStatus.Valid),
+            WarningRows = sourceRows.Count(row => row.Status == RowStatus.Warning),
+            ErrorRows = sourceRows.Count(row => row.Status == RowStatus.Error)
+        };
+        var rows = sourceRows.Select(row => new StagingRow
+        {
+            ImportJobId = job.Id,
+            RowNumber = row.RowNumber,
+            Status = row.Status,
+            RawData = row.RawData,
+            ValidationMessages = row.ValidationMessages,
+            IsSelected = row.IsSelected
+        }).ToList();
+        var auditLog = new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "CopiedToWorkspace",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Created private working copy from {source.OriginalFileName} ({source.Id:D}, stage: {source.WorkflowStage}). Copied {rows.Count} active rows."
+        };
+
+        return await repository.CreateCopiedJobAsync(job, rows, requestedName, sourceFile, auditLog, ct);
+    }
+
     public async Task<ImportJob> WithdrawFromReviewAsync(
         Guid jobId, string userId, string userDisplayName, CancellationToken ct = default)
     {

@@ -76,6 +76,10 @@ export class ImportService {
     );
   }
 
+  copyToWorkspace(jobId: string, fileName: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/copy-to-workspace`, { fileName });
+  }
+
   addRow(jobId: string, fields: Record<string, string | null>): Observable<ImportJob> {
     return this.http.post<ImportJob>(`${this.base}/${jobId}/rows`, { fields });
   }

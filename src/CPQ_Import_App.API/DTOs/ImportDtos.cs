@@ -58,6 +58,8 @@ public record PagedResult<T>(IReadOnlyList<T> Items, int Total, int Page, int Pa
 
 public record UploadRequest(string EntityType);
 
+public record CopyToWorkspaceRequest(string FileName);
+
 public record RejectRequest(string Reason);
 
 public record UpdateRowRequest(Dictionary<string, string?> Fields);

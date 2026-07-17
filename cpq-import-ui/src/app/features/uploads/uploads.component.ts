@@ -1,7 +1,7 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -33,6 +33,7 @@ interface UploadSpaceDefinition {
   imports: [
     CommonModule,
     DatePipe,
+    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
@@ -92,6 +93,8 @@ export class UploadsComponent implements OnInit {
   loading = false;
   searchFocused = false;
   actionJobId: string | null = null;
+  copySource: ImportJob | null = null;
+  workingCopyName = '';
 
   ngOnInit(): void {
     const requestedSpace = this.route.snapshot.queryParamMap.get('space');
@@ -172,6 +175,42 @@ export class UploadsComponent implements OnInit {
     this.router.navigate(['/import/new']);
   }
 
+  openCopyDialog(job: ImportJob, event: Event): void {
+    event.stopPropagation();
+    if (!this.canCopyToWorkspace(job)) return;
+    this.copySource = job;
+    this.workingCopyName = this.suggestWorkingCopyName(job.originalFileName);
+  }
+
+  closeCopyDialog(): void {
+    if (this.actionJobId) return;
+    this.copySource = null;
+    this.workingCopyName = '';
+  }
+
+  createWorkingCopy(): void {
+    const source = this.copySource;
+    const fileName = this.workingCopyName.trim();
+    if (!source || !fileName) return;
+    this.actionJobId = source.id;
+    this.importService.copyToWorkspace(source.id, fileName).subscribe({
+      next: copy => {
+        this.jobs = [copy, ...this.jobs];
+        this.actionJobId = null;
+        this.copySource = null;
+        this.workingCopyName = '';
+        this.activeSpace = 'workspace';
+        this.clearFilters();
+        this.snackBar.open('Private working copy created.', 'Close', { duration: 4000 });
+        this.router.navigate(['/import', copy.id]);
+      },
+      error: error => {
+        this.actionJobId = null;
+        this.snackBar.open(error?.error?.error ?? 'The private copy could not be created.', 'Close', { duration: 6000 });
+      }
+    });
+  }
+
   submitForReview(job: ImportJob, event: Event): void {
     event.stopPropagation();
     if (!this.canSubmit(job)) return;
@@ -247,6 +286,12 @@ export class UploadsComponent implements OnInit {
       && this.auth.hasCapability('imports.withdraw_own');
   }
 
+  canCopyToWorkspace(_job: ImportJob): boolean {
+    return this.activeSpace !== 'workspace'
+      && this.auth.hasCapability('imports.upload')
+      && this.auth.hasCapability('imports.correct_own');
+  }
+
   workspaceStatus(job: ImportJob): string {
     if (job.statusLabel === 'AwaitingApproval' && job.workflowStageLabel === 'Private') return 'Ready to submit';
     if (job.statusLabel === 'NeedsCorrection') return 'Needs correction';
@@ -286,5 +331,11 @@ export class UploadsComponent implements OnInit {
 
   private replaceJob(updated: ImportJob): void {
     this.jobs = this.jobs.map(job => job.id === updated.id ? updated : job);
+  }
+
+  private suggestWorkingCopyName(fileName: string): string {
+    const extensionIndex = fileName.lastIndexOf('.');
+    if (extensionIndex <= 0) return `${fileName} - Working Copy`;
+    return `${fileName.slice(0, extensionIndex)} - Working Copy${fileName.slice(extensionIndex)}`;
   }
 }

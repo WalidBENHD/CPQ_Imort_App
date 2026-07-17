@@ -6,6 +6,13 @@ namespace CPQ_Import_App.Core.Interfaces;
 public interface IImportRepository
 {
     Task<ImportJob> CreateJobAsync(ImportJob job, CancellationToken ct = default);
+    Task<ImportJob> CreateCopiedJobAsync(
+        ImportJob job,
+        IReadOnlyCollection<StagingRow> rows,
+        string uploadedFileName,
+        byte[] uploadedFileContent,
+        AuditLog auditLog,
+        CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default);
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);

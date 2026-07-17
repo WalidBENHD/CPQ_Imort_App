@@ -11,6 +11,51 @@ namespace CPQ_Import_App.Tests.Services;
 public class ControlledPublicationTests
 {
     [Fact]
+    public async Task CopyToWorkspaceAsync_CreatesIndependentPrivateSnapshot()
+    {
+        var source = CreateJob(ImportStatus.Committed);
+        source.WorkflowStage = ImportWorkflowStage.Published;
+        source.OriginalFileName = "published.xlsx";
+        var repository = new FakeImportRepository(source, CreateComparison(Guid.NewGuid(), true))
+        {
+            UploadedContent = [1, 2, 3]
+        };
+        repository.Rows.AddRange([
+            new StagingRow { ImportJobId = source.Id, RowNumber = 1, Status = RowStatus.Valid, RawData = "{\"ArticleNumber\":\"A-1\"}", IsUserModified = true },
+            new StagingRow { ImportJobId = source.Id, RowNumber = 2, Status = RowStatus.Warning, RawData = "{\"ArticleNumber\":\"A-2\"}" },
+            new StagingRow { ImportJobId = source.Id, RowNumber = 3, Status = RowStatus.Valid, RawData = "{\"ArticleNumber\":\"A-3\"}", IsDeleted = true }
+        ]);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var copy = await service.CopyToWorkspaceAsync(source.Id, "published - Working Copy.xlsx", "new-owner", "Nina Owner");
+
+        Assert.Equal(ImportWorkflowStage.Private, copy.WorkflowStage);
+        Assert.Equal(ImportStatus.AwaitingApproval, copy.Status);
+        Assert.Equal("new-owner", copy.CreatedBy);
+        Assert.Equal(2, copy.TotalRows);
+        Assert.NotEqual(source.Id, copy.Id);
+        Assert.Equal([1, 2, 3], repository.CopiedContent);
+        Assert.All(repository.CopiedRows, row =>
+        {
+            Assert.Equal(copy.Id, row.ImportJobId);
+            Assert.False(row.IsUserAdded);
+            Assert.False(row.IsUserModified);
+            Assert.False(row.IsDeleted);
+        });
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "CopiedToWorkspace" && entry.Details!.Contains(source.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task CopyToWorkspaceAsync_RejectsPrivateSource()
+    {
+        var source = CreateJob(ImportStatus.AwaitingApproval);
+        var service = CreateService(new FakeImportRepository(source, CreateComparison(Guid.NewGuid(), true)), new FakeCommitStrategy());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.CopyToWorkspaceAsync(source.Id, "copy.xlsx", "owner", "Owner"));
+    }
+
+    [Fact]
     public async Task SubmitForReviewAsync_FreezesComparisonAndSharesPrivateUpload()
     {
         var job = CreateJob(ImportStatus.AwaitingApproval);
@@ -311,6 +356,8 @@ public class ControlledPublicationTests
         public List<AuditLog> AuditLogs { get; } = [];
         public List<StagingRow> Rows { get; } = [];
         public byte[]? UploadedContent { get; init; }
+        public byte[]? CopiedContent { get; private set; }
+        public List<StagingRow> CopiedRows { get; } = [];
 
         public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<ImportJob?>(id == job.Id ? job : null);
@@ -335,6 +382,13 @@ public class ControlledPublicationTests
         }
 
         public Task<ImportJob> CreateJobAsync(ImportJob newJob, CancellationToken ct = default) => Task.FromResult(newJob);
+        public Task<ImportJob> CreateCopiedJobAsync(ImportJob newJob, IReadOnlyCollection<StagingRow> rows, string uploadedFileName, byte[] uploadedFileContent, AuditLog auditLog, CancellationToken ct = default)
+        {
+            CopiedRows.AddRange(rows);
+            CopiedContent = uploadedFileContent;
+            AuditLogs.Add(auditLog);
+            return Task.FromResult(newJob);
+        }
         public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default) => throw new NotSupportedException();
         public Task DeleteJobAsync(ImportJob deletedJob, CancellationToken ct = default) => Task.CompletedTask;
         public Task AddStagingRowsAsync(IEnumerable<StagingRow> rows, CancellationToken ct = default)

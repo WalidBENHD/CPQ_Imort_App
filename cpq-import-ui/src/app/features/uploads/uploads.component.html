@@ -111,6 +111,9 @@
         <button *ngIf="canWithdraw(job)" mat-stroked-button (click)="withdraw(job, $event)">
           <mat-icon>undo</mat-icon> Withdraw
         </button>
+        <button *ngIf="canCopyToWorkspace(job)" mat-stroked-button class="copy-to-workspace" (click)="openCopyDialog(job, $event)">
+          <mat-icon>library_add</mat-icon> Copy to workspace
+        </button>
         <button mat-stroked-button (click)="view(job)">
           <mat-icon>{{ activeSpace === 'workspace' ? 'edit_note' : 'visibility' }}</mat-icon>
           {{ activeSpace === 'workspace' ? 'Continue' : 'Open' }}
@@ -134,3 +137,47 @@
     </button>
   </div>
 </mat-card>
+
+<div class="copy-dialog-backdrop" *ngIf="copySource as source" (click)="closeCopyDialog()">
+  <section class="copy-dialog" role="dialog" aria-modal="true" aria-labelledby="copy-dialog-title" (click)="$event.stopPropagation()">
+    <header class="copy-dialog__header">
+      <span class="copy-dialog__mark"><mat-icon>content_copy</mat-icon></span>
+      <div>
+        <span class="dialog-kicker">Private working copy</span>
+        <h2 id="copy-dialog-title">Copy to my workspace?</h2>
+        <p>Start from this exact version without changing the shared record.</p>
+      </div>
+      <button mat-icon-button type="button" aria-label="Close copy dialog" [disabled]="actionJobId === source.id" (click)="closeCopyDialog()"><mat-icon>close</mat-icon></button>
+    </header>
+
+    <div class="copy-dialog__body">
+      <div class="source-version">
+        <span class="source-version__icon"><mat-icon>description</mat-icon></span>
+        <div><small>Source version</small><strong>{{ source.originalFileName }}</strong><span>{{ source.entityTypeLabel }} &middot; {{ source.totalRows }} rows &middot; {{ source.createdByDisplayName }}</span></div>
+        <app-status-badge [status]="source.statusLabel" />
+      </div>
+
+      <label class="copy-name-field">
+        <span>Working copy name</span>
+        <input [(ngModel)]="workingCopyName" maxlength="180" autocomplete="off" />
+        <small>This name is visible only in your private workspace until submission.</small>
+      </label>
+
+      <div class="copy-guarantees">
+        <div><span><mat-icon>lock</mat-icon></span><p><strong>Private by default</strong><small>Only you can see and edit the new draft.</small></p></div>
+        <div><span><mat-icon>verified_user</mat-icon></span><p><strong>Source stays governed</strong><small>The shared or published version remains unchanged.</small></p></div>
+        <div><span><mat-icon>fork_right</mat-icon></span><p><strong>Independent lifecycle</strong><small>Approvals, decisions and publication proof are not copied.</small></p></div>
+      </div>
+
+      <div class="copy-dialog__note"><mat-icon>info</mat-icon><span>The copied rows and current validation results become your starting point. You can then edit, compare, delete or add rows privately.</span></div>
+    </div>
+
+    <footer class="copy-dialog__actions">
+      <button mat-button type="button" [disabled]="actionJobId === source.id" (click)="closeCopyDialog()">Cancel</button>
+      <button mat-raised-button color="primary" type="button" [disabled]="!workingCopyName.trim() || actionJobId === source.id" (click)="createWorkingCopy()">
+        <mat-icon>{{ actionJobId === source.id ? 'hourglass_top' : 'add_to_photos' }}</mat-icon>
+        {{ actionJobId === source.id ? 'Creating copy...' : 'Create private copy' }}
+      </button>
+    </footer>
+  </section>
+</div>

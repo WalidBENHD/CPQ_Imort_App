@@ -86,6 +86,33 @@ public class ImportsController(
         return job is null || !CanView(job) ? NotFound() : Ok(job.ToDto());
     }
 
+    /// <summary>Create an independent private draft from a shared or historical upload.</summary>
+    [HttpPost("{id:guid}/copy-to-workspace")]
+    [Authorize(Policy = Capabilities.ImportsUpload)]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ImportJobDto>> CopyToWorkspace(
+        Guid id,
+        [FromBody] CopyToWorkspaceRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var copy = await importService.CopyToWorkspaceAsync(id, request.FileName, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "CopyImportToWorkspace",
+                $"Created private working copy {copy.OriginalFileName} from import {id}.",
+                TargetType: "ImportJob",
+                TargetId: copy.Id.ToString(),
+                StatusCode: StatusCodes.Status201Created,
+                Metadata: new { SourceJobId = id, copy.EntityType, copy.TotalRows }), ct);
+            return CreatedAtAction(nameof(GetJob), new { id = copy.Id }, copy.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     /// <summary>Get a comparison summary between the upload and the current baseline.</summary>
     [HttpGet("{id:guid}/comparison")]
     public async Task<ActionResult<ImportComparisonDto>> GetComparison(Guid id, CancellationToken ct)
