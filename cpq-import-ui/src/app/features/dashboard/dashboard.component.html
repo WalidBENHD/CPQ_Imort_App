@@ -11,7 +11,7 @@
   </header>
 
   <mat-card class="scope-strip">
-    <div><span>Pilot scope</span><strong>{{ pilotScope.site }} · {{ pilotScope.productFamily }}</strong><small>{{ pilotScope.submissionType }}</small></div>
+    <div><span>Pilot scope</span><strong>{{ pilotScope.site }} &middot; {{ pilotScope.productFamily }}</strong><small>{{ pilotScope.submissionType }}</small></div>
     <div class="scope-chips"><span *ngFor="let chip of pilotChips">{{ chip }}</span></div>
   </mat-card>
 
@@ -21,7 +21,7 @@
         <span class="metric-icon"><mat-icon>lock_person</mat-icon></span>
         <span class="metric-copy"><small>Only visible to you</small><strong>My drafts</strong></span>
         <b>{{ privateJobs.length }}</b>
-        <span class="metric-detail">{{ readyToSubmit.length }} ready · {{ privateCorrections.length }} need correction</span>
+        <span class="metric-detail">{{ readyToSubmit.length }} ready &middot; {{ privateCorrections.length }} need correction</span>
       </button>
 
       <button class="metric metric--attention" type="button" (click)="openAttention()">
@@ -72,7 +72,7 @@
         <div class="job-list" *ngIf="privateJobs.length; else noPrivateWork">
           <button type="button" class="job-row" *ngFor="let job of privateJobs | slice:0:3" (click)="view(job)">
             <span class="job-icon"><mat-icon>description</mat-icon></span>
-            <span class="job-main"><strong>{{ job.originalFileName }}</strong><small>{{ job.entityTypeLabel }} · {{ job.totalRows }} rows · {{ job.createdAt | date:'dd MMM, HH:mm' }}</small></span>
+            <span class="job-main"><strong>{{ job.originalFileName }}</strong><small>{{ job.entityTypeLabel }} &middot; {{ job.totalRows }} rows &middot; {{ job.createdAt | date:'dd MMM, HH:mm' }}</small></span>
             <span class="private-status" [class.private-status--error]="job.errorRows > 0">{{ privateStatus(job) }}</span>
             <mat-icon class="chevron">chevron_right</mat-icon>
           </button>
@@ -95,7 +95,7 @@
 
         <div class="latest-publication" *ngIf="latestPublished as published; else noPublication">
           <span class="published-icon"><mat-icon>verified</mat-icon></span>
-          <div><small>Latest publication</small><strong>{{ published.originalFileName }}</strong><span>{{ published.entityTypeLabel }} · {{ published.committedRows }} rows</span></div>
+          <div><small>Latest publication</small><strong>{{ published.originalFileName }}</strong><span>{{ published.entityTypeLabel }} &middot; {{ published.committedRows }} rows</span></div>
           <button mat-icon-button (click)="view(published)"><mat-icon>arrow_forward</mat-icon></button>
         </div>
         <ng-template #noPublication><div class="compact-empty">No publication record is available yet.</div></ng-template>
@@ -109,7 +109,7 @@
         <div class="activity-list" *ngIf="activityJobs.length; else noActivity">
           <button type="button" *ngFor="let job of activityJobs" (click)="view(job)">
             <span class="activity-icon"><mat-icon>{{ activityIcon(job) }}</mat-icon></span>
-            <span><strong>{{ activityLabel(job) }}</strong><small>{{ job.originalFileName }} · {{ job.createdByDisplayName }}</small></span>
+            <span><strong>{{ activityLabel(job) }}</strong><small>{{ job.originalFileName }} &middot; {{ job.createdByDisplayName }}</small></span>
             <time>{{ job.committedAt || job.approvedAt || job.rejectedAt || job.createdAt | date:'dd MMM, HH:mm' }}</time>
           </button>
         </div>
@@ -117,9 +117,9 @@
       </mat-card>
 
       <mat-card class="panel people-panel" *ngIf="showAdminInsights">
-        <header class="panel-head"><div><span class="panel-eyebrow panel-eyebrow--admin"><mat-icon>monitoring</mat-icon> Admin pulse</span><h2>Platform presence</h2><p>{{ liveUsersCount }} live now · {{ currentUsersCount }} approved users</p></div></header>
+        <header class="panel-head"><div><span class="panel-eyebrow panel-eyebrow--admin"><mat-icon>monitoring</mat-icon> Admin pulse</span><h2>Platform presence</h2><p>{{ liveUsersCount }} live now &middot; {{ currentUsersCount }} approved users</p></div></header>
         <div class="people-list">
-          <div *ngFor="let user of recentConnections"><span class="presence" [class]="'presence presence--' + getPresenceStatus(user)"></span><strong>{{ user.displayName }}</strong><small>{{ getPresenceLabel(user) }} · {{ formatLastSeen(user) }}</small></div>
+          <div *ngFor="let user of recentConnections"><span class="presence" [class]="'presence presence--' + getPresenceStatus(user)"></span><strong>{{ user.displayName }}</strong><small>{{ getPresenceLabel(user) }} &middot; {{ formatLastSeen(user) }}</small></div>
         </div>
       </mat-card>
     </div>

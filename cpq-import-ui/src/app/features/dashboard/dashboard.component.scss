@@ -13,16 +13,16 @@ h1 { margin: 0; font-size: clamp(27px, 3.5vw, 36px); line-height: 1.08; font-wei
 .scope-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .scope-chips span { padding: 5px 8px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: var(--app-surface-elevated); font-size: 10px; font-weight: 800; }
 
-.metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.metric-grid--admin { grid-template-columns: repeat(5, 1fr); }
-.metric { display: grid; grid-template-columns: 39px 1fr auto; gap: 10px; align-items: center; min-width: 0; padding: 14px; text-align: left; color: var(--app-text); border: 1px solid var(--app-border); border-radius: 17px; background: var(--app-surface-elevated); cursor: pointer; transition: transform .18s ease, border-color .18s ease; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.metric-grid--admin { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.metric { display: grid; grid-template-columns: 39px minmax(0, 1fr) auto; gap: 10px; align-items: start; min-width: 0; min-height: 116px; padding: 15px 16px 14px; text-align: left; color: var(--app-text); border: 1px solid var(--app-border); border-radius: 17px; background: var(--app-surface-elevated); cursor: pointer; transition: transform .18s ease, border-color .18s ease; }
 .metric:hover { transform: translateY(-2px); border-color: var(--metric-color); }
 .metric-icon { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 12px; color: var(--metric-color); background: color-mix(in srgb, var(--metric-color) 12%, transparent); }
-.metric-copy { display: flex; min-width: 0; flex-direction: column; }
+.metric-copy { display: flex; min-width: 0; flex-direction: column; padding-top: 1px; }
 .metric-copy small { color: var(--app-text-muted); font-size: 9px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-.metric-copy strong { margin-top: 2px; font-size: 13px; }
-.metric b { font-size: 26px; color: var(--metric-color); }
-.metric-detail { grid-column: 2 / 4; color: var(--app-text-muted); font-size: 10px; }
+.metric-copy strong { margin-top: 2px; line-height: 1.1; font-size: 13px; }
+.metric b { align-self: start; line-height: 1; font-size: 26px; color: var(--metric-color); }
+.metric-detail { grid-column: 2 / 4; align-self: end; padding-top: 6px; color: var(--app-text-muted); font-size: 10px; }
 .metric--private { --metric-color: #0d9488; }
 .metric--attention { --metric-color: #dc2626; }
 .metric--review { --metric-color: #2563eb; }
@@ -113,7 +113,7 @@ h1 { margin: 0; font-size: clamp(27px, 3.5vw, 36px); line-height: 1.08; font-wei
 .scope-strip > div:first-child span { font-size: 11px; }
 .scope-strip > div:first-child strong { font-size: 16px; }
 .scope-chips span { padding: 6px 10px; font-size: 12px; }
-.metric { padding: 17px; }
+.metric { padding: 17px 18px 16px; min-height: 124px; }
 .metric-icon { width: 46px; height: 46px; }
 .metric-icon mat-icon { width: 26px; height: 26px; font-size: 26px; }
 .metric-copy small { font-size: 11px; }
@@ -157,7 +157,7 @@ h1 { margin: 0; font-size: clamp(27px, 3.5vw, 36px); line-height: 1.08; font-wei
   .scope-strip { align-items: flex-start; flex-direction: column; }
   .scope-chips { justify-content: flex-start; }
   .metric-grid { grid-template-columns: 1fr 1fr; }
-  .metric { grid-template-columns: 35px 1fr auto; padding: 11px; }
+  .metric { grid-template-columns: 35px minmax(0, 1fr) auto; padding: 11px 11px 10px; min-height: 0; }
   .metric-icon { width: 35px; height: 35px; }
   .metric b { font-size: 22px; }
   .metric-detail { display: none; }

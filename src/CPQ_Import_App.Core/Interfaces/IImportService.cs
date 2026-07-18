@@ -9,6 +9,8 @@ public interface IImportService
         string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CopyToWorkspaceAsync(Guid sourceJobId, string fileName,
         string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> RenameUploadAsync(Guid jobId, string name,
+        string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid jobId, CancellationToken ct = default);
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
@@ -23,6 +25,7 @@ public interface IImportService
     Task<ReleasePackageSummary> GetReleasePackageAsync(Guid packageId, string userId, bool canReview, CancellationToken ct = default);
     Task<ReleasePackageSummary> SubmitReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> ApproveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ReleasePackageSummary> RejectReleasePackageAsync(Guid packageId, string userId, string userDisplayName, string reason, CancellationToken ct = default);
     Task<ReleasePackageSummary> PublishReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);

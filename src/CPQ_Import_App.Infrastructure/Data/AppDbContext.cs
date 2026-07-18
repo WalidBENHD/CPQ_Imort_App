@@ -70,6 +70,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.SubmittedByDisplayName).HasMaxLength(512);
             e.Property(x => x.ApprovedByUserId).HasMaxLength(256);
             e.Property(x => x.ApprovedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.RejectedByUserId).HasMaxLength(256);
+            e.Property(x => x.RejectedByDisplayName).HasMaxLength(512);
+            e.Property(x => x.RejectionReason).HasMaxLength(2000);
             e.Property(x => x.PublishedByDisplayName).HasMaxLength(512);
             e.Property(x => x.FailureReason).HasMaxLength(2000);
             e.Property(x => x.ApprovalEvidenceJson).HasColumnType(isNpgsql ? "text" : "nvarchar(max)");

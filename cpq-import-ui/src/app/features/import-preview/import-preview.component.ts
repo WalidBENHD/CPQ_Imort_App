@@ -30,6 +30,7 @@ import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.component';
 import { DependencyContextPrototypeComponent } from './dependency-context-prototype.component';
+import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
 
 @Component({
   selector: 'app-import-preview',
@@ -48,7 +49,19 @@ import { DependencyContextPrototypeComponent } from './dependency-context-protot
         <a mat-button routerLink="/uploads" class="back-btn">
           <mat-icon>arrow_back</mat-icon> Uploads
         </a>
-        <h1 *ngIf="job">{{ job.originalFileName }}</h1>
+        <div class="upload-name-row" *ngIf="job">
+          <h1>{{ job.originalFileName }}</h1>
+          <button
+            *ngIf="canRenameUpload()"
+            mat-icon-button
+            class="rename-upload"
+            [disabled]="workflowActionRunning"
+            matTooltip="Rename upload"
+            aria-label="Rename upload"
+            (click)="renameUpload()">
+            <mat-icon>edit</mat-icon>
+          </button>
+        </div>
       </div>
       <div class="header-actions" *ngIf="job">
         <button mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download original file">
@@ -806,6 +819,10 @@ import { DependencyContextPrototypeComponent } from './dependency-context-protot
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
     .back-btn { margin-bottom: 4px; }
     h1 { margin: 0; font-size: 20px; font-weight: 400; }
+    .upload-name-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .upload-name-row h1 { overflow-wrap: anywhere; }
+    .rename-upload { flex: none; width: 34px; height: 34px; color: var(--app-accent); }
+    .rename-upload mat-icon { width: 18px; height: 18px; font-size: 18px; }
     .header-actions { display: flex; gap: 8px; margin-top: 24px; align-items: center; }
     .header-action-btn {
       border-radius: 999px;
@@ -1835,6 +1852,35 @@ export class ImportPreviewComponent implements OnInit {
     return !!this.job
       && this.job.createdBy === this.auth.userId
       && this.job.workflowStageLabel === 'Private';
+  }
+
+  canRenameUpload(): boolean {
+    return this.isPrivateWorkspace && this.auth.hasCapability('imports.correct_own');
+  }
+
+  renameUpload(): void {
+    if (!this.job || !this.canRenameUpload()) return;
+
+    const job = this.job;
+    this.dialog.open(RenameUploadDialogComponent, {
+      data: { fileName: job.originalFileName },
+      autoFocus: false,
+      panelClass: 'app-dialog-panel'
+    }).afterClosed().subscribe(requestedName => {
+      if (!requestedName) return;
+      this.workflowActionRunning = true;
+      this.importService.renameUpload(job.id, requestedName).subscribe({
+        next: updated => {
+          this.job = updated;
+          this.workflowActionRunning = false;
+          this.snackBar.open('Upload renamed.', 'Close', { duration: 3500 });
+        },
+        error: error => {
+          this.workflowActionRunning = false;
+          this.snackBar.open(error?.error?.error ?? 'The upload could not be renamed.', 'Close', { duration: 6000 });
+        }
+      });
+    });
   }
 
   get isDependentDataset(): boolean {

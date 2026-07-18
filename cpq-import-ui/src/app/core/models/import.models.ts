@@ -4,7 +4,7 @@ export type ImportWorkflowStage = 'Private' | 'Submitted' | 'Approved' | 'Publis
 export type RowStatus = 'Valid' | 'Warning' | 'Error';
 export type ComparisonStatus = 'New' | 'Modified' | 'Unchanged';
 export type ValidationAnchorKind = 0 | 1 | 2 | 3;
-export type ReleasePackageStatus = 0 | 1 | 2 | 3 | 4 | 5;
+export type ReleasePackageStatus = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface DatasetDefinition {
   key: EntityType;
@@ -153,6 +153,9 @@ export interface ReleasePackage {
   submittedAt: string | null;
   approvedAt: string | null;
   approvedByDisplayName: string | null;
+  rejectedAt: string | null;
+  rejectedByDisplayName: string | null;
+  rejectionReason: string | null;
   publishedAt: string | null;
   publishedByDisplayName: string | null;
   failureReason: string | null;

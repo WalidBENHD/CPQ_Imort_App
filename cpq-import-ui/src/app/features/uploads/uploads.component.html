@@ -85,6 +85,16 @@
       <div class="upload-main">
         <div class="upload-title-row">
           <strong>{{ job.originalFileName }}</strong>
+          <button
+            *ngIf="canRename(job)"
+            mat-icon-button
+            class="rename-upload"
+            [disabled]="actionJobId === job.id"
+            matTooltip="Rename upload"
+            aria-label="Rename upload"
+            (click)="rename(job, $event)">
+            <mat-icon>edit</mat-icon>
+          </button>
           <span class="prototype-status" *ngIf="activeSpace === 'workspace'">{{ workspaceStatus(job) }}</span>
           <app-status-badge *ngIf="activeSpace !== 'workspace'" [status]="job.statusLabel" />
         </div>

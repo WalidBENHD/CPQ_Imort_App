@@ -113,6 +113,33 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    /// <summary>Rename an upload in its owner's private workspace.</summary>
+    [HttpPatch("{id:guid}/name")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<ActionResult<ImportJobDto>> RenameUpload(
+        Guid id,
+        [FromBody] RenameImportRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var job = await importService.RenameUploadAsync(id, request.Name, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "RenameImport",
+                $"Renamed private upload to {job.OriginalFileName}.",
+                TargetType: "ImportJob",
+                TargetId: job.Id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { job.OriginalFileName }), ct);
+            return Ok(job.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     /// <summary>Get a comparison summary between the upload and the current baseline.</summary>
     [HttpGet("{id:guid}/comparison")]
     public async Task<ActionResult<ImportComparisonDto>> GetComparison(Guid id, CancellationToken ct)
@@ -380,7 +407,7 @@ public class ImportsController(
     {
         try
         {
-            var canReview = User.Claims.Any(claim => claim.Value is Capabilities.ImportsApprove or Capabilities.ImportsPublish);
+            var canReview = User.Claims.Any(claim => claim.Value is Capabilities.ImportsApprove or Capabilities.ImportsReject or Capabilities.ImportsPublish);
             return Ok((await importService.GetReleasePackageAsync(packageId, UserId, canReview, ct)).ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
@@ -447,6 +474,37 @@ public class ImportsController(
             return Ok(package.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpPost("release-packages/{packageId:guid}/reject")]
+    [Authorize(Policy = Capabilities.ImportsReject)]
+    public async Task<ActionResult<ReleasePackageDto>> RejectReleasePackage(
+        Guid packageId, [FromBody] RejectRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "A rejection reason is required." });
+
+        try
+        {
+            var package = await importService.RejectReleasePackageAsync(
+                packageId, UserId, UserDisplayName, request.Reason, ct);
+            var representative = await importService.GetJobAsync(package.Items.First().JobId, ct);
+            if (representative is not null && Guid.TryParse(package.CreatedBy, out var ownerId))
+                await notificationService.NotifyReleaseRejectedAsync(package, representative, ownerId);
+
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "RejectReleasePackage",
+                $"Rejected release package '{package.Name}'.",
+                TargetType: "ReleasePackage",
+                TargetId: package.Id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { Reason = request.Reason.Trim() }), ct);
+            return Ok(package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 

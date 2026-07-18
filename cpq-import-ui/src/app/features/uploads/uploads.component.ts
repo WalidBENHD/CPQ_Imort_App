@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -16,6 +17,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
 import { DATASET_CATALOG, EntityType, ImportJob } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
+import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
 
 type UploadSpace = 'workspace' | 'review' | 'history';
 
@@ -38,6 +40,7 @@ interface UploadSpaceDefinition {
     RouterLink,
     MatButtonModule,
     MatCardModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -56,6 +59,7 @@ export class UploadsComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly spaces: UploadSpaceDefinition[] = [
@@ -267,6 +271,31 @@ export class UploadsComponent implements OnInit {
     });
   }
 
+  rename(job: ImportJob, event: Event): void {
+    event.stopPropagation();
+    if (!this.canRename(job)) return;
+
+    this.dialog.open(RenameUploadDialogComponent, {
+      data: { fileName: job.originalFileName },
+      autoFocus: false,
+      panelClass: 'app-dialog-panel'
+    }).afterClosed().subscribe(requestedName => {
+      if (!requestedName) return;
+      this.actionJobId = job.id;
+      this.importService.renameUpload(job.id, requestedName).subscribe({
+        next: updated => {
+          this.replaceJob(updated);
+          this.actionJobId = null;
+          this.snackBar.open('Upload renamed.', 'Close', { duration: 3500 });
+        },
+        error: error => {
+          this.actionJobId = null;
+          this.snackBar.open(error?.error?.error ?? 'The upload could not be renamed.', 'Close', { duration: 6000 });
+        }
+      });
+    });
+  }
+
   canSubmit(job: ImportJob): boolean {
     return job.statusLabel === 'AwaitingApproval'
       && job.workflowStageLabel === 'Private'
@@ -277,6 +306,12 @@ export class UploadsComponent implements OnInit {
   canDiscard(job: ImportJob): boolean {
     return job.createdBy === this.auth.userId
       && job.workflowStageLabel === 'Private';
+  }
+
+  canRename(job: ImportJob): boolean {
+    return job.createdBy === this.auth.userId
+      && job.workflowStageLabel === 'Private'
+      && this.auth.hasCapability('imports.correct_own');
   }
 
   canWithdraw(job: ImportJob): boolean {
@@ -338,4 +373,5 @@ export class UploadsComponent implements OnInit {
     if (extensionIndex <= 0) return `${fileName} - Working Copy`;
     return `${fileName.slice(0, extensionIndex)} - Working Copy${fileName.slice(extensionIndex)}`;
   }
+
 }

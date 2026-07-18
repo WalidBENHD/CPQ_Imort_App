@@ -65,6 +65,34 @@ public class ControlledPublicationTests
         Assert.Equal(source.ValidationAnchorPinnedAt, copy.ValidationAnchorPinnedAt);
     }
 
+    [Theory]
+    [InlineData("Annual Article List", "Annual Article List.xlsx")]
+    [InlineData("Annual Article List.xlsx", "Annual Article List.xlsx")]
+    public async Task RenameUploadAsync_PreservesFileExtension(string requestedName, string expectedName)
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var renamed = await service.RenameUploadAsync(job.Id, requestedName, job.CreatedBy, job.CreatedByDisplayName);
+
+        Assert.Equal(expectedName, renamed.OriginalFileName);
+        Assert.Contains(repository.AuditLogs, entry => entry.Action == "Renamed");
+    }
+
+    [Fact]
+    public async Task RenameUploadAsync_RejectsUploadOutsidePrivateWorkspace()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        var service = CreateService(
+            new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true)),
+            new FakeCommitStrategy());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.RenameUploadAsync(job.Id, "Renamed", job.CreatedBy, job.CreatedByDisplayName));
+    }
+
     [Fact]
     public async Task ApplyDependencyAnchorAsync_RevalidatesPriceRowsAgainstSelectedMaster()
     {
@@ -180,6 +208,66 @@ public class ControlledPublicationTests
         Assert.Equal(ValidationAnchorKind.ActiveBaseline, priceJob.ValidationAnchorKind);
         Assert.Empty(repository.ReleasePackages);
         Assert.Contains(repository.AuditLogs, log => log.Action == "ReleasePackageDissolved");
+    }
+
+    [Fact]
+    public async Task RejectReleasePackageAsync_RejectsEveryItemWithSharedReason()
+    {
+        var packageId = Guid.NewGuid();
+        var master = CreateJob(ImportStatus.AwaitingApproval);
+        master.WorkflowStage = ImportWorkflowStage.Submitted;
+        master.ReleasePackageId = packageId;
+        var price = CreatePriceJob();
+        price.WorkflowStage = ImportWorkflowStage.Submitted;
+        price.ReleasePackageId = packageId;
+        var repository = new FakeImportRepository(master, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(price);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Annual 2027",
+            Status = ReleasePackageStatus.Submitted,
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var result = await service.RejectReleasePackageAsync(
+            packageId, "approver-id", "Anne Approver", "Correct the prices and resubmit.");
+
+        Assert.Equal(ReleasePackageStatus.Rejected, result.Status);
+        Assert.Equal("Anne Approver", result.RejectedByDisplayName);
+        Assert.Equal("Correct the prices and resubmit.", result.RejectionReason);
+        Assert.All(new[] { master, price }, item =>
+        {
+            Assert.Equal(ImportStatus.Rejected, item.Status);
+            Assert.Equal(ImportWorkflowStage.Rejected, item.WorkflowStage);
+            Assert.Equal(result.RejectedAt, item.RejectedAt);
+            Assert.Equal(result.RejectionReason, item.RejectionReason);
+        });
+        Assert.Equal(2, repository.AuditLogs.Count(log => log.Action == "ReleasePackageRejected"));
+    }
+
+    [Fact]
+    public async Task RejectReleasePackageAsync_PreventsOwnerRejectingOwnRelease()
+    {
+        var packageId = Guid.NewGuid();
+        var master = CreateJob(ImportStatus.AwaitingApproval);
+        master.WorkflowStage = ImportWorkflowStage.Submitted;
+        master.ReleasePackageId = packageId;
+        var repository = new FakeImportRepository(master, CreateComparison(Guid.NewGuid(), true));
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Annual 2027",
+            Status = ReleasePackageStatus.Submitted,
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectReleasePackageAsync(
+            packageId, "contributor-id", "Cara Contributor", "Changed my mind."));
     }
 
     [Fact]

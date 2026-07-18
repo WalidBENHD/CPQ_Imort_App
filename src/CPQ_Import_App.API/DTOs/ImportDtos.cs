@@ -64,6 +64,8 @@ public record UploadRequest(string EntityType);
 
 public record CopyToWorkspaceRequest(string FileName);
 
+public record RenameImportRequest(string Name);
+
 public record RejectRequest(string Reason);
 
 public record UpdateRowRequest(Dictionary<string, string?> Fields);
@@ -143,6 +145,9 @@ public record ReleasePackageDto(
     DateTime? SubmittedAt,
     DateTime? ApprovedAt,
     string? ApprovedByDisplayName,
+    DateTime? RejectedAt,
+    string? RejectedByDisplayName,
+    string? RejectionReason,
     DateTime? PublishedAt,
     string? PublishedByDisplayName,
     string? FailureReason,

@@ -37,7 +37,8 @@ public enum ReleasePackageStatus
     Approved = 2,
     Publishing = 3,
     Published = 4,
-    Failed = 5
+    Failed = 5,
+    Rejected = 6
 }
 
 public enum ImportWorkflowStage

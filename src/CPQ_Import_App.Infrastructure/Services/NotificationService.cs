@@ -14,6 +14,7 @@ public interface INotificationService
     Task NotifyImportUploadedAsync(ImportJob job, List<Guid> approverIds);
     Task NotifyImportNeedsCorrectionAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportRejectedAsync(ImportJob job, Guid uploaderId);
+    Task NotifyReleaseRejectedAsync(ReleasePackageSummary package, ImportJob representative, Guid ownerId);
     Task NotifyImportApprovedAsync(ImportJob job, Guid uploaderId);
     Task NotifyImportCommittedAsync(ImportJob job, Guid uploaderId);
     Task ClearImportNotificationsAsync(Guid importId);
@@ -150,6 +151,20 @@ public class NotificationService(
             Title = "Import Rejected",
             Message = $"Your import '{job.OriginalFileName}' was rejected. Reason: {job.RejectionReason}",
             RelatedImportId = job.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+        await _notificationRepository.CreateAsync(notification);
+    }
+
+    public async Task NotifyReleaseRejectedAsync(ReleasePackageSummary package, ImportJob representative, Guid ownerId)
+    {
+        var notification = new Notification
+        {
+            UserId = ownerId,
+            NotificationType = NotificationType.ImportRejected,
+            Title = "Release Rejected",
+            Message = $"Your release '{package.Name}' was rejected. Reason: {package.RejectionReason}",
+            RelatedImportId = representative.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
         await _notificationRepository.CreateAsync(notification);

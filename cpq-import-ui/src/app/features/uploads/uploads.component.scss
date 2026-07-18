@@ -71,6 +71,8 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); line-height: 1; font-weight: 
 .upload-main { min-width: 0; }
 .upload-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
 .upload-title-row > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.rename-upload { width: 30px; height: 30px; color: var(--app-accent); }
+.rename-upload mat-icon { width: 17px; height: 17px; font-size: 17px; }
 .prototype-status { padding: 4px 8px; border-radius: 999px; color: #075985; background: color-mix(in srgb, #38bdf8 15%, transparent); font-size: 10px; font-weight: 900; text-transform: uppercase; }
 .upload-details { display: flex; flex-wrap: wrap; gap: 6px 15px; margin-top: 7px; color: var(--app-text-muted); font-size: 12px; }
 .upload-details span { display: inline-flex; align-items: center; gap: 4px; }

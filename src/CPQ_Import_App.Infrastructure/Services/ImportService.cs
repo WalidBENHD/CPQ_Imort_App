@@ -645,6 +645,54 @@ public class ImportService(
         return ToReleaseSummary(package);
     }
 
+    public async Task<ReleasePackageSummary> RejectReleasePackageAsync(
+        Guid packageId, string userId, string userDisplayName, string reason, CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (package.Status != ReleasePackageStatus.Submitted)
+            throw new InvalidOperationException("Only a submitted release package can be rejected.");
+        if (string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("You cannot reject your own release package.");
+
+        var trimmedReason = reason.Trim();
+        if (trimmedReason.Length is 0 or > 2000)
+            throw new InvalidDataException("Provide a rejection reason of at most 2000 characters.");
+        if (package.Jobs.Any(job => job.Status != ImportStatus.AwaitingApproval || job.WorkflowStage != ImportWorkflowStage.Submitted))
+            throw new InvalidOperationException("Every release item must still be awaiting approval before the release can be rejected.");
+
+        var rejectedAt = DateTime.UtcNow;
+        package.Status = ReleasePackageStatus.Rejected;
+        package.RejectedAt = rejectedAt;
+        package.RejectedByUserId = userId;
+        package.RejectedByDisplayName = userDisplayName;
+        package.RejectionReason = trimmedReason;
+
+        foreach (var job in package.Jobs)
+        {
+            job.Status = ImportStatus.Rejected;
+            job.WorkflowStage = ImportWorkflowStage.Rejected;
+            job.RejectedAt = rejectedAt;
+            job.RejectedBy = userDisplayName;
+            job.RejectionReason = trimmedReason;
+        }
+
+        await repository.SaveChangesAsync(ct);
+        foreach (var job in package.Jobs)
+        {
+            await repository.AddAuditLogAsync(new AuditLog
+            {
+                ImportJobId = job.Id,
+                Action = "ReleasePackageRejected",
+                PerformedBy = userId,
+                PerformedByDisplayName = userDisplayName,
+                Details = $"Release package '{package.Name}' rejected: {trimmedReason}"
+            }, ct);
+        }
+
+        return ToReleaseSummary(package);
+    }
+
     public async Task<ReleasePackageSummary> PublishReleasePackageAsync(
         Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
     {
@@ -748,6 +796,36 @@ public class ImportService(
         };
 
         return await repository.CreateCopiedJobAsync(job, rows, requestedName, sourceFile, auditLog, ct);
+    }
+
+    public async Task<ImportJob> RenameUploadAsync(
+        Guid jobId,
+        string name,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+        EnsurePrivateOwner(job, userId, "rename");
+
+        var previousName = job.OriginalFileName;
+        var normalizedName = NormalizeUploadName(name, previousName);
+        if (string.Equals(previousName, normalizedName, StringComparison.Ordinal))
+            return job;
+
+        job.OriginalFileName = normalizedName;
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "Renamed",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Private upload renamed from '{previousName}' to '{normalizedName}'."
+        }, ct);
+
+        return job;
     }
 
     public async Task<ImportJob> WithdrawFromReviewAsync(
@@ -1675,6 +1753,9 @@ public class ImportService(
             package.SubmittedAt,
             package.ApprovedAt,
             package.ApprovedByDisplayName,
+            package.RejectedAt,
+            package.RejectedByDisplayName,
+            package.RejectionReason,
             package.PublishedAt,
             package.PublishedByDisplayName,
             package.FailureReason,
@@ -1839,6 +1920,41 @@ public class ImportService(
             throw new UnauthorizedAccessException($"Only the original uploader can {action} this private upload.");
         if (job.WorkflowStage != ImportWorkflowStage.Private)
             throw new InvalidOperationException($"This upload is in the '{job.WorkflowStage}' workflow stage and cannot be {action}ed.");
+    }
+
+    private static string NormalizeUploadName(string requestedName, string currentName)
+    {
+        if (string.IsNullOrWhiteSpace(requestedName))
+            throw new InvalidDataException("Provide a name for this upload.");
+
+        var extension = Path.GetExtension(currentName);
+        if (string.IsNullOrWhiteSpace(extension))
+            throw new InvalidDataException("The upload's file type could not be determined.");
+
+        var name = requestedName.Trim();
+        if (Path.GetFileName(name) != name || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            throw new InvalidDataException("The upload name contains invalid characters.");
+
+        var requestedExtension = Path.GetExtension(name);
+        if (string.Equals(requestedExtension, extension, StringComparison.OrdinalIgnoreCase))
+        {
+            name = Path.GetFileNameWithoutExtension(name).Trim();
+        }
+        else if (requestedExtension is not null
+                 && new[] { ".xlsx", ".xls", ".csv" }.Contains(requestedExtension, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"This upload must keep its '{extension}' file type.");
+        }
+
+        name = name.TrimEnd('.').Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidDataException("Provide a name for this upload.");
+
+        var normalizedName = $"{name}{extension}";
+        if (normalizedName.Length > 180)
+            throw new InvalidDataException("The upload name must be at most 180 characters including its file type.");
+
+        return normalizedName;
     }
 
     private static ImportComparisonResult DeserializeSubmittedComparison(string json)

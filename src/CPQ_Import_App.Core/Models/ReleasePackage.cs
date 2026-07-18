@@ -15,6 +15,10 @@ public class ReleasePackage
     public DateTime? ApprovedAt { get; set; }
     public string? ApprovedByUserId { get; set; }
     public string? ApprovedByDisplayName { get; set; }
+    public DateTime? RejectedAt { get; set; }
+    public string? RejectedByUserId { get; set; }
+    public string? RejectedByDisplayName { get; set; }
+    public string? RejectionReason { get; set; }
     public DateTime? PublishedAt { get; set; }
     public string? PublishedByDisplayName { get; set; }
     public string? FailureReason { get; set; }

@@ -104,12 +104,22 @@ export class ImportService {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/approve`, {});
   }
 
+  rejectReleasePackage(packageId: string, reason: string): Observable<ReleasePackage> {
+    return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/reject`, { reason }).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
   publishReleasePackage(packageId: string): Observable<ReleasePackage> {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/publish`, {});
   }
 
   copyToWorkspace(jobId: string, fileName: string): Observable<ImportJob> {
     return this.http.post<ImportJob>(`${this.base}/${jobId}/copy-to-workspace`, { fileName });
+  }
+
+  renameUpload(jobId: string, name: string): Observable<ImportJob> {
+    return this.http.patch<ImportJob>(`${this.base}/${jobId}/name`, { name });
   }
 
   addRow(jobId: string, fields: Record<string, string | null>): Observable<ImportJob> {
