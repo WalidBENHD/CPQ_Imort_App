@@ -10,6 +10,7 @@ namespace CPQ_Import_App.API.Mapping;
 public static class DtoMapper
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
+    private static string DisplayName(string fileName) => Path.GetFileNameWithoutExtension(fileName);
 
     private static string? ResolveActorDisplayName(ImportJob job, string? actor, string action)
     {
@@ -30,7 +31,10 @@ public static class DtoMapper
 
     public static ImportJobDto ToDto(this ImportJob job) => new(
         job.Id,
-        job.OriginalFileName,
+        DisplayName(job.OriginalFileName),
+        string.IsNullOrWhiteSpace(Path.GetExtension(job.FileName))
+            ? Path.GetExtension(job.OriginalFileName)
+            : Path.GetExtension(job.FileName),
         job.EntityType,
         DatasetCatalog.Get(job.EntityType).DisplayName,
         job.Status,
@@ -69,11 +73,11 @@ public static class DtoMapper
     );
 
     public static ValidationAnchorSummaryDto ToDto(this ValidationAnchorSummary anchor) => new(
-        anchor.JobId, anchor.FileName, anchor.VersionLabel, anchor.PublishedAt,
+        anchor.JobId, DisplayName(anchor.FileName), anchor.VersionLabel, anchor.PublishedAt,
         anchor.ArticleCount, anchor.IsActive, anchor.IsReleaseCandidate);
 
     public static ArticleMasterCandidateSummaryDto ToDto(this ArticleMasterCandidateSummary candidate) => new(
-        candidate.JobId, candidate.FileName, candidate.VersionLabel, candidate.CreatedAt,
+        candidate.JobId, DisplayName(candidate.FileName), candidate.VersionLabel, candidate.CreatedAt,
         candidate.PublishedAt, candidate.ArticleCount, candidate.IsActive, candidate.Source,
         candidate.OwnerDisplayName, candidate.Status, candidate.WorkflowStage, candidate.ErrorRows,
         candidate.IsEligible, candidate.RequiresWorkingCopy, candidate.IneligibleReason,
@@ -84,7 +88,7 @@ public static class DtoMapper
         impact.ArticlesWithoutDependentData, impact.MissingArticleNumbers);
 
     public static ReleasePackageItemDto ToDto(this ReleasePackageItemSummary item) => new(
-        item.JobId, item.EntityType, item.DatasetName, item.FileName, item.Status,
+        item.JobId, item.EntityType, item.DatasetName, DisplayName(item.FileName), item.Status,
         item.WorkflowStage, item.TotalRows, item.ErrorRows, item.IsValidationAnchor);
 
     public static ReleasePackageDto ToDto(this ReleasePackageSummary package) => new(

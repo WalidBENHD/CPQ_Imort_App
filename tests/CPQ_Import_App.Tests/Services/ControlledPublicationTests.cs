@@ -27,11 +27,12 @@ public class ControlledPublicationTests
         ]);
         var service = CreateService(repository, new FakeCommitStrategy());
 
-        var copy = await service.CopyToWorkspaceAsync(source.Id, "published - Working Copy.xlsx", "new-owner", "Nina Owner");
+        var copy = await service.CopyToWorkspaceAsync(source.Id, "published - Working Copy", "new-owner", "Nina Owner");
 
         Assert.Equal(ImportWorkflowStage.Private, copy.WorkflowStage);
         Assert.Equal(ImportStatus.AwaitingApproval, copy.Status);
         Assert.Equal("new-owner", copy.CreatedBy);
+        Assert.Equal("published - Working Copy.xlsx", copy.OriginalFileName);
         Assert.Equal(2, copy.TotalRows);
         Assert.NotEqual(source.Id, copy.Id);
         Assert.Equal([1, 2, 3], repository.CopiedContent);

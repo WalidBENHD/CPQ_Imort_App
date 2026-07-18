@@ -56,6 +56,7 @@ export interface DatasetRequirement {
 export interface ImportJob {
   id: string;
   originalFileName: string;
+  fileExtension: string;
   entityType: number;
   entityTypeLabel: string;
   status: number;

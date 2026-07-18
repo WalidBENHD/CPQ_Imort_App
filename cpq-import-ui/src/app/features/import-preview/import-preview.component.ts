@@ -1799,8 +1799,8 @@ export class ImportPreviewComponent implements OnInit {
     if (!this.job || !this.hasDraftChanges) return;
     this.importService.downloadWorkingCopy(this.job.id).subscribe({
       next: blob => {
-        const extension = this.job!.originalFileName.toLowerCase().endsWith('.csv') ? '.csv' : '.xlsx';
-        const stem = this.job!.originalFileName.replace(/\.[^.]+$/, '');
+        const extension = this.job!.fileExtension || '.xlsx';
+        const stem = this.job!.originalFileName;
         const anchor = document.createElement('a');
         anchor.href = URL.createObjectURL(blob);
         anchor.download = `${stem}_working-copy${extension}`;
@@ -1865,7 +1865,9 @@ export class ImportPreviewComponent implements OnInit {
     this.dialog.open(RenameUploadDialogComponent, {
       data: { fileName: job.originalFileName },
       autoFocus: false,
-      panelClass: 'app-dialog-panel'
+      panelClass: 'app-dialog-panel',
+      width: '520px',
+      maxWidth: 'calc(100vw - 24px)'
     }).afterClosed().subscribe(requestedName => {
       if (!requestedName) return;
       this.workflowActionRunning = true;
@@ -2361,7 +2363,7 @@ export class ImportPreviewComponent implements OnInit {
     this.importService.downloadOriginal(this.job.id).subscribe(blob => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = this.job!.originalFileName;
+      a.download = `${this.job!.originalFileName}${this.job!.fileExtension}`;
       a.click();
     });
   }

@@ -71,7 +71,7 @@ public class DashboardController(
                 return new DashboardActivityDto(
                     a.JobId,
                     a.Action,
-                $"{dataset.DisplayName} - {a.OriginalFileName}",
+                $"{dataset.DisplayName} - {Path.GetFileNameWithoutExtension(a.OriginalFileName)}",
                     dataset.DisplayName,
                     a.PerformedByDisplayName,
                     a.PerformedAt,

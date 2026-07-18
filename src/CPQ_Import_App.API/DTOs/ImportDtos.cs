@@ -5,6 +5,7 @@ namespace CPQ_Import_App.API.DTOs;
 public record ImportJobDto(
     Guid Id,
     string OriginalFileName,
+    string FileExtension,
     EntityType EntityType,
     string EntityTypeLabel,
     ImportStatus Status,

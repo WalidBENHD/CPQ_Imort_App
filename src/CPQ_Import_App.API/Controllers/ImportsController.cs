@@ -63,7 +63,7 @@ public class ImportsController(
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,
                 "UploadImport",
-                $"Uploaded {job.OriginalFileName} for {job.EntityType}.",
+                $"Uploaded {Path.GetFileNameWithoutExtension(job.OriginalFileName)} for {job.EntityType}.",
                 TargetType: "ImportJob",
                 TargetId: job.Id.ToString(),
                 StatusCode: StatusCodes.Status201Created,
@@ -101,7 +101,7 @@ public class ImportsController(
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,
                 "CopyImportToWorkspace",
-                $"Created private working copy {copy.OriginalFileName} from import {id}.",
+                $"Created private working copy {Path.GetFileNameWithoutExtension(copy.OriginalFileName)} from import {id}.",
                 TargetType: "ImportJob",
                 TargetId: copy.Id.ToString(),
                 StatusCode: StatusCodes.Status201Created,
@@ -127,11 +127,11 @@ public class ImportsController(
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,
                 "RenameImport",
-                $"Renamed private upload to {job.OriginalFileName}.",
+                $"Renamed private upload to {Path.GetFileNameWithoutExtension(job.OriginalFileName)}.",
                 TargetType: "ImportJob",
                 TargetId: job.Id.ToString(),
                 StatusCode: StatusCodes.Status200OK,
-                Metadata: new { job.OriginalFileName }), ct);
+                Metadata: new { UploadName = Path.GetFileNameWithoutExtension(job.OriginalFileName) }), ct);
             return Ok(job.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
@@ -331,7 +331,7 @@ public class ImportsController(
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,
                 "SubmitImport",
-                $"Submitted {submitted.OriginalFileName} for team review.",
+                $"Submitted {Path.GetFileNameWithoutExtension(submitted.OriginalFileName)} for team review.",
                 TargetType: "ImportJob",
                 TargetId: id.ToString(),
                 StatusCode: StatusCodes.Status200OK), ct);
@@ -540,7 +540,7 @@ public class ImportsController(
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,
                 "WithdrawImport",
-                $"Withdrew {withdrawn.OriginalFileName} from team review.",
+                $"Withdrew {Path.GetFileNameWithoutExtension(withdrawn.OriginalFileName)} from team review.",
                 TargetType: "ImportJob",
                 TargetId: id.ToString(),
                 StatusCode: StatusCodes.Status200OK), ct);

@@ -24,6 +24,7 @@ public class NotificationService(
     INotificationRepository notificationRepository) : INotificationService
 {
     private readonly INotificationRepository _notificationRepository = notificationRepository;
+    private static string DisplayName(ImportJob job) => Path.GetFileNameWithoutExtension(job.OriginalFileName);
 
     public Task ClearImportNotificationsAsync(Guid importId)
         => _notificationRepository.DeleteForImportAsync(importId);
@@ -120,7 +121,7 @@ public class NotificationService(
                 UserId = approverId,
                 NotificationType = NotificationType.ImportUploaded,
                 Title = "New Submission Waiting for Review",
-                Message = $"{job.CreatedByDisplayName} submitted '{job.OriginalFileName}' ({job.EntityType}) for approval.",
+                Message = $"{job.CreatedByDisplayName} submitted '{DisplayName(job)}' ({job.EntityType}) for approval.",
                 RelatedImportId = job.Id,
                 ExpiresAt = DateTime.UtcNow.AddDays(7)
             };
@@ -135,7 +136,7 @@ public class NotificationService(
             UserId = uploaderId,
             NotificationType = NotificationType.ImportNeedsCorrection,
             Title = "Import Needs Correction",
-            Message = $"Errors were detected in '{job.OriginalFileName}'. Open the submission to correct the highlighted rows.",
+            Message = $"Errors were detected in '{DisplayName(job)}'. Open the submission to correct the highlighted rows.",
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -149,7 +150,7 @@ public class NotificationService(
             UserId = uploaderId,
             NotificationType = NotificationType.ImportRejected,
             Title = "Import Rejected",
-            Message = $"Your import '{job.OriginalFileName}' was rejected. Reason: {job.RejectionReason}",
+            Message = $"Your import '{DisplayName(job)}' was rejected. Reason: {job.RejectionReason}",
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -177,7 +178,7 @@ public class NotificationService(
             UserId = uploaderId,
             NotificationType = NotificationType.ImportApproved,
             Title = "Import Ready for Publication",
-            Message = $"Your import '{job.OriginalFileName}' has been approved. CPQ has not changed yet; the update is waiting for publication.",
+            Message = $"Your import '{DisplayName(job)}' has been approved. CPQ has not changed yet; the update is waiting for publication.",
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -191,7 +192,7 @@ public class NotificationService(
             UserId = uploaderId,
             NotificationType = NotificationType.ImportCommitted,
             Title = "Import Published",
-            Message = $"Your import '{job.OriginalFileName}' has been published to CPQ. {job.CommittedRows} rows were written.",
+            Message = $"Your import '{DisplayName(job)}' has been published to CPQ. {job.CommittedRows} rows were written.",
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };

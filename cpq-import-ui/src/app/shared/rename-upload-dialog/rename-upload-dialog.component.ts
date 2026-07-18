@@ -22,7 +22,7 @@ export interface RenameUploadDialogData {
         <div>
           <span class="eyebrow">Private workspace</span>
           <h2 mat-dialog-title>Rename upload</h2>
-          <p>Choose a clear working name. The file type stays unchanged.</p>
+          <p>Choose a clear name for this upload.</p>
         </div>
       </header>
 
@@ -36,8 +36,6 @@ export interface RenameUploadDialogData {
             (keydown.enter)="confirm()"
             cdkFocusInitial
             autocomplete="off">
-          <span matTextSuffix class="file-extension">{{ extension }}</span>
-          <mat-hint>The extension is added automatically.</mat-hint>
         </mat-form-field>
       </mat-dialog-content>
 
@@ -51,8 +49,8 @@ export interface RenameUploadDialogData {
     </section>
   `,
   styles: [`
-    :host { display: block; color: var(--app-text); }
-    .rename-dialog { width: min(520px, calc(100vw - 32px)); background: var(--app-surface-elevated); }
+    :host { display: block; width: 100%; min-width: 0; color: var(--app-text); }
+    .rename-dialog { width: 100%; min-width: 0; overflow: hidden; background: var(--app-surface-elevated); }
     header { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 14px; padding: 24px 24px 18px; border-bottom: 1px solid var(--app-border); background: linear-gradient(120deg, color-mix(in srgb, var(--app-accent) 9%, transparent), transparent 72%); }
     .dialog-mark { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 15px; color: white; background: var(--app-accent); box-shadow: 0 10px 25px color-mix(in srgb, var(--app-accent) 28%, transparent); }
     .dialog-mark mat-icon { width: 25px; height: 25px; font-size: 25px; }
@@ -61,21 +59,19 @@ export interface RenameUploadDialogData {
     header p { margin: 0; color: var(--app-text-muted); font-size: 13px; line-height: 1.45; }
     mat-dialog-content { padding: 22px 24px 10px; }
     mat-form-field { width: 100%; }
-    .file-extension { padding-right: 4px; color: var(--app-text-muted); font-weight: 800; }
     mat-dialog-actions { gap: 8px; padding: 8px 24px 22px; }
     mat-dialog-actions button { min-height: 42px; border-radius: 12px; font-weight: 800; }
     @media (max-width: 520px) {
-      .rename-dialog { width: calc(100vw - 20px); }
-      header { grid-template-columns: 42px minmax(0, 1fr); padding: 20px 18px 16px; }
-      .dialog-mark { width: 42px; height: 42px; border-radius: 13px; }
-      h2[mat-dialog-title] { font-size: 20px; }
-      mat-dialog-content { padding: 20px 18px 8px; }
-      mat-dialog-actions { padding: 8px 18px 18px; }
+      header { grid-template-columns: 38px minmax(0, 1fr); gap: 11px; padding: 18px 14px 14px; }
+      .dialog-mark { width: 38px; height: 38px; border-radius: 12px; }
+      h2[mat-dialog-title] { font-size: 19px; }
+      mat-dialog-content { padding: 18px 14px 6px; }
+      mat-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 14px 14px; }
+      mat-dialog-actions button { width: 100%; margin: 0; padding-inline: 10px; }
     }
   `]
 })
 export class RenameUploadDialogComponent {
-  readonly extension: string;
   readonly maxNameLength: number;
   name: string;
 
@@ -83,10 +79,8 @@ export class RenameUploadDialogComponent {
     @Inject(MAT_DIALOG_DATA) data: RenameUploadDialogData,
     readonly dialogRef: MatDialogRef<RenameUploadDialogComponent, string>
   ) {
-    const extensionIndex = data.fileName.lastIndexOf('.');
-    this.extension = extensionIndex > 0 ? data.fileName.slice(extensionIndex) : '';
-    this.name = extensionIndex > 0 ? data.fileName.slice(0, extensionIndex) : data.fileName;
-    this.maxNameLength = Math.max(1, 180 - this.extension.length);
+    this.name = data.fileName;
+    this.maxNameLength = 175;
   }
 
   confirm(): void {

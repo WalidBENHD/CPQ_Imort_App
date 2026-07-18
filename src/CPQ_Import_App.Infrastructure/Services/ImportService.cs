@@ -743,14 +743,10 @@ public class ImportService(
         if (string.IsNullOrWhiteSpace(fileName))
             throw new InvalidDataException("Provide a working-copy file name.");
 
-        var requestedName = fileName.Trim();
-        if (requestedName.Length > 180 || Path.GetFileName(requestedName) != requestedName)
-            throw new InvalidDataException("Provide a valid working-copy file name of at most 180 characters.");
-
-        var sourceExtension = Path.GetExtension(source.OriginalFileName);
-        if (string.IsNullOrWhiteSpace(sourceExtension)
-            || !string.Equals(Path.GetExtension(requestedName), sourceExtension, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"The working-copy name must keep the '{sourceExtension}' file extension.");
+        var sourceExtension = Path.GetExtension(source.FileName);
+        if (string.IsNullOrWhiteSpace(sourceExtension))
+            sourceExtension = Path.GetExtension(source.OriginalFileName);
+        var requestedName = NormalizeUploadName(fileName, $"source{sourceExtension}");
 
         var sourceFile = await repository.GetUploadedFileAsync(source.Id, ct)
             ?? throw new InvalidDataException("The source file is no longer available and cannot be copied.");

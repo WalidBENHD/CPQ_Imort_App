@@ -169,7 +169,7 @@ export class UploadsComponent implements OnInit {
     this.importService.downloadOriginal(job.id).subscribe(blob => {
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = job.originalFileName;
+      link.download = `${job.originalFileName}${job.fileExtension}`;
       link.click();
       URL.revokeObjectURL(link.href);
     });
@@ -278,7 +278,9 @@ export class UploadsComponent implements OnInit {
     this.dialog.open(RenameUploadDialogComponent, {
       data: { fileName: job.originalFileName },
       autoFocus: false,
-      panelClass: 'app-dialog-panel'
+      panelClass: 'app-dialog-panel',
+      width: '520px',
+      maxWidth: 'calc(100vw - 24px)'
     }).afterClosed().subscribe(requestedName => {
       if (!requestedName) return;
       this.actionJobId = job.id;
@@ -369,9 +371,7 @@ export class UploadsComponent implements OnInit {
   }
 
   private suggestWorkingCopyName(fileName: string): string {
-    const extensionIndex = fileName.lastIndexOf('.');
-    if (extensionIndex <= 0) return `${fileName} - Working Copy`;
-    return `${fileName.slice(0, extensionIndex)} - Working Copy${fileName.slice(extensionIndex)}`;
+    return `${fileName} - Working Copy`;
   }
 
 }

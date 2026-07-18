@@ -488,6 +488,10 @@ static async Task EnsurePostgresDependencyWorkflowAsync(AppDbContext db)
             "ApprovedAt" timestamp with time zone NULL,
             "ApprovedByUserId" character varying(256) NULL,
             "ApprovedByDisplayName" character varying(512) NULL,
+            "RejectedAt" timestamp with time zone NULL,
+            "RejectedByUserId" character varying(256) NULL,
+            "RejectedByDisplayName" character varying(512) NULL,
+            "RejectionReason" character varying(2000) NULL,
             "PublishedAt" timestamp with time zone NULL,
             "PublishedByDisplayName" character varying(512) NULL,
             "FailureReason" character varying(2000) NULL,
@@ -499,6 +503,10 @@ static async Task EnsurePostgresDependencyWorkflowAsync(AppDbContext db)
         ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ValidationAnchorKind" integer NOT NULL DEFAULT 0;
         ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ValidationAnchorPinnedAt" timestamp with time zone NULL;
         ALTER TABLE IF EXISTS import."ImportJobs" ADD COLUMN IF NOT EXISTS "ReleasePackageId" uuid NULL;
+        ALTER TABLE IF EXISTS import."ReleasePackages" ADD COLUMN IF NOT EXISTS "RejectedAt" timestamp with time zone NULL;
+        ALTER TABLE IF EXISTS import."ReleasePackages" ADD COLUMN IF NOT EXISTS "RejectedByUserId" character varying(256) NULL;
+        ALTER TABLE IF EXISTS import."ReleasePackages" ADD COLUMN IF NOT EXISTS "RejectedByDisplayName" character varying(512) NULL;
+        ALTER TABLE IF EXISTS import."ReleasePackages" ADD COLUMN IF NOT EXISTS "RejectionReason" character varying(2000) NULL;
 
         CREATE INDEX IF NOT EXISTS "IX_ImportJobs_ValidationAnchorJobId" ON import."ImportJobs" ("ValidationAnchorJobId");
         CREATE INDEX IF NOT EXISTS "IX_ImportJobs_ReleasePackageId" ON import."ImportJobs" ("ReleasePackageId");
