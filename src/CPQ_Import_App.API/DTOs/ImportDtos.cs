@@ -40,7 +40,8 @@ public record ImportJobDto(
     Guid? ValidationAnchorJobId,
     ValidationAnchorKind ValidationAnchorKind,
     DateTime? ValidationAnchorPinnedAt,
-    Guid? ReleasePackageId
+    Guid? ReleasePackageId,
+    string? ReleasePackageName
 );
 
 public record StagingRowDto(

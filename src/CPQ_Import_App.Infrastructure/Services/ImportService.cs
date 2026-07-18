@@ -615,6 +615,50 @@ public class ImportService(
         return ToReleaseSummary(package);
     }
 
+    public async Task<ReleasePackageSummary> WithdrawReleasePackageAsync(
+        Guid packageId,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (!string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Only the release owner can withdraw this release.");
+        if (package.Status != ReleasePackageStatus.Submitted)
+            throw new InvalidOperationException("Only a release currently waiting for approval can be withdrawn.");
+        if (package.Jobs.Count < 2 || package.Jobs.Any(job =>
+                job.WorkflowStage != ImportWorkflowStage.Submitted || job.Status != ImportStatus.AwaitingApproval))
+            throw new InvalidOperationException("Every dataset in the release must still be waiting for approval before it can be withdrawn.");
+
+        var withdrawnAt = DateTime.UtcNow;
+        foreach (var job in package.Jobs)
+        {
+            job.WorkflowStage = ImportWorkflowStage.Private;
+            job.WithdrawnAt = withdrawnAt;
+            job.SubmittedComparisonJson = null;
+        }
+
+        package.Status = ReleasePackageStatus.Draft;
+        package.SubmittedAt = null;
+        package.SubmittedByDisplayName = null;
+        await repository.SaveChangesAsync(ct);
+
+        foreach (var job in package.Jobs)
+        {
+            await repository.AddAuditLogAsync(new AuditLog
+            {
+                ImportJobId = job.Id,
+                Action = "ReleasePackageWithdrawn",
+                PerformedBy = userId,
+                PerformedByDisplayName = userDisplayName,
+                Details = $"Withdrew coordinated release '{package.Name}' from approval. Every dataset returned to the owner's private workspace."
+            }, ct);
+        }
+
+        return ToReleaseSummary(package);
+    }
+
     public async Task<ReleasePackageSummary> ApproveReleasePackageAsync(
         Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
     {

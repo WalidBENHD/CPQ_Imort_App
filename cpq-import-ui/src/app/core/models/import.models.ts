@@ -92,6 +92,7 @@ export interface ImportJob {
   validationAnchorKind: ValidationAnchorKind;
   validationAnchorPinnedAt: string | null;
   releasePackageId: string | null;
+  releasePackageName: string | null;
 }
 
 export interface ValidationAnchorSummary {

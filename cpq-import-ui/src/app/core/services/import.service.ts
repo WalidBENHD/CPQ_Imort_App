@@ -96,6 +96,16 @@ export class ImportService {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/submit`, {});
   }
 
+  getReleasePackage(packageId: string): Observable<ReleasePackage> {
+    return this.http.get<ReleasePackage>(`${this.base}/release-packages/${packageId}`);
+  }
+
+  withdrawReleasePackage(packageId: string): Observable<ReleasePackage> {
+    return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/withdraw`, {}).pipe(
+      tap(() => this.notificationService.pollNow().subscribe())
+    );
+  }
+
   dissolveReleasePackage(packageId: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/release-packages/${packageId}`);
   }

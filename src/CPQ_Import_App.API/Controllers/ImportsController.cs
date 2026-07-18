@@ -437,6 +437,27 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    [HttpPost("release-packages/{packageId:guid}/withdraw")]
+    [Authorize(Policy = Capabilities.ImportsWithdrawOwn)]
+    public async Task<ActionResult<ReleasePackageDto>> WithdrawReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            var package = await importService.WithdrawReleasePackageAsync(packageId, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "WithdrawReleasePackage",
+                $"Withdrew release package '{package.Name}' and returned {package.Items.Count} datasets to the owner's workspace.",
+                TargetType: "ReleasePackage",
+                TargetId: package.Id.ToString(),
+                StatusCode: StatusCodes.Status200OK), ct);
+            return Ok(package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     [HttpDelete("release-packages/{packageId:guid}")]
     [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
     public async Task<IActionResult> DissolveReleasePackage(Guid packageId, CancellationToken ct)

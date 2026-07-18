@@ -44,6 +44,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     {
         var job = await db.ImportJobs
             .Include(j => j.AuditLogs)
+            .Include(j => j.ReleasePackage)
             .FirstOrDefaultAsync(j => j.Id == id, ct);
 
         if (job is not null)
@@ -60,6 +61,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     {
         IQueryable<ImportJob> query = db.ImportJobs
             .AsNoTracking()
+            .Include(j => j.ReleasePackage)
             .Where(j => j.WorkflowStage != ImportWorkflowStage.Private || j.CreatedBy == viewerUserId)
             .OrderByDescending(j => j.CreatedAt);
 

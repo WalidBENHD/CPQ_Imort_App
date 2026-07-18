@@ -24,6 +24,7 @@ public interface IImportService
     Task DissolveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> GetReleasePackageAsync(Guid packageId, string userId, bool canReview, CancellationToken ct = default);
     Task<ReleasePackageSummary> SubmitReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ReleasePackageSummary> WithdrawReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> ApproveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> RejectReleasePackageAsync(Guid packageId, string userId, string userDisplayName, string reason, CancellationToken ct = default);
     Task<ReleasePackageSummary> PublishReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);

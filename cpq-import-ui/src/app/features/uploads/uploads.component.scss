@@ -74,6 +74,11 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); line-height: 1; font-weight: 
 .rename-upload { width: 30px; height: 30px; color: var(--app-accent); }
 .rename-upload mat-icon { width: 17px; height: 17px; font-size: 17px; }
 .prototype-status { padding: 4px 8px; border-radius: 999px; color: #075985; background: color-mix(in srgb, #38bdf8 15%, transparent); font-size: 10px; font-weight: 900; text-transform: uppercase; }
+.release-membership { display: inline-flex; max-width: 100%; align-items: center; gap: 5px; margin-top: 8px; padding: 5px 9px; border: 1px solid color-mix(in srgb, #0f766e 27%, var(--app-border)); border-radius: 999px; color: #0f766e; background: color-mix(in srgb, #0f766e 7%, var(--app-surface)); font-size: 11px; }
+.release-membership mat-icon { flex: none; width: 15px; height: 15px; font-size: 15px; }
+.release-membership span { font-weight: 700; opacity: .75; }
+.release-membership strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:host-context(html.theme-dark) .release-membership { color: #5eead4; border-color: color-mix(in srgb, #2dd4bf 32%, var(--app-border)); background: color-mix(in srgb, #2dd4bf 10%, var(--app-surface)); }
 .upload-details { display: flex; flex-wrap: wrap; gap: 6px 15px; margin-top: 7px; color: var(--app-text-muted); font-size: 12px; }
 .upload-details span { display: inline-flex; align-items: center; gap: 4px; }
 .upload-details mat-icon { width: 14px; height: 14px; font-size: 14px; }
@@ -83,6 +88,8 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 38px); line-height: 1; font-weight: 
 .quality--warning { color: #b45309; background: color-mix(in srgb, #f59e0b 13%, transparent); }
 .quality--error { color: #b91c1c; background: color-mix(in srgb, #ef4444 12%, transparent); }
 .item-note { margin: 9px 0 0; color: #047857; font-size: 12px; font-weight: 700; }
+.item-note--release { color: #0f766e; }
+:host-context(html.theme-dark) .item-note--release { color: #5eead4; }
 .item-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
 .item-actions button { border-radius: 11px; font-weight: 800; }
 .item-actions .discard { color: #b91c1c; }

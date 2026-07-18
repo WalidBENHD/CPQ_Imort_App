@@ -18,6 +18,7 @@ import { DATASET_CATALOG, EntityType, ImportJob } from '../../core/models/import
 import { ImportService } from '../../core/services/import.service';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
+import { ReleaseWithdrawDialogComponent } from '../../shared/release-withdraw-dialog/release-withdraw-dialog.component';
 
 type UploadSpace = 'workspace' | 'review' | 'history';
 
@@ -236,6 +237,11 @@ export class UploadsComponent implements OnInit {
     event.stopPropagation();
     if (job.createdBy !== this.auth.userId) return;
 
+    if (job.releasePackageId) {
+      this.confirmReleaseWithdrawal(job);
+      return;
+    }
+
     this.actionJobId = job.id;
     this.importService.withdrawFromReview(job.id).subscribe({
       next: updated => {
@@ -246,6 +252,42 @@ export class UploadsComponent implements OnInit {
       error: error => {
         this.actionJobId = null;
         this.snackBar.open(error?.error?.error ?? 'The submission could not be withdrawn.', 'Close', { duration: 6000 });
+      }
+    });
+  }
+
+  private confirmReleaseWithdrawal(job: ImportJob): void {
+    const packageId = job.releasePackageId;
+    if (!packageId) return;
+
+    this.actionJobId = job.id;
+    this.importService.getReleasePackage(packageId).subscribe({
+      next: release => {
+        this.actionJobId = null;
+        this.dialog.open(ReleaseWithdrawDialogComponent, {
+          data: release,
+          autoFocus: false,
+          disableClose: true,
+          panelClass: 'app-dialog-panel'
+        }).afterClosed().subscribe(confirmed => {
+          if (!confirmed) return;
+          this.actionJobId = job.id;
+          this.importService.withdrawReleasePackage(packageId).subscribe({
+            next: () => {
+              this.actionJobId = null;
+              this.load();
+              this.snackBar.open('The entire release returned to your private workspace.', 'Close', { duration: 5000 });
+            },
+            error: error => {
+              this.actionJobId = null;
+              this.snackBar.open(error?.error?.error ?? 'The release could not be withdrawn.', 'Close', { duration: 7000 });
+            }
+          });
+        });
+      },
+      error: error => {
+        this.actionJobId = null;
+        this.snackBar.open(error?.error?.error ?? 'The release details could not be loaded.', 'Close', { duration: 7000 });
       }
     });
   }
@@ -302,6 +344,7 @@ export class UploadsComponent implements OnInit {
     return job.statusLabel === 'AwaitingApproval'
       && job.workflowStageLabel === 'Private'
       && job.createdBy === this.auth.userId
+      && !job.releasePackageId
       && job.errorRows === 0;
   }
 

@@ -69,7 +69,8 @@ public static class DtoMapper
         job.ValidationAnchorJobId,
         job.ValidationAnchorKind,
         job.ValidationAnchorPinnedAt,
-        job.ReleasePackageId
+        job.ReleasePackageId,
+        job.ReleasePackage?.Name
     );
 
     public static ValidationAnchorSummaryDto ToDto(this ValidationAnchorSummary anchor) => new(

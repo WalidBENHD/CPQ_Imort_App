@@ -98,6 +98,14 @@
           <span class="prototype-status" *ngIf="activeSpace === 'workspace'">{{ workspaceStatus(job) }}</span>
           <app-status-badge *ngIf="activeSpace !== 'workspace'" [status]="job.statusLabel" />
         </div>
+        <div
+          class="release-membership"
+          *ngIf="job.releasePackageId"
+          [matTooltip]="'Part of coordinated release: ' + (job.releasePackageName || 'Coordinated release')">
+          <mat-icon>hub</mat-icon>
+          <span>Release</span>
+          <strong>{{ job.releasePackageName || 'Coordinated release' }}</strong>
+        </div>
         <div class="upload-details">
           <span><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
           <span><mat-icon>table_rows</mat-icon>{{ job.totalRows }} rows</span>
@@ -112,6 +120,9 @@
         <p class="item-note" *ngIf="canSubmit(job)">
           Your comparison is ready. Nobody else can see this version until you submit it.
         </p>
+        <p class="item-note item-note--release" *ngIf="activeSpace === 'workspace' && job.releasePackageId">
+          Open this draft to review and submit the complete release package.
+        </p>
       </div>
 
       <div class="item-actions" (click)="$event.stopPropagation()">
@@ -119,7 +130,7 @@
           <mat-icon>send</mat-icon> Submit for review
         </button>
         <button *ngIf="canWithdraw(job)" mat-stroked-button (click)="withdraw(job, $event)">
-          <mat-icon>undo</mat-icon> Withdraw
+          <mat-icon>undo</mat-icon> {{ job.releasePackageId ? 'Withdraw release' : 'Withdraw' }}
         </button>
         <button *ngIf="canCopyToWorkspace(job)" mat-stroked-button class="copy-to-workspace" (click)="openCopyDialog(job, $event)">
           <mat-icon>library_add</mat-icon> Copy to workspace

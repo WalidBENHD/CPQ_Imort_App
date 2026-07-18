@@ -212,6 +212,46 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task WithdrawReleasePackageAsync_ReturnsEveryMemberToPrivateWorkspace()
+    {
+        var packageId = Guid.NewGuid();
+        var priceJob = CreatePriceJob();
+        priceJob.ReleasePackageId = packageId;
+        priceJob.WorkflowStage = ImportWorkflowStage.Submitted;
+        priceJob.SubmittedComparisonJson = "{}";
+        var masterJob = CreateJob(ImportStatus.AwaitingApproval);
+        masterJob.ReleasePackageId = packageId;
+        masterJob.WorkflowStage = ImportWorkflowStage.Submitted;
+        masterJob.SubmittedComparisonJson = "{}";
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(masterJob);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Annual 2027",
+            Status = ReleasePackageStatus.Submitted,
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor",
+            SubmittedAt = DateTime.UtcNow,
+            SubmittedByDisplayName = "Cara Contributor"
+        });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var result = await service.WithdrawReleasePackageAsync(
+            packageId, "contributor-id", "Cara Contributor");
+
+        Assert.Equal(ReleasePackageStatus.Draft, result.Status);
+        Assert.All(new[] { priceJob, masterJob }, job =>
+        {
+            Assert.Equal(ImportWorkflowStage.Private, job.WorkflowStage);
+            Assert.NotNull(job.WithdrawnAt);
+            Assert.Null(job.SubmittedComparisonJson);
+            Assert.Equal(packageId, job.ReleasePackageId);
+        });
+        Assert.Equal(2, repository.AuditLogs.Count(log => log.Action == "ReleasePackageWithdrawn"));
+    }
+
+    [Fact]
     public async Task RejectReleasePackageAsync_RejectsEveryItemWithSharedReason()
     {
         var packageId = Guid.NewGuid();
