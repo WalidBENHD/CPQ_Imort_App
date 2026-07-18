@@ -1607,6 +1607,13 @@ app-import-preview .filter-actions button:hover {
 }
 
 @media (max-width: 640px) {
+  app-import-preview .baseline-focus {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
   app-import-preview .rows-card .mat-mdc-card-content {
     padding: 0 12px 10px !important;
   }
