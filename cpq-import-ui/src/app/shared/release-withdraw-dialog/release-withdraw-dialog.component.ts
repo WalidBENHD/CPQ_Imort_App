@@ -48,8 +48,8 @@ import { ReleasePackage } from '../../core/models/import.models';
     </section>
   `,
   styles: [`
-    :host { display: block; color: var(--app-text); }
-    .withdraw-dialog { width: min(610px, calc(100vw - 32px)); background: var(--app-surface-elevated); }
+    :host { display: block; min-width: 0; color: var(--app-text); }
+    .withdraw-dialog { display: grid; width: 100%; max-height: calc(100dvh - 24px); min-width: 0; overflow: hidden; grid-template-rows: auto minmax(0, 1fr) auto; box-sizing: border-box; background: var(--app-surface-elevated); }
     header { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 15px; padding: 25px 25px 20px; border-bottom: 1px solid var(--app-border); background: linear-gradient(120deg, color-mix(in srgb, #0f766e 10%, transparent), transparent 74%); }
     .dialog-mark { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 17px; color: white; background: #0f766e; box-shadow: 0 11px 26px color-mix(in srgb, #0f766e 30%, transparent); }
     .dialog-mark mat-icon { width: 28px; height: 28px; font-size: 28px; }
@@ -57,11 +57,11 @@ import { ReleasePackage } from '../../core/models/import.models';
     h2[mat-dialog-title] { margin: 4px 0 5px; padding: 0; color: var(--app-text); font-size: 24px; line-height: 1.2; }
     header p { margin: 0; color: var(--app-text-muted); font-size: 13px; line-height: 1.5; }
     header p strong { color: var(--app-text); }
-    mat-dialog-content { display: grid; gap: 16px; padding: 20px 25px 8px; }
-    .impact-note { display: flex; gap: 10px; padding: 13px 14px; border: 1px solid color-mix(in srgb, #0f766e 28%, var(--app-border)); border-radius: 14px; background: color-mix(in srgb, #0f766e 7%, var(--app-surface)); }
+    mat-dialog-content { display: grid; min-width: 0; overflow-x: hidden; overflow-y: auto; gap: 16px; padding: 20px 25px 8px; box-sizing: border-box; }
+    .impact-note { display: grid; min-width: 0; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; padding: 13px 14px; border: 1px solid color-mix(in srgb, #0f766e 28%, var(--app-border)); border-radius: 14px; background: color-mix(in srgb, #0f766e 7%, var(--app-surface)); }
     .impact-note mat-icon { flex: none; width: 20px; height: 20px; color: #0f766e; font-size: 20px; }
-    .impact-note p { margin: 0; color: var(--app-text-muted); font-size: 13px; line-height: 1.5; }
-    .dataset-list { display: grid; gap: 8px; }
+    .impact-note p { min-width: 0; margin: 0; color: var(--app-text-muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+    .dataset-list { display: grid; min-width: 0; gap: 8px; }
     .dataset { display: grid; grid-template-columns: 40px minmax(0, 1fr) 24px; gap: 11px; align-items: center; padding: 11px 12px; border: 1px solid var(--app-border); border-radius: 13px; background: var(--app-surface); }
     .dataset > span { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #0f766e; background: color-mix(in srgb, #0f766e 11%, transparent); }
     .dataset > span mat-icon { width: 21px; height: 21px; font-size: 21px; }
@@ -72,13 +72,23 @@ import { ReleasePackage } from '../../core/models/import.models';
     mat-dialog-actions { gap: 8px; padding: 12px 25px 23px; }
     mat-dialog-actions button { min-height: 42px; border-radius: 12px; font-weight: 800; }
     @media (max-width: 520px) {
-      .withdraw-dialog { width: calc(100vw - 20px); }
-      header { grid-template-columns: 44px minmax(0, 1fr); padding: 20px 18px 17px; }
-      .dialog-mark { width: 44px; height: 44px; border-radius: 14px; }
-      h2[mat-dialog-title] { font-size: 20px; }
-      mat-dialog-content { padding: 18px 18px 7px; }
-      mat-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; padding: 10px 18px 18px; }
-      .dataset strong { white-space: normal; overflow-wrap: anywhere; }
+      header { grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 18px 16px 15px; }
+      .dialog-mark { width: 40px; height: 40px; border-radius: 13px; }
+      .dialog-mark mat-icon { width: 23px; height: 23px; font-size: 23px; }
+      .eyebrow { font-size: 10px; }
+      h2[mat-dialog-title] { margin-top: 3px; font-size: 19px; }
+      header p { font-size: 12px; line-height: 1.45; }
+      mat-dialog-content { gap: 12px; padding: 14px 14px 5px; }
+      .impact-note { padding: 11px 12px; }
+      .impact-note p { font-size: 12px; line-height: 1.45; }
+      .dataset { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; padding: 10px; }
+      .dataset > span { width: 36px; height: 36px; border-radius: 10px; }
+      .dataset strong { font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+      .dataset small { font-size: 10px; }
+      .return-icon { display: none; }
+      mat-dialog-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 10px 14px 14px; }
+      mat-dialog-actions button { width: 100%; min-width: 0; margin: 0; }
+      mat-dialog-actions button:last-child { order: -1; }
     }
   `]
 })

@@ -95,6 +95,38 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task RenameUploadAsync_RejectsDuplicateVisibleNameAcrossSystem()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        var existing = CreateJob(ImportStatus.AwaitingApproval);
+        existing.OriginalFileName = "Existing name.csv";
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(existing);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(
+            () => service.RenameUploadAsync(job.Id, "existing NAME", job.CreatedBy, job.CreatedByDisplayName));
+
+        Assert.Contains("already exists", error.Message);
+    }
+
+    [Fact]
+    public async Task CreateReleasePackageAsync_RejectsDuplicateNameAcrossSystem()
+    {
+        var priceJob = CreatePriceJob();
+        var master = CreateJob(ImportStatus.AwaitingApproval);
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(master);
+        repository.ReleasePackages.Add(new ReleasePackage { Name = "Annual 2027", CreatedBy = "another-user" });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => service.CreateReleasePackageAsync(
+            priceJob.Id, master.Id, " annual 2027 ", priceJob.CreatedBy, priceJob.CreatedByDisplayName));
+
+        Assert.Contains("already exists", error.Message);
+    }
+
+    [Fact]
     public async Task ApplyDependencyAnchorAsync_RevalidatesPriceRowsAgainstSelectedMaster()
     {
         var priceJob = CreatePriceJob();
@@ -682,6 +714,20 @@ public class ControlledPublicationTests
 
         public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<ImportJob?>(id == job.Id ? job : AdditionalJobs.FirstOrDefault(item => item.Id == id));
+
+        public Task<bool> IsUploadNameInUseAsync(string fileName, Guid? excludingJobId = null, CancellationToken ct = default)
+        {
+            var visibleName = Path.GetFileNameWithoutExtension(fileName).Trim();
+            var exists = new[] { job }.Concat(AdditionalJobs).Any(item =>
+                item.Id != excludingJobId
+                && string.Equals(Path.GetFileNameWithoutExtension(item.OriginalFileName).Trim(), visibleName, StringComparison.OrdinalIgnoreCase));
+            return Task.FromResult(exists);
+        }
+
+        public Task<bool> IsReleaseNameInUseAsync(string name, Guid? excludingPackageId = null, CancellationToken ct = default)
+            => Task.FromResult(ReleasePackages.Any(package =>
+                package.Id != excludingPackageId
+                && string.Equals(package.Name.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)));
 
         public Task<ImportComparisonResult> GetComparisonAsync(Guid jobId, CancellationToken ct = default)
             => Task.FromResult(comparison);

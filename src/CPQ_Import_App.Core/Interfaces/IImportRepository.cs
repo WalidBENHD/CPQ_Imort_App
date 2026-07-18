@@ -14,6 +14,8 @@ public interface IImportRepository
         AuditLog auditLog,
         CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default);
+    Task<bool> IsUploadNameInUseAsync(string fileName, Guid? excludingJobId = null, CancellationToken ct = default);
+    Task<bool> IsReleaseNameInUseAsync(string name, Guid? excludingPackageId = null, CancellationToken ct = default);
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default);
     Task UpdateJobAsync(ImportJob job, CancellationToken ct = default);

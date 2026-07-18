@@ -56,6 +56,33 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return job;
     }
 
+    public async Task<bool> IsUploadNameInUseAsync(
+        string fileName,
+        Guid? excludingJobId = null,
+        CancellationToken ct = default)
+    {
+        var names = await db.ImportJobs.AsNoTracking()
+            .Where(job => !excludingJobId.HasValue || job.Id != excludingJobId.Value)
+            .Select(job => job.OriginalFileName)
+            .ToListAsync(ct);
+        var visibleName = Path.GetFileNameWithoutExtension(fileName).Trim();
+        return names.Any(existing => string.Equals(
+            Path.GetFileNameWithoutExtension(existing).Trim(),
+            visibleName,
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    public Task<bool> IsReleaseNameInUseAsync(
+        string name,
+        Guid? excludingPackageId = null,
+        CancellationToken ct = default)
+    {
+        var normalizedName = name.Trim().ToLower();
+        return db.ReleasePackages.AsNoTracking().AnyAsync(package =>
+            (!excludingPackageId.HasValue || package.Id != excludingPackageId.Value)
+            && package.Name.ToLower() == normalizedName, ct);
+    }
+
     public async Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
         int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default)
     {

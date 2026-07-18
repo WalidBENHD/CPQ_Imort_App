@@ -268,7 +268,10 @@ export class UploadsComponent implements OnInit {
           data: release,
           autoFocus: false,
           disableClose: true,
-          panelClass: 'app-dialog-panel'
+          panelClass: 'app-dialog-panel',
+          width: '610px',
+          maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100dvh - 24px)'
         }).afterClosed().subscribe(confirmed => {
           if (!confirmed) return;
           this.actionJobId = job.id;

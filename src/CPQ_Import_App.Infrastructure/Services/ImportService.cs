@@ -28,6 +28,9 @@ public class ImportService(
     public async Task<ImportJob> UploadAsync(Stream fileStream, string fileName, EntityType entityType,
         string userId, string userDisplayName, CancellationToken ct = default)
     {
+        if (await repository.IsUploadNameInUseAsync(fileName, ct: ct))
+            throw new InvalidDataException($"An upload named '{Path.GetFileNameWithoutExtension(fileName)}' already exists. Choose another name.");
+
         // Read file bytes for storage
         using var ms = new MemoryStream();
         await fileStream.CopyToAsync(ms, ct);
@@ -480,6 +483,9 @@ public class ImportService(
             throw new InvalidOperationException("This draft already belongs to a release package.");
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 180)
             throw new InvalidDataException("Provide a release name of at most 180 characters.");
+        var releaseName = name.Trim();
+        if (await repository.IsReleaseNameInUseAsync(releaseName, ct: ct))
+            throw new InvalidDataException($"A release named '{releaseName}' already exists. Choose another name.");
 
         var selectedMaster = await repository.GetJobAsync(articleMasterJobId, ct)
             ?? throw new KeyNotFoundException($"Article Master upload '{articleMasterJobId}' not found.");
@@ -502,7 +508,10 @@ public class ImportService(
 
             var extension = Path.GetExtension(selectedMaster.OriginalFileName);
             var stem = Path.GetFileNameWithoutExtension(selectedMaster.OriginalFileName);
-            var suffix = " - Release Copy";
+            const string separator = " - ";
+            var maxReleaseNameLength = Math.Max(1, 180 - extension.Length - separator.Length - 1);
+            var copyReleaseName = releaseName[..Math.Min(releaseName.Length, maxReleaseNameLength)];
+            var suffix = $"{separator}{copyReleaseName}";
             var maxStemLength = Math.Max(1, 180 - extension.Length - suffix.Length);
             var workingCopyName = $"{stem[..Math.Min(stem.Length, maxStemLength)]}{suffix}{extension}";
             masterJob = await CopyToWorkspaceAsync(
@@ -514,7 +523,7 @@ public class ImportService(
 
         var package = new ReleasePackage
         {
-            Name = name.Trim(),
+            Name = releaseName,
             CreatedBy = userId,
             CreatedByDisplayName = userDisplayName
         };
@@ -791,6 +800,8 @@ public class ImportService(
         if (string.IsNullOrWhiteSpace(sourceExtension))
             sourceExtension = Path.GetExtension(source.OriginalFileName);
         var requestedName = NormalizeUploadName(fileName, $"source{sourceExtension}");
+        if (await repository.IsUploadNameInUseAsync(requestedName, ct: ct))
+            throw new InvalidDataException($"An upload named '{Path.GetFileNameWithoutExtension(requestedName)}' already exists. Choose another name.");
 
         var sourceFile = await repository.GetUploadedFileAsync(source.Id, ct)
             ?? throw new InvalidDataException("The source file is no longer available and cannot be copied.");
@@ -853,6 +864,8 @@ public class ImportService(
         var normalizedName = NormalizeUploadName(name, previousName);
         if (string.Equals(previousName, normalizedName, StringComparison.Ordinal))
             return job;
+        if (await repository.IsUploadNameInUseAsync(normalizedName, job.Id, ct))
+            throw new InvalidDataException($"An upload named '{Path.GetFileNameWithoutExtension(normalizedName)}' already exists. Choose another name.");
 
         job.OriginalFileName = normalizedName;
         await repository.UpdateJobAsync(job, ct);
