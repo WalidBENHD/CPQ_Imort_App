@@ -146,6 +146,69 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task DissolveReleasePackageAsync_ReleasesMembersAndRepinsDependentDraft()
+    {
+        var packageId = Guid.NewGuid();
+        var priceJob = CreatePriceJob();
+        priceJob.ReleasePackageId = packageId;
+        priceJob.ValidationAnchorKind = ValidationAnchorKind.ReleaseCandidate;
+        var candidateMaster = CreateJob(ImportStatus.AwaitingApproval);
+        candidateMaster.ReleasePackageId = packageId;
+        priceJob.ValidationAnchorJobId = candidateMaster.Id;
+        var activeMaster = CreateJob(ImportStatus.Committed);
+        activeMaster.WorkflowStage = ImportWorkflowStage.Published;
+        activeMaster.CommittedAt = DateTime.UtcNow;
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.AddRange([candidateMaster, activeMaster]);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Annual 2027",
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        repository.ArticleNumbers[activeMaster.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
+        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+
+        await service.DissolveReleasePackageAsync(
+            packageId, "contributor-id", "Cara Contributor");
+
+        Assert.Null(priceJob.ReleasePackageId);
+        Assert.Null(candidateMaster.ReleasePackageId);
+        Assert.Equal(activeMaster.Id, priceJob.ValidationAnchorJobId);
+        Assert.Equal(ValidationAnchorKind.ActiveBaseline, priceJob.ValidationAnchorKind);
+        Assert.Empty(repository.ReleasePackages);
+        Assert.Contains(repository.AuditLogs, log => log.Action == "ReleasePackageDissolved");
+    }
+
+    [Fact]
+    public async Task DeletePrivateDraftAsync_DissolvesPackageAndUnlocksSurvivingMaster()
+    {
+        var packageId = Guid.NewGuid();
+        var priceJob = CreatePriceJob();
+        priceJob.ReleasePackageId = packageId;
+        var candidateMaster = CreateJob(ImportStatus.AwaitingApproval);
+        candidateMaster.ReleasePackageId = packageId;
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(candidateMaster);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Annual 2027",
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+
+        await service.DeletePrivateDraftAsync(
+            priceJob.Id, "contributor-id", "Cara Contributor");
+
+        Assert.Null(candidateMaster.ReleasePackageId);
+        Assert.Empty(repository.ReleasePackages);
+    }
+
+    [Fact]
     public async Task CopyToWorkspaceAsync_RejectsPrivateSource()
     {
         var source = CreateJob(ImportStatus.AwaitingApproval);
@@ -574,6 +637,11 @@ public class ControlledPublicationTests
         public Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
         {
             ReleasePackages.Add(package);
+            return Task.CompletedTask;
+        }
+        public Task DeleteReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
+        {
+            ReleasePackages.Remove(package);
             return Task.CompletedTask;
         }
         public Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default) => Task.FromResult(UploadedContent);

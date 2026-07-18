@@ -19,6 +19,7 @@ public interface IImportService
     Task<DependencyImpact> PreviewDependencyAnchorAsync(Guid jobId, Guid articleMasterJobId, string userId, CancellationToken ct = default);
     Task<ImportJob> ApplyDependencyAnchorAsync(Guid jobId, Guid articleMasterJobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> CreateReleasePackageAsync(Guid jobId, Guid articleMasterJobId, string name, string userId, string userDisplayName, CancellationToken ct = default);
+    Task DissolveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> GetReleasePackageAsync(Guid packageId, string userId, bool canReview, CancellationToken ct = default);
     Task<ReleasePackageSummary> SubmitReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> ApproveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
@@ -34,7 +35,7 @@ public interface IImportService
     Task<IReadOnlyList<StagingRow>> GetDeletedStagingRowsAsync(Guid jobId, CancellationToken ct = default);
     Task<ImportJob> SubmitForReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default, bool coordinatedRelease = false);
     Task<ImportJob> WithdrawFromReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
-    Task DeletePrivateDraftAsync(Guid jobId, string userId, CancellationToken ct = default);
+    Task DeletePrivateDraftAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default, bool coordinatedRelease = false);
     Task<ImportJob> ReturnToReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> PublishAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);

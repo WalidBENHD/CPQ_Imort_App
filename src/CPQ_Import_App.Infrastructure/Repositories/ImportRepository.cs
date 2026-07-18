@@ -395,6 +395,12 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task DeleteReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
+    {
+        db.ReleasePackages.Remove(package);
+        await db.SaveChangesAsync(ct);
+    }
+
     private async Task MarkActiveBaselinesAsync(IReadOnlyCollection<ImportJob> jobs, CancellationToken ct)
     {
         if (jobs.Count == 0)

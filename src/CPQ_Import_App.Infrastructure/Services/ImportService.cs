@@ -550,6 +550,53 @@ public class ImportService(
         return ToReleaseSummary(package);
     }
 
+    public async Task DissolveReleasePackageAsync(
+        Guid packageId,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (!string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Only the release owner can dissolve this package.");
+        if (package.Status != ReleasePackageStatus.Draft)
+            throw new InvalidOperationException("Only a private draft release can be dissolved.");
+        if (package.Jobs.Any(job => job.WorkflowStage != ImportWorkflowStage.Private))
+            throw new InvalidOperationException("Every upload must be in the private workspace before this release can be dissolved.");
+
+        var activeMaster = await repository.GetLatestCommittedJobAsync(EntityType.Article, ct);
+        foreach (var job in package.Jobs.ToList())
+        {
+            job.ReleasePackageId = null;
+            job.ReleasePackage = null;
+            if (IsDependentDataset(job.EntityType)
+                && job.ValidationAnchorKind == ValidationAnchorKind.ReleaseCandidate)
+            {
+                job.ValidationAnchorJobId = activeMaster?.Id;
+                job.ValidationAnchorKind = activeMaster is null
+                    ? ValidationAnchorKind.None
+                    : ValidationAnchorKind.ActiveBaseline;
+                job.ValidationAnchorPinnedAt = activeMaster is null ? null : DateTime.UtcNow;
+                if (activeMaster is not null)
+                    await RevalidateAgainstAnchorAsync(job, activeMaster.Id, ct);
+            }
+
+            await repository.UpdateJobAsync(job, ct);
+            await repository.AddAuditLogAsync(new AuditLog
+            {
+                ImportJobId = job.Id,
+                Action = "ReleasePackageDissolved",
+                PerformedBy = userId,
+                PerformedByDisplayName = userDisplayName,
+                Details = $"Released from draft package '{package.Name}' ({package.Id:D}). The upload can be edited, reused, or submitted independently."
+            }, ct);
+        }
+
+        package.Jobs.Clear();
+        await repository.DeleteReleasePackageAsync(package, ct);
+    }
+
     public async Task<ReleasePackageSummary> SubmitReleasePackageAsync(
         Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
     {
@@ -733,11 +780,17 @@ public class ImportService(
         return job;
     }
 
-    public async Task DeletePrivateDraftAsync(Guid jobId, string userId, CancellationToken ct = default)
+    public async Task DeletePrivateDraftAsync(
+        Guid jobId,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
     {
         var job = await repository.GetJobAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
         EnsurePrivateOwner(job, userId, "delete");
+        if (job.ReleasePackageId.HasValue)
+            await DissolveReleasePackageAsync(job.ReleasePackageId.Value, userId, userDisplayName, ct);
         await repository.DeleteJobAsync(job, ct);
     }
 

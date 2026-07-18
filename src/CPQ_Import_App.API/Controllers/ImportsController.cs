@@ -410,6 +410,27 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    [HttpDelete("release-packages/{packageId:guid}")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<IActionResult> DissolveReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            await importService.DissolveReleasePackageAsync(packageId, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "DissolveReleasePackage",
+                $"Dissolved private release package {packageId}. Its uploads returned to the owner's workspace.",
+                TargetType: "ReleasePackage",
+                TargetId: packageId.ToString(),
+                StatusCode: StatusCodes.Status204NoContent), ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     [HttpPost("release-packages/{packageId:guid}/approve")]
     [Authorize(Policy = Capabilities.ImportsApprove)]
     public async Task<ActionResult<ReleasePackageDto>> ApproveReleasePackage(Guid packageId, CancellationToken ct)
@@ -479,7 +500,7 @@ public class ImportsController(
     {
         try
         {
-            await importService.DeletePrivateDraftAsync(id, UserId, ct);
+            await importService.DeletePrivateDraftAsync(id, UserId, UserDisplayName, ct);
             await notificationService.ClearImportNotificationsAsync(id);
             await activityService.LogAsync(new ActivityWriteRequest(
                 ActivityCategory.Import,

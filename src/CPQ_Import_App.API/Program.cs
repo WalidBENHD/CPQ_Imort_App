@@ -219,6 +219,19 @@ using (var scope = app.Services.CreateScope())
     }
 
     await AccessControlBootstrapper.EnsureSeedDataAsync(db);
+
+    var orphanedDraftPackages = await db.ReleasePackages
+        .AsNoTracking()
+        .Where(package => package.Status == CPQ_Import_App.Core.Enums.ReleasePackageStatus.Draft
+            && package.Jobs.Count < 2)
+        .Select(package => new { package.Id, package.CreatedBy, package.CreatedByDisplayName })
+        .ToListAsync();
+    var importService = scope.ServiceProvider.GetRequiredService<IImportService>();
+    foreach (var package in orphanedDraftPackages)
+    {
+        await importService.DissolveReleasePackageAsync(
+            package.Id, package.CreatedBy, package.CreatedByDisplayName);
+    }
 }
 
 if (app.Environment.IsDevelopment())

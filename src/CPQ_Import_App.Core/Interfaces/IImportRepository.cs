@@ -35,6 +35,7 @@ public interface IImportRepository
     Task<IReadOnlyList<ImportJob>> GetArticleMasterCandidatesAsync(string userId, CancellationToken ct = default);
     Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default);
     Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default);
+    Task DeleteReleasePackageAsync(ReleasePackage package, CancellationToken ct = default);
     Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default);
     Task SaveUploadedFileAsync(Guid jobId, string fileName, byte[] content, CancellationToken ct = default);
 }

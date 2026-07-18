@@ -96,6 +96,10 @@ export class ImportService {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/submit`, {});
   }
 
+  dissolveReleasePackage(packageId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/release-packages/${packageId}`);
+  }
+
   approveReleasePackage(packageId: string): Observable<ReleasePackage> {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/approve`, {});
   }
