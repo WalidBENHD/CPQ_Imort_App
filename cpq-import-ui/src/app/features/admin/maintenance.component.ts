@@ -73,7 +73,7 @@ interface ResetResult {
   `,
   styles: [`
     :host { display:block; }
-    .maintenance-page { max-width:1120px; margin:0 auto; display:grid; gap:18px; }
+    .maintenance-page { width:min(100%,1280px); margin:0 auto; display:grid; gap:18px; }
     .page-header,.card-heading,.card-footer,.dialog-actions { display:flex; align-items:center; }
     .page-header { justify-content:space-between; gap:20px; }
     .eyebrow,.section-kicker { color:#dc2626; font-size:10px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }

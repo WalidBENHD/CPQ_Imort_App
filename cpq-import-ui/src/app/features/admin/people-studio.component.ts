@@ -159,7 +159,7 @@ interface AccessRole {
   `,
   styles: [`
     :host { display:block; }
-    .people-page { max-width:1400px; margin:0 auto; display:grid; gap:18px; }
+    .people-page { width:100%; margin:0; display:grid; gap:18px; }
     .page-header,.header-actions,.panel-head,.person-main,.person-actions,.drawer-head,.effective-summary { display:flex; align-items:center; }
     .page-header { justify-content:space-between; gap:20px; } .header-actions { gap:8px; flex-wrap:wrap; }
     .eyebrow,.section-kicker { color:#2563eb; font-size:10px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }

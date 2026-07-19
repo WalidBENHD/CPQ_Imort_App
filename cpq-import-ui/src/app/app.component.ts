@@ -189,7 +189,7 @@ import { ThemeService } from './core/services/theme.service';
           aria-label="Close navigation"
         ></button>
 
-        <main class="page-content" [class.page-content--evolis]="isEvolisRoute">
+        <main class="page-content">
           <router-outlet />
         </main>
       </div>
@@ -794,15 +794,20 @@ import { ThemeService } from './core/services/theme.service';
     :host-context(.theme-dark) .sidebar-credit { color: #94a3b8; }
 
     .page-content {
-      max-width: 1240px;
-      margin: 22px auto;
-      padding: 0 18px;
+      max-width: none;
+      margin: 12px 0 20px;
+      padding: 0 12px;
       width: 100%;
       color: var(--app-text);
     }
     .page-content > router-outlet + * {
       display: block;
+      width: min(100%, 1920px);
+      margin-inline: auto;
       animation: shell-page-enter 420ms var(--ease-out) both;
+    }
+    .page-content--landing > router-outlet + * {
+      width: 100%;
     }
     .page-content--landing {
       max-width: none;
@@ -812,9 +817,6 @@ import { ThemeService } from './core/services/theme.service';
       overflow-x: hidden;
     }
 
-    .page-content--evolis {
-      max-width: 1760px;
-    }
     .mobile-backdrop {
       display: none;
     }
@@ -944,10 +946,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get showAppChrome(): boolean {
     return !this.router.url.startsWith('/login') && !this.router.url.startsWith('/register');
-  }
-
-  get isEvolisRoute(): boolean {
-    return this.router.url.startsWith('/internal-tools/evolis-decryptor');
   }
 
   get currentPageTitle(): string {

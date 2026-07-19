@@ -280,7 +280,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     </section>
   `,
   styles: [`
-    .admin-page { max-width: 1000px; margin: 0 auto; display: grid; gap: 16px; }
+    .admin-page { width: 100%; margin: 0; display: grid; gap: 16px; }
     .page-header h1 { margin: 0; font-size: 28px; line-height: 1.1; }
     .page-header p { margin: 6px 0 0; color: #64748b; }
 

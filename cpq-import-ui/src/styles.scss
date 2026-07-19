@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use 'app/features/import-preview/import-workbench';
 
 // Initialize Material core
 @include mat.core();

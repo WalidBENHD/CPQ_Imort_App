@@ -1,6 +1,6 @@
 :host { display: block; color: var(--app-text); }
 button, input { font: inherit; }
-.uploads-centre { max-width: 1460px; margin: 0 auto; display: grid; gap: 18px; }
+.uploads-centre { width: 100%; margin: 0; display: grid; gap: 18px; }
 .eyebrow, .privacy-label { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; line-height: 1.2; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .eyebrow { color: #0f8f87; }
 .eyebrow mat-icon, .privacy-label mat-icon { width: 18px; height: 18px; font-size: 18px; }

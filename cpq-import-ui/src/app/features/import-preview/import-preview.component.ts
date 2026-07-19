@@ -64,6 +64,11 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
             <mat-icon>edit</mat-icon>
           </button>
         </div>
+        <div class="page-context" *ngIf="job">
+          <span>{{ job.entityTypeLabel }}</span><i></i>
+          <span>{{ detailStatusLabel }}</span><i></i>
+          <span>{{ job.createdByDisplayName }}</span>
+        </div>
       </div>
       <div class="header-actions" *ngIf="job">
         <button mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download original file">
@@ -108,6 +113,88 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
     </div>
 
     <ng-container *ngIf="job">
+      <section class="workbench-health" aria-label="Dataset workbench status">
+        <div class="workbench-health__intro">
+          <span class="workbench-live"><i></i>{{ isPrivateWorkspace ? 'Private working session' : 'Governed dataset review' }}</span>
+          <strong>{{ isPrivateWorkspace ? 'Work directly on the data' : 'Inspect the exact submitted version' }}</strong>
+          <small>Use the health indicators to focus the table without losing the current impact.</small>
+        </div>
+        <div class="health-metrics">
+          <button type="button" class="health-metric health-metric--total" (click)="focusRows()">
+            <span>Total</span><strong>{{ job.totalRows }}</strong><small>All rows</small>
+          </button>
+          <button type="button" class="health-metric health-metric--valid" (click)="focusRows('Valid')">
+            <span>Valid</span><strong>{{ job.validRows }}</strong><small>Ready</small>
+          </button>
+          <button type="button" class="health-metric health-metric--warning" (click)="focusRows('Warning')">
+            <span>Warnings</span><strong>{{ job.warningRows }}</strong><small>Review</small>
+          </button>
+          <button type="button" class="health-metric health-metric--error" [class.health-metric--urgent]="job.errorRows > 0" (click)="focusRows('Error')">
+            <span>Errors</span><strong>{{ job.errorRows }}</strong><small>{{ job.errorRows ? 'Blocking' : 'Clear' }}</small>
+          </button>
+          <button type="button" class="health-metric health-metric--change" *ngIf="comparison" (click)="focusRows('', 'Modified')">
+            <span>Modified</span><strong>{{ comparison.modifiedRows }}</strong><small>Changed</small>
+          </button>
+        </div>
+        <button mat-stroked-button type="button" class="evidence-toggle" [class.evidence-toggle--open]="contextExpanded" (click)="toggleContext()">
+          <mat-icon>{{ contextExpanded ? 'close' : 'verified_user' }}</mat-icon>
+          {{ contextExpanded ? 'Close evidence' : 'Details & evidence' }}
+        </button>
+      </section>
+
+      <div class="workbench-grid">
+        <aside class="impact-rail" [class.impact-rail--mobile-open]="mobileImpactOpen" aria-label="Live dataset impact">
+          <header class="impact-rail__header">
+            <span><mat-icon>insights</mat-icon></span>
+            <div><small>Live impact</small><strong>{{ job.errorRows > 0 ? 'Work remains' : 'Dataset is healthy' }}</strong></div>
+            <i [class.impact-ready]="job.errorRows === 0"></i>
+            <button mat-icon-button type="button" class="impact-mobile-close" aria-label="Close live impact" (click)="mobileImpactOpen = false"><mat-icon>close</mat-icon></button>
+          </header>
+
+          <section class="impact-section">
+            <div class="impact-section__title"><span>Validation</span><strong>{{ job.errorRows > 0 ? job.errorRows + ' blocking' : 'Ready' }}</strong></div>
+            <div class="impact-progress"><i [style.width.%]="validationReadinessPercent"></i></div>
+            <p>{{ job.validRows }} of {{ job.totalRows }} rows are valid<span *ngIf="job.warningRows">; {{ job.warningRows }} need review</span>.</p>
+            <button *ngIf="job.errorRows > 0" type="button" class="impact-link impact-link--danger" (click)="focusRows('Error')"><mat-icon>arrow_forward</mat-icon> Open blocking rows</button>
+          </section>
+
+          <section class="impact-section" *ngIf="comparison as cmp">
+            <div class="impact-section__title"><span>Baseline impact</span><strong>{{ cmp.newRows + cmp.modifiedRows + cmp.missingBaselineRows }} changes</strong></div>
+            <div class="impact-change-grid">
+              <button type="button" (click)="focusRows('', 'New')"><strong>{{ cmp.newRows }}</strong><span>New</span></button>
+              <button type="button" (click)="focusRows('', 'Modified')"><strong>{{ cmp.modifiedRows }}</strong><span>Modified</span></button>
+              <button type="button" (click)="openEvidence()"><strong>{{ cmp.missingBaselineRows }}</strong><span>Missing</span></button>
+            </div>
+            <p>Compared with {{ cmp.hasBaseline ? 'the approved baseline' : 'the initial submission context' }}.</p>
+          </section>
+
+          <section class="impact-section" *ngIf="isPortfolioDataset && portfolioReadiness">
+            <div class="impact-section__title"><span>Portfolio consistency</span><strong [class.impact-alert]="portfolioReadiness.requiresCoordinatedRelease">{{ portfolioReadiness.isConsistent ? 'Aligned' : 'Release required' }}</strong></div>
+            <p *ngIf="portfolioReadiness.isConsistent">The projected Article Master and Price List remain aligned.</p>
+            <p *ngIf="!portfolioReadiness.isConsistent">Related datasets must be coordinated before this version can be submitted.</p>
+            <button *ngIf="portfolioReadiness.requiresCoordinatedRelease" type="button" class="impact-link" (click)="focusReleaseWorkflow()"><mat-icon>account_tree</mat-icon> Prepare coordinated release</button>
+          </section>
+
+          <section class="impact-action">
+            <ng-container *ngIf="isPrivateWorkspace">
+              <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="focusRows('Error')"><mat-icon>build</mat-icon> Fix {{ job.errorRows }} blocking rows</button>
+              <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId" mat-raised-button color="primary" [disabled]="workflowActionRunning || !canSubmitProjectedState" (click)="submitForReview()"><mat-icon>send</mat-icon>{{ canSubmitProjectedState ? 'Submit for review' : 'Release required' }}</button>
+              <button *ngIf="job.releasePackageId" mat-raised-button color="primary" (click)="openEvidence('dependency-workflow')"><mat-icon>account_tree</mat-icon> Open release controls</button>
+            </ng-container>
+            <button *ngIf="isSubmittedOwner && !job.releasePackageId" mat-stroked-button [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> Withdraw submission</button>
+            <ng-container *ngIf="canShowApprovalGate">
+              <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" [disabled]="approving" (click)="approveForPublication()"><mat-icon>verified</mat-icon> Approve for publication</button>
+              <button *ngIf="auth.hasCapability('imports.reject')" mat-stroked-button color="warn" (click)="openDecisionPanel()"><mat-icon>close</mat-icon> Return for correction</button>
+            </ng-container>
+            <button mat-button type="button" class="impact-evidence-link" (click)="openEvidence()"><mat-icon>fact_check</mat-icon> View full context and evidence</button>
+          </section>
+        </aside>
+
+        <section class="context-zone" [class.context-zone--open]="contextExpanded">
+          <header class="context-zone__header">
+            <div><span>Governance context</span><strong>Details, dependencies and decision evidence</strong></div>
+            <button mat-icon-button type="button" aria-label="Close details and evidence" (click)="toggleContext()"><mat-icon>close</mat-icon></button>
+          </header>
       <!-- Job summary -->
       <mat-card class="summary-card">
         <mat-card-content>
@@ -514,9 +601,10 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
           </ng-template>
         </mat-card-content>
       </mat-card>
+        </section>
 
       <!-- Rows table -->
-      <mat-card class="rows-card">
+      <mat-card class="rows-card" id="data-workbench">
         <mat-card-header class="rows-header">
           <div>
             <div class="editor-eyebrow" *ngIf="isPrivateWorkspace">Private working copy</div>
@@ -821,6 +909,22 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
           </mat-paginator>
         </mat-card-content>
       </mat-card>
+      </div>
+
+      <div class="mobile-impact-backdrop" *ngIf="mobileImpactOpen" (click)="mobileImpactOpen = false"></div>
+      <nav class="mobile-workbench-dock" aria-label="Dataset workbench shortcuts">
+        <button type="button" [class.mobile-dock-alert]="job.errorRows > 0" (click)="focusRows(job.errorRows > 0 ? 'Error' : '')">
+          <mat-icon>{{ job.errorRows > 0 ? 'error_outline' : 'check_circle' }}</mat-icon>
+          <span><strong>{{ job.errorRows }}</strong><small>Errors</small></span>
+        </button>
+        <button type="button" *ngIf="comparison" (click)="focusRows('', 'Modified')">
+          <mat-icon>difference</mat-icon>
+          <span><strong>{{ comparison.modifiedRows }}</strong><small>Modified</small></span>
+        </button>
+        <button type="button" class="mobile-impact-trigger" (click)="mobileImpactOpen = true">
+          <mat-icon>insights</mat-icon><span><strong>Live impact</strong><small>Always available</small></span>
+        </button>
+      </nav>
 
       <app-draft-row-editor
         *ngIf="activeDraftEditorMode"
@@ -1212,7 +1316,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
     .removed-row-list button { color: var(--app-accent); font-weight: 800; }
     .removed-empty { padding: 18px; color: var(--app-text-muted); text-align: center; font-size: 12px; }
     .table-wrapper { overflow-x: auto; width: 100%; }
-    .desktop-rows { display: block; }
+    .desktop-rows { display: block; min-height: 360px; max-height: calc(100dvh - 330px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
     .mobile-rows { display: none; }
     table { width: 100%; min-width: 980px; }
     .desktop-rows th.mat-mdc-header-cell,
@@ -1445,6 +1549,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
       .workflow-rail { grid-template-columns:1fr; }
       .workflow-rail > mat-icon { transform:rotate(90deg); margin-left:2px; }
       .workflow-rail__step strong { white-space:normal; }
+      .desktop-rows { max-height: 620px; }
     }
 
     @media (max-width: 600px) {
@@ -1573,6 +1678,8 @@ export class ImportPreviewComponent implements OnInit {
   activeDraftEditorMode: DraftEditorMode | null = null;
   activeDraftEditorRow: StagingRow | null = null;
   showRemovedRows = false;
+  contextExpanded = false;
+  mobileImpactOpen = false;
   draftMutationRunning = false;
   readonly selectedRowIds = new Set<string>();
   removedRows: StagingRow[] = [];
@@ -1604,6 +1711,46 @@ export class ImportPreviewComponent implements OnInit {
 
   get hasDraftChanges(): boolean {
     return !!this.job && (this.job.draftAddedRows > 0 || this.job.draftModifiedRows > 0 || this.job.draftRemovedRows > 0);
+  }
+
+  get validationReadinessPercent(): number {
+    if (!this.job?.totalRows) return 0;
+    return Math.round((this.job.validRows / this.job.totalRows) * 100);
+  }
+
+  focusRows(status: RowStatus | '' = '', comparison: ComparisonStatus | '' = ''): void {
+    this.mobileImpactOpen = false;
+    this.rowPage = 1;
+    this.filtersForm.patchValue({ status, comparison });
+    window.setTimeout(() => this.scrollToElement(document.getElementById('data-workbench')));
+  }
+
+  toggleContext(): void {
+    this.contextExpanded = !this.contextExpanded;
+    if (this.contextExpanded) {
+      window.setTimeout(() => this.scrollToElement(document.querySelector('.context-zone')));
+    }
+  }
+
+  openEvidence(anchorId?: string): void {
+    this.mobileImpactOpen = false;
+    this.contextExpanded = true;
+    window.setTimeout(() => {
+      const target = anchorId ? document.getElementById(anchorId) : document.querySelector('.context-zone');
+      this.scrollToElement(target);
+    });
+  }
+
+  openDecisionPanel(): void {
+    this.contextExpanded = true;
+    this.showRejectPanel = true;
+    window.setTimeout(() => this.scrollToElement(document.querySelector('.reject-panel')));
+  }
+
+  private scrollToElement(target: Element | null): void {
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 86;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }
 
   get allVisibleRowsSelected(): boolean {
@@ -1923,6 +2070,7 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   focusReleaseWorkflow(): void {
+    this.contextExpanded = true;
     if (this.job?.entityType === 1) {
       setTimeout(() => document.getElementById('article-release-workflow')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' }));

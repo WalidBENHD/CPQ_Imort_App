@@ -243,7 +243,7 @@ import { ActivityMonitorService } from '../../core/services/activity-monitor.ser
     </section>
   `,
   styles: [`
-    .activity-page { max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; }
+    .activity-page { width: 100%; margin: 0; display: grid; gap: 16px; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
     .page-header h1 { margin: 0; font-size: 30px; line-height: 1.05; }
     .page-header p { margin: 6px 0 0; color: #64748b; }

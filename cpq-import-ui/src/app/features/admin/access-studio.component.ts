@@ -158,7 +158,7 @@ const ROLE_COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#c2410c', '#475569', '#be
   `,
   styles: [`
     :host { display:block; }
-    .studio-page { max-width:1440px; margin:0 auto; display:grid; gap:18px; }
+    .studio-page { width:100%; margin:0; display:grid; gap:18px; }
     .page-header,.section-head,.editor-hero,.editor-title,.editor-actions,.user-head,.effective-access { display:flex; align-items:center; }
     .page-header { justify-content:space-between; gap:20px; }
     .eyebrow,.section-kicker { color:#2563eb; font-size:10px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }

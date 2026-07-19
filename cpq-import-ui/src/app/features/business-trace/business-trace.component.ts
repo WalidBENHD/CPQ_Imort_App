@@ -200,7 +200,7 @@ type TraceObjectType = 'Article' | 'Basis price';
   `,
   styles: [`
     :host { display: block; color: var(--app-text); }
-    .trace-page { max-width: 1460px; margin: 0 auto; display: grid; gap: 20px; }
+    .trace-page { width: 100%; margin: 0; display: grid; gap: 20px; }
     .trace-hero { position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: flex-end; gap: 36px; padding: 30px 34px; border: 1px solid var(--app-border); border-radius: 24px; background: linear-gradient(125deg, color-mix(in srgb, var(--app-surface) 96%, #0f766e), color-mix(in srgb, var(--app-surface) 90%, #dbeafe)); box-shadow: var(--app-shadow-soft); }
     .trace-hero::after { content: ''; position: absolute; width: 330px; height: 330px; right: 22%; top: -245px; border: 70px solid rgba(20, 184, 166, .08); border-radius: 50%; pointer-events: none; }
     .trace-hero__copy { position: relative; z-index: 1; max-width: 780px; }
@@ -312,7 +312,7 @@ type TraceObjectType = 'Article' | 'Basis price';
     .history-filters { display: inline-flex; padding: 4px; border: 1px solid var(--app-border); border-radius: 11px; background: var(--app-soft-surface); }
     .history-filters button { padding: 7px 10px; border: 0; border-radius: 8px; color: var(--app-text-muted); background: transparent; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
     .history-filters button.active { color: var(--app-text); background: var(--app-surface); box-shadow: 0 2px 8px rgba(15, 23, 42, .08); }
-    .timeline { margin-top: 24px; }
+    .timeline { width: min(100%, 1440px); margin: 24px auto 0; }
     .timeline-event { display: grid; grid-template-columns: 105px 40px minmax(0, 1fr); }
     .timeline-date { display: grid; align-content: start; justify-items: end; padding: 8px 13px 0 0; }
     .timeline-date strong { font-size: 12px; }
@@ -352,7 +352,7 @@ type TraceObjectType = 'Article' | 'Basis price';
     .event-card > footer small { color: var(--app-text-muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
     .event-card > footer strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
     .event-card > footer button, .event-card > footer a { border-radius: 999px; color: var(--app-accent); font-weight: 750; text-decoration: none; }
-    .history-origin { display: flex; align-items: center; gap: 11px; margin: 0 0 0 113px; padding: 13px 16px; border: 1px dashed var(--app-border); border-radius: 13px; }
+    .history-origin { display: flex; align-items: center; gap: 11px; width: min(calc(100% - 113px), 1327px); margin: 0 auto; padding: 13px 16px; box-sizing: border-box; border: 1px dashed var(--app-border); border-radius: 13px; }
     .history-origin > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: #0f766e; background: color-mix(in srgb, var(--app-surface) 80%, #ccfbf1); }
     .history-origin mat-icon { width: 17px; height: 17px; font-size: 17px; }
     .history-origin div { display: grid; }
@@ -421,7 +421,7 @@ type TraceObjectType = 'Article' | 'Basis price';
       .change-set mat-icon { display: none; }
       .event-card > footer { grid-template-columns: 1fr; }
       .event-card > footer button, .event-card > footer a { width: 100%; justify-content: center; margin-top: 3px; }
-      .history-origin { margin-left: 43px; }
+      .history-origin { width: calc(100% - 43px); margin-right: 0; margin-left: 43px; }
     }
 
     @media (max-width: 420px) {
