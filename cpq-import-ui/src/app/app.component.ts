@@ -228,7 +228,9 @@ import { ThemeService } from './core/services/theme.service';
       border-radius: 10px;
       background: rgba(255, 255, 255, 0.14);
       border: 1px solid rgba(255, 255, 255, 0.18);
+      transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease;
     }
+    .brand:hover .brand__mark { transform: translateY(-1px) rotate(-3deg); background: rgba(255, 255, 255, 0.2); }
     .brand__mark mat-icon { width: 18px; height: 18px; font-size: 18px; }
     .brand__name { white-space: nowrap; }
     .toolbar-context { display: flex; align-items: center; gap: 14px; margin-left: 16px; }
@@ -256,6 +258,7 @@ import { ThemeService } from './core/services/theme.service';
       border-radius: 50%;
       background: #5eead4;
       box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.12);
+      animation: scope-signal 3s ease-in-out infinite;
     }
     .sign-in-link { border-radius: 999px; }
     .profile-trigger {
@@ -278,7 +281,9 @@ import { ThemeService } from './core/services/theme.service';
       font-size: 12px;
       font-weight: 900;
       letter-spacing: 0.03em;
+      transition: transform var(--motion-fast) var(--ease-out), background-color var(--motion-fast) ease, border-color var(--motion-fast) ease;
     }
+    .profile-trigger:hover span { transform: translateY(-1px); border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.23); }
 
     .shell-body {
       display: grid;
@@ -303,6 +308,7 @@ import { ThemeService } from './core/services/theme.service';
       align-items: stretch;
       overflow: hidden;
       z-index: 110;
+      box-shadow: 10px 0 32px rgba(15, 23, 42, 0.025);
     }
 
     .side-nav__content {
@@ -342,7 +348,8 @@ import { ThemeService } from './core/services/theme.service';
       transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
     }
 
-    .side-link:hover { background: color-mix(in srgb, var(--app-accent) 7%, transparent); }
+    .side-link:hover { background: color-mix(in srgb, var(--app-accent) 7%, transparent); transform: translateX(2px); }
+    .side-link--compact:hover { transform: none; }
 
     .side-link mat-icon {
       margin: 0;
@@ -351,7 +358,9 @@ import { ThemeService } from './core/services/theme.service';
       width: 21px;
       height: 21px;
       font-size: 21px;
+      transition: transform var(--motion-fast) var(--ease-out), color var(--motion-fast) ease;
     }
+    .side-link:hover mat-icon { transform: scale(1.07); }
 
     .side-link--compact {
       justify-content: center;
@@ -791,6 +800,10 @@ import { ThemeService } from './core/services/theme.service';
       width: 100%;
       color: var(--app-text);
     }
+    .page-content > router-outlet + * {
+      display: block;
+      animation: shell-page-enter 420ms var(--ease-out) both;
+    }
     .page-content--landing {
       max-width: none;
       width: 100%;
@@ -807,6 +820,14 @@ import { ThemeService } from './core/services/theme.service';
     }
 
     .active-link { background: rgba(255,255,255,0.15); border-radius: 6px; }
+    @keyframes shell-page-enter {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes scope-signal {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.12); }
+      50% { box-shadow: 0 0 0 7px rgba(94, 234, 212, 0.04), 0 0 12px rgba(94, 234, 212, .28); }
+    }
     @media (max-width: 768px) {
       .top-toolbar { height: 56px; min-height: 56px; padding: 0 8px; }
       .brand { font-size: 14px; gap: 6px; }
@@ -850,6 +871,10 @@ import { ThemeService } from './core/services/theme.service';
 
       .side-nav__footer { padding-top: 10px; }
       .sidebar-account { min-height: 54px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .scope-chip i, .page-content > router-outlet + * { animation: none; }
+      .brand__mark, .profile-trigger span, .side-link, .side-link mat-icon { transition: none; }
     }
   `]
 })

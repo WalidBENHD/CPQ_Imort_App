@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -104,7 +104,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </aside>
         </section>
 
-        <section class="release-model" aria-labelledby="release-model-title">
+        <section class="release-model reveal-section" aria-labelledby="release-model-title">
           <div class="release-model__heading">
             <span>One connected operating model</span>
             <h2 id="release-model-title">From private preparation to published evidence</h2>
@@ -120,7 +120,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
         </section>
 
-        <section id="business-case" class="business-case">
+        <section id="business-case" class="business-case reveal-section">
           <div class="section-intro">
             <span>Business case</span>
             <h2>Replace operational uncertainty with a governed way of working.</h2>
@@ -146,7 +146,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
         </section>
 
-        <section class="outcome-section">
+        <section class="outcome-section reveal-section">
           <div class="section-intro section-intro--compact">
             <span>Operational value</span>
             <h2>Control that helps people move faster.</h2>
@@ -160,7 +160,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
         </section>
 
-        <section id="operating-model" class="audience-section">
+        <section id="operating-model" class="audience-section reveal-section">
           <div class="audience-card audience-card--users">
             <span class="audience-card__label"><mat-icon>edit_note</mat-icon> For operational users</span>
             <h2>Freedom to prepare. Confidence when submitting.</h2>
@@ -184,7 +184,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
         </section>
 
-        <section id="governance" class="governance-section">
+        <section id="governance" class="governance-section reveal-section">
           <div class="governance-copy">
             <span>Governance by design</span>
             <h2>Control without slowing people down.</h2>
@@ -198,7 +198,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
         </section>
 
-        <section class="closing-section">
+        <section class="closing-section reveal-section">
           <span class="closing-section__mark"><mat-icon>cloud_done</mat-icon></span>
           <div><small>Saint-Marcellin · PDU pilot</small><h2>A safer annual update is the first step toward a repeatable CPQ operating model.</h2></div>
           <a href="#account-access" (click)="scrollToSection($event, 'account-access')">Enter platform <mat-icon>arrow_upward</mat-icon></a>
@@ -221,12 +221,40 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     :host { display: block; color: #14213b; font-family: "Aptos", "Trebuchet MS", sans-serif; }
     * { box-sizing: border-box; }
     .landing-shell {
+      position: relative;
+      isolation: isolate;
       min-height: 100vh;
       overflow: hidden;
       background:
         radial-gradient(circle at 8% 5%, rgba(30, 117, 111, .11), transparent 25%),
         radial-gradient(circle at 92% 10%, rgba(47, 85, 200, .12), transparent 28%),
         #f7f6f1;
+    }
+    .landing-shell::before,
+    .landing-shell::after {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .landing-shell::before {
+      top: 130px;
+      right: -150px;
+      width: 430px;
+      height: 430px;
+      border: 1px solid rgba(40, 84, 197, .12);
+      box-shadow: inset 0 0 90px rgba(40, 84, 197, .04);
+      animation: ambient-drift 16s ease-in-out infinite alternate;
+    }
+    .landing-shell::after {
+      top: 760px;
+      left: -230px;
+      width: 520px;
+      height: 520px;
+      border: 1px solid rgba(15, 159, 150, .12);
+      box-shadow: inset 0 0 100px rgba(15, 159, 150, .045);
+      animation: ambient-drift 20s 2s ease-in-out infinite alternate-reverse;
     }
     .public-header {
       position: relative;
@@ -238,9 +266,11 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       border-bottom: 1px solid rgba(20, 33, 59, .12);
+      animation: header-arrive 520ms cubic-bezier(.22, 1, .36, 1) both;
     }
     .public-brand { display: inline-flex; align-items: center; gap: 11px; color: #12213b; text-decoration: none; width: max-content; }
-    .public-brand__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #173b8f; color: #fff; box-shadow: 0 8px 20px rgba(23, 59, 143, .2); }
+    .public-brand__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #173b8f; color: #fff; box-shadow: 0 8px 20px rgba(23, 59, 143, .2); transition: transform 220ms ease, box-shadow 220ms ease; }
+    .public-brand:hover .public-brand__mark { transform: translateY(-2px) rotate(-3deg); box-shadow: 0 12px 25px rgba(23, 59, 143, .28); }
     .public-brand__mark mat-icon { width: 20px; height: 20px; font-size: 20px; }
     .public-brand > span:last-child { display: flex; flex-direction: column; }
     .public-brand strong { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; font-size: 15px; }
@@ -249,11 +279,18 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .public-header nav a { position: relative; color: #526078; font-size: 12px; font-weight: 700; text-decoration: none; }
     .public-header nav a::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -8px; height: 2px; background: #0f8e84; transition: right 160ms ease; }
     .public-header nav a:hover::after { right: 0; }
-    .header-access { justify-self: end; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid #c9d1df; border-radius: 999px; color: #173b8f; font-size: 12px; font-weight: 800; text-decoration: none; background: rgba(255,255,255,.52); }
-    .header-access mat-icon { width: 16px; height: 16px; font-size: 16px; }
+    .header-access { justify-self: end; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid #c9d1df; border-radius: 999px; color: #173b8f; font-size: 12px; font-weight: 800; text-decoration: none; background: rgba(255,255,255,.52); transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
+    .header-access:hover { transform: translateY(-1px); border-color: #91a3c5; background: rgba(255,255,255,.82); }
+    .header-access mat-icon { width: 16px; height: 16px; font-size: 16px; transition: transform 180ms ease; }
+    .header-access:hover mat-icon { transform: translateX(3px); }
     main { width: min(1420px, calc(100% - 48px)); margin: 0 auto; }
     .hero-section { min-height: 690px; display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(340px, 430px); gap: clamp(48px, 8vw, 120px); align-items: center; padding: 72px 0 76px; }
-    .hero-story { max-width: 820px; animation: reveal-up 600ms ease both; }
+    .hero-story { max-width: 820px; }
+    .hero-kicker { animation: hero-arrive 620ms 80ms cubic-bezier(.22, 1, .36, 1) both; }
+    .hero-story h1 { animation: hero-arrive 720ms 160ms cubic-bezier(.22, 1, .36, 1) both; }
+    .hero-copy { animation: hero-arrive 720ms 260ms cubic-bezier(.22, 1, .36, 1) both; }
+    .hero-actions { animation: hero-arrive 720ms 350ms cubic-bezier(.22, 1, .36, 1) both; }
+    .pilot-card { animation: hero-arrive 720ms 440ms cubic-bezier(.22, 1, .36, 1) both; }
     .hero-kicker, .section-intro > span, .release-model__heading > span, .governance-copy > span { display: inline-flex; align-items: center; gap: 9px; color: #0b7a72; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
     .hero-kicker i { width: 22px; height: 2px; background: #0f9f96; }
     h1, h2, h3 { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; }
@@ -261,10 +298,13 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     h1 span { color: #2854c5; }
     .hero-copy { max-width: 700px; margin: 0; color: #526078; font-size: clamp(18px, 1.7vw, 23px); line-height: 1.5; }
     .hero-actions { display: flex; align-items: center; gap: 14px; margin-top: 32px; }
-    .primary-action, .secondary-action { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 20px; border-radius: 12px; font-size: 13px; font-weight: 850; text-decoration: none; }
+    .primary-action, .secondary-action { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 20px; border-radius: 12px; font-size: 13px; font-weight: 850; text-decoration: none; transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease; }
     .primary-action { background: #173b8f; color: #fff; box-shadow: 0 14px 30px rgba(23, 59, 143, .22); }
-    .primary-action mat-icon { width: 18px; height: 18px; font-size: 18px; }
+    .primary-action:hover { transform: translateY(-3px); box-shadow: 0 20px 38px rgba(23, 59, 143, .3); }
+    .primary-action mat-icon { width: 18px; height: 18px; font-size: 18px; transition: transform 180ms ease; }
+    .primary-action:hover mat-icon { transform: translateX(4px); }
     .secondary-action { border: 1px solid #cad2df; color: #173b8f; background: rgba(255,255,255,.54); }
+    .secondary-action:hover { transform: translateY(-2px); border-color: #91a3c5; background: rgba(255,255,255,.86); }
     .pilot-card { max-width: 690px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 13px; align-items: center; margin-top: 38px; padding: 14px 16px; border: 1px solid rgba(15, 142, 132, .22); border-radius: 16px; background: rgba(255,255,255,.64); box-shadow: 0 10px 34px rgba(20,33,59,.06); }
     .pilot-card__icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #08776f; background: #ddf4f0; }
     .pilot-card > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }
@@ -272,8 +312,9 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .pilot-card strong { color: #14213b; font-size: 14px; }
     .pilot-card em { color: #647087; font-size: 11px; font-style: normal; }
     .pilot-card__status { display: inline-flex; align-items: center; gap: 7px; color: #08776f; font-size: 10px; font-weight: 800; }
-    .pilot-card__status i { width: 7px; height: 7px; border-radius: 50%; background: #18b7a8; box-shadow: 0 0 0 5px rgba(24,183,168,.12); }
-    .access-panel { position: relative; overflow: hidden; padding: 32px; border: 1px solid rgba(20,33,59,.14); border-radius: 24px; background: #fff; box-shadow: 0 30px 80px rgba(25,39,72,.17); animation: reveal-up 600ms 120ms ease both; }
+    .pilot-card__status i { width: 7px; height: 7px; border-radius: 50%; background: #18b7a8; box-shadow: 0 0 0 5px rgba(24,183,168,.12); animation: status-breathe 2.8s ease-in-out infinite; }
+    .access-panel { position: relative; overflow: hidden; padding: 32px; border: 1px solid rgba(20,33,59,.14); border-radius: 24px; background: #fff; box-shadow: 0 30px 80px rgba(25,39,72,.17); animation: panel-arrive 760ms 240ms cubic-bezier(.22, 1, .36, 1) both; transition: transform 260ms ease, box-shadow 260ms ease; }
+    .access-panel:hover { transform: translateY(-4px); box-shadow: 0 38px 90px rgba(25,39,72,.2); }
     .access-panel::before { content: ''; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, #0f9f96, #3158c8); }
     .access-panel__topline { display: inline-flex; align-items: center; gap: 9px; color: #0b7a72; font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
     .access-panel__topline > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: #e3f6f3; }
@@ -295,8 +336,15 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .release-model__heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 0 4px 24px; }
     .release-model__heading > span { color: #68ded2; }
     .release-model__heading h2 { max-width: 590px; margin: 0; font-size: 25px; text-align: right; }
-    .release-track { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.11); border-radius: 18px; background: rgba(255,255,255,.045); }
-    .release-track article { position: relative; min-height: 140px; display: grid; grid-template-columns: 42px 1fr; align-content: center; gap: 11px; padding: 24px; border-right: 1px solid rgba(255,255,255,.1); }
+    .release-track { position: relative; overflow: hidden; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.11); border-radius: 18px; background: rgba(255,255,255,.045); }
+    .release-track::after { content: ''; position: absolute; inset: auto auto 0 0; width: 0; height: 2px; background: linear-gradient(90deg, #30c8bc, #6be6da, transparent); box-shadow: 0 0 16px rgba(107,230,218,.55); transition: width 1.25s 320ms cubic-bezier(.22,1,.36,1); }
+    .release-model.is-visible .release-track::after { width: 100%; }
+    .release-track article { position: relative; min-height: 140px; display: grid; grid-template-columns: 42px 1fr; align-content: center; gap: 11px; padding: 24px; border-right: 1px solid rgba(255,255,255,.1); opacity: 0; transform: translateY(16px); transition: opacity 500ms ease, transform 500ms cubic-bezier(.22,1,.36,1), background-color 180ms ease; }
+    .release-track article:hover { background: rgba(255,255,255,.04); }
+    .release-model.is-visible .release-track article { opacity: 1; transform: none; }
+    .release-model.is-visible .release-track article:nth-child(2) { transition-delay: 90ms; }
+    .release-model.is-visible .release-track article:nth-child(3) { transition-delay: 180ms; }
+    .release-model.is-visible .release-track article:nth-child(4) { transition-delay: 270ms; }
     .release-track article:last-child { border-right: 0; }
     .release-track__index { position: absolute; top: 13px; right: 15px; color: rgba(255,255,255,.28); font-size: 10px; font-weight: 900; }
     .release-track__icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #75e5d9; background: rgba(20,184,166,.13); }
@@ -310,6 +358,12 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .section-intro p { max-width: 720px; margin: 0; color: #647087; font-size: 16px; line-height: 1.6; }
     .comparison-board { overflow: hidden; border: 1px solid #d8dde6; border-radius: 22px; background: #fff; box-shadow: 0 18px 55px rgba(20,33,59,.08); }
     .comparison-board__headings, .comparison-row { display: grid; grid-template-columns: 1fr 1fr; }
+    .comparison-row { opacity: 0; transform: translateY(12px); transition: opacity 440ms ease, transform 440ms cubic-bezier(.22,1,.36,1); }
+    .business-case.is-visible .comparison-row { opacity: 1; transform: none; }
+    .business-case.is-visible .comparison-row:nth-child(3) { transition-delay: 70ms; }
+    .business-case.is-visible .comparison-row:nth-child(4) { transition-delay: 140ms; }
+    .business-case.is-visible .comparison-row:nth-child(5) { transition-delay: 210ms; }
+    .business-case.is-visible .comparison-row:nth-child(6) { transition-delay: 280ms; }
     .comparison-board__header { display: flex; align-items: center; gap: 13px; padding: 24px 28px; }
     .comparison-board__header--today { color: #94421e; background: #fff3ea; }
     .comparison-board__header--future { color: #08776f; background: #eaf8f5; }
@@ -324,13 +378,18 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .outcome-section { padding-bottom: 118px; }
     .section-intro--compact { max-width: 680px; }
     .outcome-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    .outcome-grid article { min-height: 230px; padding: 24px; border: 1px solid #dce1e9; border-radius: 18px; background: rgba(255,255,255,.7); transition: transform 180ms ease, box-shadow 180ms ease; }
-    .outcome-grid article:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(20,33,59,.1); }
+    .outcome-grid article { min-height: 230px; padding: 24px; border: 1px solid #dce1e9; border-radius: 18px; background: rgba(255,255,255,.7); opacity: 0; transform: translateY(22px); transition: opacity 480ms ease, transform 480ms cubic-bezier(.22,1,.36,1), box-shadow 180ms ease; }
+    .outcome-section.is-visible .outcome-grid article { opacity: 1; transform: none; }
+    .outcome-section.is-visible .outcome-grid article:nth-child(2) { transition-delay: 80ms; }
+    .outcome-section.is-visible .outcome-grid article:nth-child(3) { transition-delay: 160ms; }
+    .outcome-section.is-visible .outcome-grid article:nth-child(4) { transition-delay: 240ms; }
+    .outcome-section.is-visible .outcome-grid article:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(20,33,59,.1); }
     .outcome-icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; color: #2854c5; background: #e9efff; }
     .outcome-grid h3 { margin: 30px 0 10px; color: #14213b; font-size: 19px; }
     .outcome-grid p { margin: 0; color: #657188; font-size: 13px; line-height: 1.58; }
     .audience-section { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-bottom: 118px; }
-    .audience-card { min-height: 390px; padding: 36px; border-radius: 24px; }
+    .audience-card { min-height: 390px; padding: 36px; border-radius: 24px; transition: transform 240ms ease, box-shadow 240ms ease; }
+    .audience-card:hover { transform: translateY(-5px); }
     .audience-card--users { color: #102547; background: linear-gradient(145deg, #e8f7f4, #f4fbfa); border: 1px solid #cce8e4; }
     .audience-card--leaders { color: #fff; background: linear-gradient(145deg, #173b8f, #24346d); box-shadow: 0 25px 60px rgba(23,59,143,.2); }
     .audience-card__label { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
@@ -345,7 +404,11 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .governance-copy h2 { margin: 16px 0; color: #0b1731; font-size: 43px; line-height: 1.06; }
     .governance-copy p { margin: 0; color: #5f6b7e; font-size: 15px; line-height: 1.65; }
     .governance-proof { display: grid; gap: 12px; }
-    .governance-proof article { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; padding: 17px; border: 1px solid rgba(20,33,59,.1); border-radius: 15px; background: rgba(255,255,255,.65); }
+    .governance-proof article { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; padding: 17px; border: 1px solid rgba(20,33,59,.1); border-radius: 15px; background: rgba(255,255,255,.65); opacity: 0; transform: translateX(18px); transition: opacity 440ms ease, transform 440ms cubic-bezier(.22,1,.36,1), background-color 180ms ease; }
+    .governance-section.is-visible .governance-proof article { opacity: 1; transform: none; }
+    .governance-section.is-visible .governance-proof article:nth-child(2) { transition-delay: 100ms; }
+    .governance-section.is-visible .governance-proof article:nth-child(3) { transition-delay: 200ms; }
+    .governance-proof article:hover { background: rgba(255,255,255,.88); }
     .governance-proof article > mat-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: #173b8f; background: #e2e8f7; font-size: 22px; }
     .governance-proof article span { display: flex; flex-direction: column; gap: 3px; }
     .governance-proof strong { color: #17253e; font-size: 13px; }
@@ -359,7 +422,13 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .public-footer span:first-child { color: #173b8f; font-weight: 900; }
     .public-footer span:last-child { justify-self: end; }
     .mobile-access-bar { display: none; }
-    @keyframes reveal-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    .reveal-section { opacity: 0; transform: translateY(42px); transition: opacity 700ms ease, transform 700ms cubic-bezier(.22,1,.36,1); }
+    .reveal-section.is-visible { opacity: 1; transform: none; }
+    @keyframes header-arrive { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+    @keyframes hero-arrive { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+    @keyframes panel-arrive { from { opacity: 0; transform: translateY(30px) scale(.975); } to { opacity: 1; transform: none; } }
+    @keyframes status-breathe { 0%, 100% { box-shadow: 0 0 0 5px rgba(24,183,168,.12); } 50% { box-shadow: 0 0 0 9px rgba(24,183,168,.05), 0 0 18px rgba(24,183,168,.3); } }
+    @keyframes ambient-drift { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-32px,28px,0) scale(1.06); } }
     @media (max-width: 1050px) {
       .public-header { grid-template-columns: 1fr auto; }
       .public-header nav { display: none; }
@@ -412,13 +481,20 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .mobile-access-bar a:first-child { color: #fff; background: #173b8f; }
       .mobile-access-bar mat-icon { width: 17px; height: 17px; font-size: 17px; }
     }
-    @media (prefers-reduced-motion: reduce) { .hero-story, .access-panel { animation: none; } * { scroll-behavior: auto !important; } }
+    @media (prefers-reduced-motion: reduce) {
+      .landing-shell::before, .landing-shell::after, .public-header, .hero-kicker, .hero-story h1, .hero-copy, .hero-actions, .pilot-card, .pilot-card__status i, .access-panel { animation: none; }
+      .reveal-section, .release-track article, .comparison-row, .outcome-grid article, .governance-proof article { opacity: 1; transform: none; transition: none; }
+      .release-track::after { width: 100%; transition: none; }
+      * { scroll-behavior: auto !important; }
+    }
   `]
 })
-export class LoginComponent {
+export class LoginComponent implements AfterViewInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(LocalAuthService);
   private readonly router = inject(Router);
+  private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+  private revealObserver?: IntersectionObserver;
 
   readonly form = this.fb.nonNullable.group({
     userName: ['', Validators.required],
@@ -449,6 +525,30 @@ export class LoginComponent {
     { icon: 'account_tree', title: 'Clear accountability', description: 'Separate preparation, approval and publication responsibilities.' },
     { icon: 'history_edu', title: 'Defensible decisions', description: 'Retain what changed, what was accepted and what was ultimately published.' }
   ];
+
+  ngAfterViewInit(): void {
+    const revealElements = Array.from(this.host.nativeElement.querySelectorAll<HTMLElement>('.reveal-section'));
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      revealElements.forEach((element) => element.classList.add('is-visible'));
+      return;
+    }
+
+    this.revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        this.revealObserver?.unobserve(entry.target);
+      });
+    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+
+    revealElements.forEach((element) => this.revealObserver?.observe(element));
+  }
+
+  ngOnDestroy(): void {
+    this.revealObserver?.disconnect();
+  }
 
   scrollToSection(event: Event, sectionId: string): void {
     event.preventDefault();

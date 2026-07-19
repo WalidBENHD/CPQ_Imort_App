@@ -18,6 +18,12 @@
   --app-border: #dbe4f0;
   --app-accent: #2563eb;
   --app-soft-surface: #f8fafc;
+  --app-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.07);
+  --app-shadow-raised: 0 18px 48px rgba(15, 23, 42, 0.12);
+  --motion-fast: 160ms;
+  --motion-base: 260ms;
+  --motion-slow: 480ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html.theme-dark {
@@ -32,6 +38,8 @@ html.theme-dark {
   --app-border: rgba(148, 163, 184, 0.28);
   --app-accent: #7ea2ff;
   --app-soft-surface: rgba(15, 23, 42, 0.78);
+  --app-shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.2);
+  --app-shadow-raised: 0 22px 56px rgba(0, 0, 0, 0.34);
   color-scheme: dark;
 }
 
@@ -40,7 +48,7 @@ html.theme-dark {
 html, body {
   height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: "Aptos", "Segoe UI", sans-serif;
   background: var(--app-background);
   color: var(--app-text);
   color-scheme: light;
@@ -3310,3 +3318,181 @@ html.theme-dark app-import-wizard .responsibility-checkbox {
   color: var(--app-text-muted) !important;
 }
 html.theme-dark app-import-wizard .notice-icon { color: #fbbf24 !important; }
+
+/* Shared interaction language -------------------------------------------------
+   Operational pages stay calm: motion communicates navigation, focus and
+   hierarchy rather than continuously animating working data. */
+html { scroll-behavior: smooth; }
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3,
+.mat-headline-1, .mat-headline-2, .mat-headline-3 {
+  font-family: "Bahnschrift", "Aptos Display", "Segoe UI", sans-serif;
+  letter-spacing: -0.015em;
+}
+
+::selection {
+  color: #ffffff;
+  background: color-mix(in srgb, var(--app-accent) 82%, #0f172a);
+}
+
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--app-accent) 34%, transparent) !important;
+  outline-offset: 3px;
+}
+
+:where(button, a, summary, [role='button']) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, .mat-mdc-button-base):not(:disabled) {
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+:where(button, .mat-mdc-button-base):not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.mat-mdc-raised-button:not(:disabled),
+.mat-mdc-unelevated-button:not(:disabled) {
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--app-accent) 18%, transparent);
+}
+
+.mat-mdc-raised-button:not(:disabled):hover,
+.mat-mdc-unelevated-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 24px color-mix(in srgb, var(--app-accent) 24%, transparent);
+}
+
+.mat-mdc-button-base .mat-icon {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.mat-mdc-button-base:not(:disabled):hover .mat-icon {
+  transform: scale(1.06);
+}
+
+.mat-mdc-text-field-wrapper {
+  transition: background-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+.mat-mdc-form-field.mat-focused .mat-mdc-text-field-wrapper {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-accent) 8%, transparent);
+}
+
+.mat-mdc-card,
+mat-card {
+  transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
+}
+
+.mat-mdc-row,
+tbody tr,
+.upload-item,
+.job-row,
+.activity-list button {
+  transition: background-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+.mat-mdc-row:hover,
+tbody tr:hover {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--app-accent) 58%, transparent);
+}
+
+details summary mat-icon {
+  transition: transform var(--motion-base) var(--ease-out);
+}
+
+details[open] summary mat-icon {
+  transform: rotate(180deg);
+}
+
+.cdk-overlay-backdrop.cdk-overlay-backdrop-showing {
+  backdrop-filter: blur(5px);
+}
+
+.mat-mdc-dialog-surface {
+  animation: app-dialog-enter var(--motion-base) var(--ease-out) both;
+}
+
+.mat-mdc-menu-panel,
+.mat-mdc-select-panel,
+.mat-mdc-autocomplete-panel {
+  animation: app-overlay-enter 180ms var(--ease-out) both;
+  box-shadow: var(--app-shadow-raised) !important;
+}
+
+.mat-mdc-snack-bar-container .mdc-snackbar__surface {
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 14px !important;
+  box-shadow: var(--app-shadow-raised) !important;
+}
+
+app-dashboard .metric,
+app-dashboard .panel,
+app-uploads .workspace-shell,
+app-datasets .dataset-card,
+app-datasets .pilot-scope-card {
+  box-shadow: var(--app-shadow-soft);
+}
+
+app-dashboard .metric,
+app-uploads .space-card,
+app-datasets .dataset-card {
+  transition: transform var(--motion-base) var(--ease-out), border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
+}
+
+@media (hover: hover) {
+  app-dashboard .metric:hover,
+  app-datasets .dataset-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--app-accent) 30%, var(--app-border));
+    box-shadow: var(--app-shadow-raised);
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-text-muted) 45%, transparent) transparent;
+}
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text-muted) 40%, transparent);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--app-accent) 56%, transparent);
+  background-clip: padding-box;
+}
+
+@keyframes app-dialog-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes app-overlay-enter {
+  from { opacity: 0; transform: translateY(-5px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
