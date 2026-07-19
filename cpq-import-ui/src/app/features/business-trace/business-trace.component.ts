@@ -77,7 +77,7 @@ type TraceObjectType = 'Article' | 'Basis price';
           </label>
 
           <button mat-flat-button type="button" class="search-button" (click)="search()" [disabled]="isLoading || !query.trim()">
-            <mat-icon>{{ isLoading ? 'progress_activity' : 'manage_search' }}</mat-icon> {{ isLoading ? 'Tracing...' : 'Search trace' }}
+            <mat-icon>{{ isLoading ? 'autorenew' : 'manage_search' }}</mat-icon> {{ isLoading ? 'Tracing...' : 'Search trace' }}
           </button>
         </div>
 
@@ -180,7 +180,7 @@ type TraceObjectType = 'Article' | 'Basis price';
                 <footer>
                   <span><mat-icon>person</mat-icon><small>{{ event.actorLabel }}</small><strong>{{ event.actor }}</strong></span>
                   <span><mat-icon>description</mat-icon><small>Source</small><strong>{{ event.sourceName }}</strong></span>
-                  <span><mat-icon>deployed_code</mat-icon><small>Release</small><strong>{{ event.releaseName || 'Individual publication' }}</strong></span>
+                  <span><mat-icon>inventory_2</mat-icon><small>Release</small><strong>{{ event.releaseName || 'Individual publication' }}</strong></span>
                   <a mat-button *ngIf="event.sourceJobId" [routerLink]="['/import', event.sourceJobId]"><mat-icon>fact_check</mat-icon> Open evidence</a>
                 </footer>
               </div>

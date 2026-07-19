@@ -113,36 +113,37 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
     </div>
 
     <ng-container *ngIf="job">
-      <section class="workbench-health" aria-label="Dataset workbench status">
-        <div class="workbench-health__intro">
-          <span class="workbench-live"><i></i>{{ isPrivateWorkspace ? 'Private working session' : 'Governed dataset review' }}</span>
-          <strong>{{ isPrivateWorkspace ? 'Work directly on the data' : 'Inspect the exact submitted version' }}</strong>
-          <small>Use the health indicators to focus the table without losing the current impact.</small>
-        </div>
-        <div class="health-metrics">
-          <button type="button" class="health-metric health-metric--total" (click)="focusRows()">
-            <span>Total</span><strong>{{ job.totalRows }}</strong><small>All rows</small>
-          </button>
-          <button type="button" class="health-metric health-metric--valid" (click)="focusRows('Valid')">
-            <span>Valid</span><strong>{{ job.validRows }}</strong><small>Ready</small>
-          </button>
-          <button type="button" class="health-metric health-metric--warning" (click)="focusRows('Warning')">
-            <span>Warnings</span><strong>{{ job.warningRows }}</strong><small>Review</small>
-          </button>
-          <button type="button" class="health-metric health-metric--error" [class.health-metric--urgent]="job.errorRows > 0" (click)="focusRows('Error')">
-            <span>Errors</span><strong>{{ job.errorRows }}</strong><small>{{ job.errorRows ? 'Blocking' : 'Clear' }}</small>
-          </button>
-          <button type="button" class="health-metric health-metric--change" *ngIf="comparison" (click)="focusRows('', 'Modified')">
-            <span>Modified</span><strong>{{ comparison.modifiedRows }}</strong><small>Changed</small>
-          </button>
-        </div>
-        <button mat-stroked-button type="button" class="evidence-toggle" [class.evidence-toggle--open]="contextExpanded" (click)="toggleContext()">
-          <mat-icon>{{ contextExpanded ? 'close' : 'verified_user' }}</mat-icon>
-          {{ contextExpanded ? 'Close evidence' : 'Details & evidence' }}
-        </button>
-      </section>
-
       <div class="workbench-grid">
+        <div class="workbench-rail">
+        <section class="workbench-health" aria-label="Dataset workbench status">
+          <div class="workbench-health__intro">
+            <span class="workbench-live"><i></i>{{ isPrivateWorkspace ? 'Private working session' : 'Governed dataset review' }}</span>
+            <strong>{{ isPrivateWorkspace ? 'Work directly on the data' : 'Inspect the exact submitted version' }}</strong>
+            <small>Use the health indicators to focus the table without losing the current impact.</small>
+          </div>
+          <div class="health-metrics">
+            <button type="button" class="health-metric health-metric--total" (click)="focusRows()">
+              <span>Total</span><strong>{{ job.totalRows }}</strong><small>All rows</small>
+            </button>
+            <button type="button" class="health-metric health-metric--valid" (click)="focusRows('Valid')">
+              <span>Valid</span><strong>{{ job.validRows }}</strong><small>Ready</small>
+            </button>
+            <button type="button" class="health-metric health-metric--warning" (click)="focusRows('Warning')">
+              <span>Warnings</span><strong>{{ job.warningRows }}</strong><small>Review</small>
+            </button>
+            <button type="button" class="health-metric health-metric--error" [class.health-metric--urgent]="job.errorRows > 0" (click)="focusRows('Error')">
+              <span>Errors</span><strong>{{ job.errorRows }}</strong><small>{{ job.errorRows ? 'Blocking' : 'Clear' }}</small>
+            </button>
+            <button type="button" class="health-metric health-metric--change" *ngIf="comparison" (click)="focusRows('', 'Modified')">
+              <span>Modified</span><strong>{{ comparison.modifiedRows }}</strong><small>Changed</small>
+            </button>
+          </div>
+          <button mat-stroked-button type="button" class="evidence-toggle" [class.evidence-toggle--open]="contextExpanded" (click)="toggleContext()">
+            <mat-icon>{{ contextExpanded ? 'close' : 'verified_user' }}</mat-icon>
+            {{ contextExpanded ? 'Close evidence' : 'Details & evidence' }}
+          </button>
+        </section>
+
         <aside class="impact-rail" [class.impact-rail--mobile-open]="mobileImpactOpen" aria-label="Live dataset impact">
           <header class="impact-rail__header">
             <span><mat-icon>insights</mat-icon></span>
@@ -189,6 +190,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
             <button mat-button type="button" class="impact-evidence-link" (click)="openEvidence()"><mat-icon>fact_check</mat-icon> View full context and evidence</button>
           </section>
         </aside>
+        </div>
 
         <section class="context-zone" [class.context-zone--open]="contextExpanded">
           <header class="context-zone__header">
@@ -605,16 +607,17 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
 
       <!-- Rows table -->
       <mat-card class="rows-card" id="data-workbench">
-        <mat-card-header class="rows-header">
-          <div>
-            <div class="editor-eyebrow" *ngIf="isPrivateWorkspace">Private working copy</div>
-            <mat-card-title>{{ isPrivateWorkspace ? 'Draft data editor' : 'Data Preview' }}</mat-card-title>
-            <p *ngIf="isPrivateWorkspace">Refine this dataset here. Nothing is shared until you submit it for review.</p>
-          </div>
-          <div class="list-meta">{{ rows?.total ?? job.totalRows }} matching rows</div>
-        </mat-card-header>
-
         <mat-card-content>
+          <div class="rows-controls-sticky">
+          <mat-card-header class="rows-header">
+            <div>
+              <div class="editor-eyebrow" *ngIf="isPrivateWorkspace">Private working copy</div>
+              <mat-card-title>{{ isPrivateWorkspace ? 'Draft data editor' : 'Data Preview' }}</mat-card-title>
+              <p *ngIf="isPrivateWorkspace">Refine this dataset here. Nothing is shared until you submit it for review.</p>
+            </div>
+            <div class="list-meta">{{ rows?.total ?? job.totalRows }} matching rows</div>
+          </mat-card-header>
+
           <section class="draft-editor-toolbar" *ngIf="isPrivateWorkspace">
             <div class="draft-change-summary">
               <div class="draft-change-heading">
@@ -716,6 +719,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
               </div>
             </form>
           </mat-card>
+          </div>
 
           <div class="loading-container" *ngIf="rowsLoading">
             <mat-spinner diameter="32"></mat-spinner>
@@ -1265,6 +1269,10 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
     }
     .rows-header p { margin: 5px 0 0; color: var(--app-text-muted); font-size: 13px; }
     .editor-eyebrow { margin-bottom: 4px; color: #0f766e; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .rows-controls-sticky {
+      position: static;
+      background: var(--app-surface-elevated);
+    }
     .rows-header {
       margin-bottom: 8px;
       padding-bottom: 6px;
@@ -1550,6 +1558,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
       .workflow-rail > mat-icon { transform:rotate(90deg); margin-left:2px; }
       .workflow-rail__step strong { white-space:normal; }
       .desktop-rows { max-height: 620px; }
+      .rows-controls-sticky { position: static; top: auto; }
     }
 
     @media (max-width: 600px) {

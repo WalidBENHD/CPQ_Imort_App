@@ -30,7 +30,7 @@ export type DraftEditorMode = 'add' | 'edit' | 'duplicate';
       </header>
 
       <div class="editor-context">
-        <mat-icon>shield_lock</mat-icon>
+        <mat-icon>shield</mat-icon>
         <div><strong>Safe to refine</strong><span>Changes stay in your private workspace until you submit this version.</span></div>
       </div>
 

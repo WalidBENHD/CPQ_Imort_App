@@ -71,7 +71,7 @@ import { ThemeService } from './core/services/theme.service';
             </header>
 
             <div class="profile-menu__section">
-              <span class="profile-menu__label"><mat-icon>shield_person</mat-icon> Assigned roles</span>
+              <span class="profile-menu__label"><mat-icon>admin_panel_settings</mat-icon> Assigned roles</span>
               <div class="profile-menu__roles" *ngIf="auth.roleNames.length; else noAssignedRole">
                 <span *ngFor="let role of auth.roleNames">{{ role }}</span>
               </div>
@@ -890,8 +890,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
   readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> = [
     { route: '/admin/users', label: 'People', icon: 'group', capabilities: ['users.manage', 'users.assign_roles'] },
-    { route: '/admin/access-studio', label: 'Roles & access', icon: 'shield_person', capabilities: ['roles.manage'] },
-    { route: '/admin/activity', label: 'Activity', icon: 'monitoring', capabilities: ['audit.view'] },
+    { route: '/admin/access-studio', label: 'Roles & access', icon: 'admin_panel_settings', capabilities: ['roles.manage'] },
+    { route: '/admin/activity', label: 'Activity', icon: 'timeline', capabilities: ['audit.view'] },
     { route: '/admin/maintenance', label: 'System', icon: 'settings_suggest', capabilities: ['system.maintenance'] }
   ];
 

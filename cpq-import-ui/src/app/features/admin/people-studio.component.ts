@@ -50,10 +50,10 @@ interface AccessRole {
       </div>
 
       <div class="summary-grid">
-        <button type="button" class="summary-card pending" (click)="setFilter('Pending')"><mat-icon>person_clock</mat-icon><div><strong>{{ countFor('Pending') }}</strong><span>Pending requests</span></div></button>
+        <button type="button" class="summary-card pending" (click)="setFilter('Pending')"><mat-icon>pending_actions</mat-icon><div><strong>{{ countFor('Pending') }}</strong><span>Pending requests</span></div></button>
         <button type="button" class="summary-card active" (click)="setFilter('Active')"><mat-icon>how_to_reg</mat-icon><div><strong>{{ countFor('Active') }}</strong><span>Active people</span></div></button>
         <button type="button" class="summary-card suspended" (click)="setFilter('Suspended')"><mat-icon>person_off</mat-icon><div><strong>{{ countFor('Suspended') }}</strong><span>Suspended</span></div></button>
-        <button type="button" class="summary-card no-access" (click)="setFilter('NoAccess')"><mat-icon>shield_question</mat-icon><div><strong>{{ noAccessCount }}</strong><span>Without access</span></div></button>
+        <button type="button" class="summary-card no-access" (click)="setFilter('NoAccess')"><mat-icon>no_accounts</mat-icon><div><strong>{{ noAccessCount }}</strong><span>Without access</span></div></button>
       </div>
 
       <mat-card class="pending-panel" *ngIf="pendingUsers.length">
@@ -132,7 +132,7 @@ interface AccessRole {
         <div class="account-principle"><mat-icon>lightbulb</mat-icon><div><strong>Account and access are separate</strong><span>This person can sign in only when active. Their roles determine available actions.</span></div></div>
         <section class="drawer-section"><label>Account status</label><div class="status-choice"><button type="button" [class.selected]="draftStatus === 'Active'" (click)="draftStatus = 'Active'"><mat-icon>check_circle</mat-icon> Active</button><button type="button" [class.selected]="draftStatus === 'Suspended'" (click)="draftStatus = 'Suspended'"><mat-icon>pause_circle</mat-icon> Suspended</button></div></section>
         <section class="drawer-section"><label>Assigned roles</label><mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Select one or more roles</mat-label><mat-select multiple [(ngModel)]="draftRoleIds"><mat-option *ngFor="let role of roles" [value]="role.id">{{ role.name }}</mat-option></mat-select></mat-form-field></section>
-        <section class="drawer-section"><label>Access preview</label><div class="selected-role-list" *ngIf="draftRoles.length; else emptyDraft"><article *ngFor="let role of draftRoles"><span [style.--role-color]="role.color"><mat-icon>{{ role.icon }}</mat-icon></span><div><strong>{{ role.name }}</strong><small>{{ role.description }}</small></div><b>{{ role.capabilities.length }}</b></article></div><ng-template #emptyDraft><div class="drawer-empty"><mat-icon>shield_question</mat-icon>No operational access selected.</div></ng-template></section>
+        <section class="drawer-section"><label>Access preview</label><div class="selected-role-list" *ngIf="draftRoles.length; else emptyDraft"><article *ngFor="let role of draftRoles"><span [style.--role-color]="role.color"><mat-icon>{{ role.icon }}</mat-icon></span><div><strong>{{ role.name }}</strong><small>{{ role.description }}</small></div><b>{{ role.capabilities.length }}</b></article></div><ng-template #emptyDraft><div class="drawer-empty"><mat-icon>no_accounts</mat-icon>No operational access selected.</div></ng-template></section>
         <div class="effective-summary"><span>Effective access after saving</span><strong>{{ draftEffectiveCapabilities.length }} capabilities</strong></div>
         <div class="drawer-actions"><button mat-button type="button" (click)="closeAccessEditor()">Cancel</button><button mat-raised-button class="primary-button" type="button" (click)="saveAccess()">{{ approvingSelectedUser ? 'Approve and save access' : 'Save changes' }}</button></div>
       </aside>

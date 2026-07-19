@@ -121,7 +121,7 @@
 
         <div class="workspace-list" *ngIf="privateJobs.length; else noPrivateWork">
           <button type="button" *ngFor="let job of privateJobs | slice:0:3" (click)="view(job)">
-            <span class="row-icon"><mat-icon>{{ job.releasePackageId ? 'deployed_code' : 'description' }}</mat-icon></span>
+            <span class="row-icon"><mat-icon>{{ job.releasePackageId ? 'inventory_2' : 'description' }}</mat-icon></span>
             <span class="row-main"><strong>{{ job.releasePackageName || job.originalFileName }}</strong><small>{{ job.entityTypeLabel }} &middot; {{ job.totalRows }} rows &middot; Edited {{ job.createdAt | date:'dd MMM, HH:mm' }}</small></span>
             <span class="row-state" [class.row-state--error]="job.errorRows > 0">{{ job.errorRows > 0 ? job.errorRows + ' errors' : privateStatus(job) }}</span>
             <mat-icon>chevron_right</mat-icon>
@@ -163,7 +163,7 @@
 
       <section class="tower-panel admin-panel" *ngIf="showAdminInsights">
         <header class="panel-heading">
-          <div><span class="section-kicker section-kicker--admin"><mat-icon>monitoring</mat-icon> Admin intelligence</span><h2>Platform pulse</h2><p>Operational signals kept secondary to the business workflow.</p></div>
+          <div><span class="section-kicker section-kicker--admin"><mat-icon>insights</mat-icon> Admin intelligence</span><h2>Platform pulse</h2><p>Operational signals kept secondary to the business workflow.</p></div>
         </header>
         <div class="admin-metrics">
           <button type="button" (click)="openEvolisHistory()"><span><mat-icon>enhanced_encryption</mat-icon>Evolis decryptions</span><strong>{{ overview?.evolisMetrics?.total ?? 0 }}</strong><small>{{ overview?.evolisMetrics?.failedThisMonth ?? 0 }} failures this month</small></button>

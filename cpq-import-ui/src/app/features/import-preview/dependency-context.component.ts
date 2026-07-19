@@ -64,7 +64,7 @@ type CandidateSource = 'All' | ArticleMasterCandidateSummary['source'];
         </div>
 
         <div class="stability" *ngIf="ctx.isDependentDataset" [class.release]="ctx.anchorKind === 3">
-          <mat-icon>{{ ctx.anchorKind === 3 ? 'deployed_code' : 'shield' }}</mat-icon>
+          <mat-icon>{{ ctx.anchorKind === 3 ? 'inventory_2' : 'shield' }}</mat-icon>
           <div>
             <strong>{{ stabilityTitle }}</strong>
             <span>{{ stabilityCopy }}</span>
@@ -85,7 +85,7 @@ type CandidateSource = 'All' | ArticleMasterCandidateSummary['source'];
         </section>
 
         <div class="release-entry" *ngIf="ctx.isDependentDataset && !ctx.releasePackage && view !== 'release'">
-          <span class="release-icon"><mat-icon>deployed_code</mat-icon></span>
+          <span class="release-icon"><mat-icon>inventory_2</mat-icon></span>
           <div><span class="eyebrow">Preparing related datasets?</span><strong>Coordinate Master, Prices and Descriptions in one annual release</strong><p>Validate dependent drafts against a candidate master, then review and publish them in dependency order.</p></div>
           <button mat-stroked-button (click)="view='release'">Create release package <mat-icon>arrow_forward</mat-icon></button>
         </div>

@@ -300,7 +300,7 @@ export class AccessStudioComponent implements OnInit {
   createRole(): void {
     const name = this.newRoleName.trim();
     if (!name) return;
-    this.localAuth.createAccessRole({ name, description: this.newRoleDescription.trim() || 'Custom capability profile.', icon: 'person_shield', color: ROLE_COLORS[this.roles.length % ROLE_COLORS.length], capabilities: [] }).subscribe(role => {
+    this.localAuth.createAccessRole({ name, description: this.newRoleDescription.trim() || 'Custom capability profile.', icon: 'verified_user', color: ROLE_COLORS[this.roles.length % ROLE_COLORS.length], capabilities: [] }).subscribe(role => {
       const mapped = this.mapRole(role);
       this.roles = [...this.roles, mapped];
       this.selectedRoleId = mapped.id;

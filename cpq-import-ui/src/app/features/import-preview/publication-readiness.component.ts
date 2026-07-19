@@ -54,7 +54,7 @@ export interface PublicationApprovalDraft {
       </div>
 
       <div class="publication-warning">
-        <mat-icon>database</mat-icon>
+        <mat-icon>storage</mat-icon>
         <div>
           <strong>Publishing applies the approved impact to CPQ.</strong>
           <span>New and modified rows will be written, and only the approved scoped missing rows will be removed.</span>

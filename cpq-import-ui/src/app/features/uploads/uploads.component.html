@@ -98,7 +98,7 @@
     <div class="upload-groups" *ngIf="!loading && !loadError && filteredJobs.length" [class.upload-groups--compact]="viewMode === 'compact'">
       <section class="upload-group" *ngFor="let group of displayGroups; trackBy: trackGroup" [class.upload-group--release]="group.isRelease">
         <header class="release-header" *ngIf="group.isRelease">
-          <span class="release-header__icon"><mat-icon>deployed_code</mat-icon></span>
+          <span class="release-header__icon"><mat-icon>inventory_2</mat-icon></span>
           <div><small>Coordinated release</small><strong>{{ group.name || 'Coordinated release' }}</strong><span>{{ group.jobs.length }} connected datasets · {{ releaseGroupRows(group) }} total rows</span></div>
           <em>{{ releaseGroupStatus(group) }}</em>
         </header>
@@ -106,7 +106,7 @@
         <div class="detailed-list" *ngIf="viewMode === 'detailed'">
           <article class="upload-item" *ngFor="let job of group.jobs; trackBy: trackJob" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
             <div class="file-mark" [class.file-mark--published]="job.statusLabel === 'Committed'" [class.file-mark--active]="activeSpace === 'history' && job.isActiveBaseline">
-              <mat-icon>{{ job.statusLabel === 'Committed' ? 'verified' : job.releasePackageId ? 'description' : 'draft' }}</mat-icon>
+              <mat-icon>{{ job.statusLabel === 'Committed' ? 'verified' : job.releasePackageId ? 'description' : 'edit_note' }}</mat-icon>
               <span *ngIf="activeSpace === 'history' && job.isActiveBaseline" class="active-baseline-led" matTooltip="Current CPQ source" aria-label="Current CPQ source"></span>
             </div>
 
@@ -122,7 +122,7 @@
               <div class="release-membership" *ngIf="job.releasePackageId && !group.isRelease"><mat-icon>hub</mat-icon><span>Release</span><strong>{{ job.releasePackageName || 'Coordinated release' }}</strong></div>
 
               <div class="upload-details">
-                <span><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
+                <span><mat-icon>storage</mat-icon>{{ job.entityTypeLabel }}</span>
                 <span><mat-icon>table_rows</mat-icon>{{ job.totalRows }} rows</span>
                 <span><mat-icon>schedule</mat-icon>{{ job.createdAt | date:'dd MMM yyyy, HH:mm' }}</span>
                 <span *ngIf="activeSpace !== 'workspace'"><mat-icon>person</mat-icon>{{ job.createdByDisplayName }}</span>
@@ -152,7 +152,7 @@
           <article class="compact-row" *ngFor="let job of group.jobs; trackBy: trackJob" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
             <span class="compact-led" [class.compact-led--active]="job.isActiveBaseline" [class.compact-led--error]="job.errorRows > 0"></span>
             <span class="compact-name"><strong>{{ job.originalFileName }}</strong><small *ngIf="job.releasePackageId && !group.isRelease"><mat-icon>hub</mat-icon>{{ job.releasePackageName }}</small></span>
-            <span class="compact-dataset"><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
+            <span class="compact-dataset"><mat-icon>storage</mat-icon>{{ job.entityTypeLabel }}</span>
             <span class="compact-rows">{{ job.totalRows }} rows</span>
             <span class="compact-owner" *ngIf="activeSpace !== 'workspace'">{{ job.createdByDisplayName }}</span>
             <span class="compact-date">{{ job.createdAt | date:'dd MMM, HH:mm' }}</span>

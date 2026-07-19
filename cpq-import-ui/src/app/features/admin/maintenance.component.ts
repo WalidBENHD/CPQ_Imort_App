@@ -41,7 +41,7 @@ interface ResetResult {
 
         <div class="impact-grid">
           <article class="impact-card impact-card--remove"><mat-icon>history</mat-icon><div><strong>Import workspace</strong><span>Uploads, staging rows, audit activity and notifications are deleted.</span></div></article>
-          <article class="impact-card impact-card--remove"><mat-icon>database</mat-icon><div><strong>CPQ database</strong><span>Articles, prices, descriptions and currency rates are deleted.</span></div></article>
+          <article class="impact-card impact-card--remove"><mat-icon>storage</mat-icon><div><strong>CPQ database</strong><span>Articles, prices, descriptions and currency rates are deleted.</span></div></article>
           <article class="impact-card impact-card--preserve"><mat-icon>shield</mat-icon><div><strong>Access is preserved</strong><span>User accounts, roles, capabilities and assignments remain untouched.</span></div></article>
         </div>
 
