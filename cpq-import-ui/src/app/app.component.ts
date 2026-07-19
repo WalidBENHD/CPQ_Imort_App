@@ -882,6 +882,7 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string; exact?: boolean }> = [
     { route: '/dashboard', label: 'Dashboard', icon: 'space_dashboard' },
     { route: '/datasets', label: 'Datasets', icon: 'dataset' },
+    { route: '/business-trace', label: 'Business trace', icon: 'manage_search' },
     { route: '/uploads', label: 'Uploads', icon: 'view_list' }
   ];
 
@@ -957,6 +958,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (path.startsWith('/admin/activity')) return 'Activity';
     if (path.startsWith('/admin/maintenance')) return 'System';
     if (path.startsWith('/internal-tools/evolis-decryptor')) return 'Evolis Decryptor';
+    if (path.startsWith('/business-trace')) return 'Business trace';
     if (path.startsWith('/datasets')) return 'Datasets';
     if (path.startsWith('/uploads')) return 'Uploads';
     return 'Dashboard';

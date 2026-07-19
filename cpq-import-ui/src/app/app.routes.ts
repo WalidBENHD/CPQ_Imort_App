@@ -26,6 +26,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/datasets/datasets.component').then(m => m.DatasetsComponent)
   },
   {
+    path: 'business-trace',
+    canActivate: [capabilityGuard('imports.view')],
+    loadComponent: () => import('./features/business-trace/business-trace.component').then(m => m.BusinessTraceComponent)
+  },
+  {
     path: 'uploads',
     canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/uploads/uploads.component').then(m => m.UploadsComponent)
