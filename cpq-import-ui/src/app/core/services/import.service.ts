@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  ApprovedComparisonSnapshot, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
+  ApprovedComparisonSnapshot, BusinessTraceResult, BusinessTraceSuggestion, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -74,6 +74,16 @@ export class ImportService {
     return this.http.post<ImportJob>(`${this.base}/${jobId}/approve`, {}).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
     );
+  }
+
+  getBusinessTraceSuggestions(scopeKey: string, objectType: 'Article' | 'PriceList', limit = 6): Observable<BusinessTraceSuggestion[]> {
+    const params = new HttpParams().set('scopeKey', scopeKey).set('objectType', objectType).set('limit', limit);
+    return this.http.get<BusinessTraceSuggestion[]>(`${environment.apiUrl}/business-trace/suggestions`, { params });
+  }
+
+  searchBusinessTrace(scopeKey: string, objectType: 'Article' | 'PriceList', identifier: string): Observable<BusinessTraceResult> {
+    const params = new HttpParams().set('scopeKey', scopeKey).set('objectType', objectType).set('identifier', identifier);
+    return this.http.get<BusinessTraceResult>(`${environment.apiUrl}/business-trace/search`, { params });
   }
 
   getDependencyContext(jobId: string): Observable<DependencyContext> {

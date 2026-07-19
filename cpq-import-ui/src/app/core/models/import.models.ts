@@ -292,6 +292,93 @@ export interface ApprovedComparisonSnapshot {
   comparison: ImportComparison;
 }
 
+export interface BusinessTraceScope {
+  key: string;
+  site: string;
+  productFamily: string;
+  category: string;
+  currency: string;
+}
+
+export interface BusinessTraceSuggestion {
+  identifier: string;
+  label: string;
+  detail: string | null;
+  objectType: number;
+  objectTypeLabel: string;
+}
+
+export interface BusinessTraceField {
+  key: string;
+  label: string;
+  value: string | null;
+  hint: string | null;
+  domain: string;
+  kind: 'text' | 'price';
+}
+
+export interface BusinessTraceSource {
+  jobId: string;
+  dataset: string;
+  fileName: string;
+  publishedAt: string | null;
+  releasePackageId: string | null;
+  releaseName: string | null;
+}
+
+export interface BusinessTraceActor {
+  role: string;
+  displayName: string;
+  occurredAt: string | null;
+}
+
+export interface BusinessTraceResponsibility {
+  prepared: BusinessTraceActor | null;
+  approved: BusinessTraceActor | null;
+  published: BusinessTraceActor | null;
+  approvalEvidencePreserved: boolean;
+}
+
+export interface BusinessTraceChange {
+  domain: string;
+  field: string;
+  before: string | null;
+  after: string | null;
+}
+
+export interface BusinessTraceEvent {
+  id: string;
+  kind: 'published' | 'approved' | 'submitted' | 'introduced' | 'removed';
+  category: 'changes' | 'decisions';
+  occurredAt: string;
+  title: string;
+  summary: string;
+  actorLabel: string;
+  actor: string;
+  sourceJobId: string | null;
+  sourceName: string;
+  releasePackageId: string | null;
+  releaseName: string | null;
+  decision: string | null;
+  changes: BusinessTraceChange[];
+}
+
+export interface BusinessTraceResult {
+  scope: BusinessTraceScope;
+  objectType: number;
+  objectTypeLabel: string;
+  identifier: string;
+  displayName: string | null;
+  isActive: boolean;
+  statusLabel: string;
+  lastPublishedAt: string | null;
+  introducedAt: string | null;
+  currentFields: BusinessTraceField[];
+  sources: BusinessTraceSource[];
+  responsibility: BusinessTraceResponsibility;
+  events: BusinessTraceEvent[];
+}
+
 export interface DashboardSummary {
   awaitingApproval: number;
   committedToday: number;

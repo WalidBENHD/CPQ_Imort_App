@@ -1,27 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { PILOT_SCOPE } from '../../core/models/import.models';
+import { finalize } from 'rxjs/operators';
+import { BusinessTraceActor, BusinessTraceEvent, BusinessTraceField, BusinessTraceResult, BusinessTraceSuggestion, PILOT_SCOPE } from '../../core/models/import.models';
+import { ImportService } from '../../core/services/import.service';
 
 type TraceFilter = 'all' | 'changes' | 'decisions';
-type TraceKind = 'published' | 'approved' | 'submitted' | 'introduced';
-
-interface TraceEvent {
-  kind: TraceKind;
-  date: string;
-  time: string;
-  title: string;
-  summary: string;
-  actorLabel: string;
-  actor: string;
-  source: string;
-  release: string;
-  changes?: Array<{ field: string; before: string; after: string }>;
-  decision?: string;
-}
+type TraceObjectType = 'Article' | 'Basis price';
 
 @Component({
   selector: 'app-business-trace',
@@ -50,7 +39,7 @@ interface TraceEvent {
             <span class="section-kicker">Trace an object</span>
             <h2>What are you looking for?</h2>
           </div>
-          <span class="prototype-badge"><mat-icon>science</mat-icon> Prototype · sample evidence</span>
+          <span class="prototype-badge"><mat-icon>verified</mat-icon> Live publication evidence</span>
         </div>
 
         <div class="search-grid">
@@ -87,30 +76,36 @@ interface TraceEvent {
             </div>
           </label>
 
-          <button mat-flat-button type="button" class="search-button" (click)="search()">
-            <mat-icon>manage_search</mat-icon> Search trace
+          <button mat-flat-button type="button" class="search-button" (click)="search()" [disabled]="isLoading || !query.trim()">
+            <mat-icon>{{ isLoading ? 'progress_activity' : 'manage_search' }}</mat-icon> {{ isLoading ? 'Tracing...' : 'Search trace' }}
           </button>
         </div>
 
         <div class="recent-searches">
           <span>Try a recent search</span>
-          <button type="button" *ngFor="let item of recentSearches" (click)="useRecent(item)">
-            <mat-icon>{{ item.icon }}</mat-icon>{{ item.label }}
+          <button type="button" *ngFor="let item of suggestions" (click)="useSuggestion(item)">
+            <mat-icon>{{ resultIcon }}</mat-icon>{{ item.identifier }}
           </button>
+          <small *ngIf="!suggestions.length && !suggestionsLoading">No active {{ objectType.toLowerCase() }} records yet.</small>
         </div>
       </section>
 
-      <ng-container *ngIf="hasSearched">
+      <section class="trace-loading" *ngIf="isLoading">
+        <span><mat-icon>manage_search</mat-icon></span>
+        <div><strong>Following the publication chain</strong><small>Reading current values and preserved approval evidence...</small></div>
+      </section>
+
+      <ng-container *ngIf="trace as result">
         <section class="result-heading">
           <div class="result-identity">
             <span class="result-icon"><mat-icon>{{ resultIcon }}</mat-icon></span>
             <div>
-              <span class="section-kicker">{{ objectType }} · Current CPQ record</span>
-              <h2>{{ displayIdentifier }}</h2>
-              <p>{{ resultDescription }}</p>
+              <span class="section-kicker">{{ result.objectTypeLabel }} · Current CPQ record</span>
+              <h2>{{ result.identifier }}</h2>
+              <p>{{ result.displayName || resultDescription }}</p>
             </div>
           </div>
-          <div class="result-status"><i></i><span><strong>Active in CPQ</strong><small>Last published 16 Jul 2026</small></span></div>
+          <div class="result-status" [class.result-status--inactive]="!result.isActive"><i></i><span><strong>{{ result.statusLabel }}</strong><small *ngIf="result.lastPublishedAt">Last published {{ formatDate(result.lastPublishedAt) }}</small></span></div>
         </section>
 
         <section class="current-layout">
@@ -120,21 +115,19 @@ interface TraceEvent {
                 <span class="section-kicker">Current truth</span>
                 <h3>Values used by CPQ today</h3>
               </div>
-              <span class="truth-card__version"><mat-icon>verified</mat-icon> Release 2026.1</span>
+              <span class="truth-card__version"><mat-icon>verified</mat-icon> {{ evidenceLabel }}</span>
             </header>
 
             <div class="truth-grid">
-              <div class="truth-value truth-value--wide"><span>Description</span><strong>PDU standard power distribution unit, 16A</strong><small>English · Commercial description</small></div>
-              <div class="truth-value truth-value--price"><span>Basis price</span><strong>€1.20</strong><small>EUR · Per PC</small></div>
-              <div class="truth-value"><span>Category</span><strong>Standard</strong><small>Article Master</small></div>
-              <div class="truth-value"><span>Unit</span><strong>PC</strong><small>Article Master</small></div>
-              <div class="truth-value"><span>Validity</span><strong>01 Jan – 31 Dec 2026</strong><small>Basis Price</small></div>
+              <div class="truth-value" *ngFor="let field of result.currentFields; let first = first" [class.truth-value--wide]="first && field.kind !== 'price'" [class.truth-value--price]="field.kind === 'price'">
+                <span>{{ field.label }}</span><strong>{{ formatFieldValue(field) }}</strong><small>{{ field.hint || field.domain }}</small>
+              </div>
+              <div class="truth-value truth-value--empty" *ngIf="!result.currentFields.length"><span>Current state</span><strong>No active values</strong><small>The object remains available in publication history.</small></div>
             </div>
 
             <footer>
-              <span><mat-icon>inventory_2</mat-icon><span><small>Master source</small><strong>Articles_PDU_SM_2026</strong></span></span>
-              <span><mat-icon>payments</mat-icon><span><small>Price source</small><strong>Prices_PDU_SM_2026</strong></span></span>
-              <a mat-stroked-button routerLink="/uploads"><mat-icon>open_in_new</mat-icon> View publication</a>
+              <span *ngFor="let source of result.sources"><mat-icon>{{ sourceIcon(source.dataset) }}</mat-icon><span><small>{{ source.dataset }} source</small><strong>{{ source.fileName }}</strong></span></span>
+              <a mat-stroked-button *ngIf="primarySource" [routerLink]="['/import', primarySource.jobId]"><mat-icon>open_in_new</mat-icon> View publication</a>
             </footer>
           </article>
 
@@ -142,11 +135,9 @@ interface TraceEvent {
             <span class="section-kicker">Evidence at a glance</span>
             <h3>A complete chain of responsibility</h3>
             <div class="proof-chain">
-              <div><span>WB</span><p><small>Prepared by</small><strong>Walid Benhamed</strong><em>14 Jul · 18:24</em></p></div>
-              <div><span>HA</span><p><small>Approved by</small><strong>Hanan</strong><em>16 Jul · 09:12</em></p></div>
-              <div><span>WA</span><p><small>Published by</small><strong>Walid</strong><em>16 Jul · 09:18</em></p></div>
+              <div *ngFor="let actor of responsibilityActors"><span>{{ initials(actor.displayName) }}</span><p><small>{{ actor.role }}</small><strong>{{ actor.displayName }}</strong><em>{{ formatDateTime(actor.occurredAt) }}</em></p></div>
             </div>
-            <div class="proof-seal"><mat-icon>workspace_premium</mat-icon><span><strong>Approval evidence preserved</strong><small>The accepted values remain unchanged in history.</small></span></div>
+            <div class="proof-seal" *ngIf="result.responsibility.approvalEvidencePreserved"><mat-icon>workspace_premium</mat-icon><span><strong>Approval evidence preserved</strong><small>The accepted comparison remains unchanged in history.</small></span></div>
           </aside>
         </section>
 
@@ -166,7 +157,7 @@ interface TraceEvent {
 
           <div class="timeline">
             <article class="timeline-event" *ngFor="let event of visibleEvents; let last = last" [class.timeline-event--last]="last">
-              <div class="timeline-date"><strong>{{ event.date }}</strong><span>{{ event.time }}</span></div>
+              <div class="timeline-date"><strong>{{ formatDate(event.occurredAt) }}</strong><span>{{ formatTime(event.occurredAt) }}</span></div>
               <div class="timeline-rail"><span [class]="'timeline-dot timeline-dot--' + event.kind"><mat-icon>{{ iconFor(event.kind) }}</mat-icon></span></div>
               <div class="event-card">
                 <header>
@@ -177,10 +168,10 @@ interface TraceEvent {
 
                 <div class="change-set" *ngIf="event.changes?.length">
                   <div *ngFor="let change of event.changes">
-                    <span>{{ change.field }}</span>
-                    <del>{{ change.before }}</del>
+                    <span>{{ change.field }} <small>{{ change.domain }}</small></span>
+                    <del>{{ change.before || 'Not in CPQ' }}</del>
                     <mat-icon>arrow_forward</mat-icon>
-                    <strong>{{ change.after }}</strong>
+                    <strong>{{ change.after || 'Removed' }}</strong>
                   </div>
                 </div>
 
@@ -188,22 +179,22 @@ interface TraceEvent {
 
                 <footer>
                   <span><mat-icon>person</mat-icon><small>{{ event.actorLabel }}</small><strong>{{ event.actor }}</strong></span>
-                  <span><mat-icon>description</mat-icon><small>Source</small><strong>{{ event.source }}</strong></span>
-                  <span><mat-icon>deployed_code</mat-icon><small>Release</small><strong>{{ event.release }}</strong></span>
-                  <button mat-button type="button"><mat-icon>fact_check</mat-icon> Open evidence</button>
+                  <span><mat-icon>description</mat-icon><small>Source</small><strong>{{ event.sourceName }}</strong></span>
+                  <span><mat-icon>deployed_code</mat-icon><small>Release</small><strong>{{ event.releaseName || 'Individual publication' }}</strong></span>
+                  <a mat-button *ngIf="event.sourceJobId" [routerLink]="['/import', event.sourceJobId]"><mat-icon>fact_check</mat-icon> Open evidence</a>
                 </footer>
               </div>
             </article>
           </div>
 
-          <div class="history-origin"><span><mat-icon>flag</mat-icon></span><div><strong>Beginning of recorded history</strong><small>This article first entered the governed CPQ portfolio on 12 January 2025.</small></div></div>
+          <div class="history-origin"><span><mat-icon>flag</mat-icon></span><div><strong>Beginning of recorded history</strong><small *ngIf="result.introducedAt">This {{ historySubject }} first entered the governed CPQ portfolio on {{ formatLongDate(result.introducedAt) }}.</small><small *ngIf="!result.introducedAt">The earliest retained publication is shown above.</small></div></div>
         </section>
       </ng-container>
 
-      <section class="empty-result" *ngIf="showEmpty">
+      <section class="empty-result" *ngIf="showEmpty && !isLoading">
         <span><mat-icon>search_off</mat-icon></span>
         <h2>No matching object in this scope</h2>
-        <p>Check the identifier or choose another object type. Results are limited to {{ pilotScope.site }} · {{ pilotScope.productFamily }}.</p>
+        <p>{{ searchError || ('Check the identifier or choose another object type. Results are limited to ' + pilotScope.site + ' · ' + pilotScope.productFamily + '.') }}</p>
       </section>
     </main>
   `,
@@ -245,11 +236,22 @@ interface TraceEvent {
     .field__control--input button { display: grid; place-items: center; padding: 0; border: 0; color: var(--app-text-muted); background: transparent; cursor: pointer; }
     .field__control--input button mat-icon { width: 18px; height: 18px; font-size: 18px; }
     .search-button { height: 48px; padding: 0 20px; border-radius: 12px; color: #fff !important; background: linear-gradient(135deg, #0f8f87, #08776f) !important; font-weight: 800; box-shadow: 0 8px 18px rgba(15, 143, 135, .22); }
+    .search-button[disabled] { opacity: .58; box-shadow: none; }
+    .search-button mat-icon { animation: none; }
+    .search-button[disabled] mat-icon { animation: trace-spin 1.1s linear infinite; }
     .recent-searches { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .recent-searches > span { margin-right: 3px; color: var(--app-text-muted); font-size: 11px; font-weight: 750; }
     .recent-searches button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: transparent; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
     .recent-searches button:hover { color: var(--app-accent); border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border)); background: color-mix(in srgb, var(--app-accent) 6%, transparent); }
     .recent-searches mat-icon { width: 14px; height: 14px; font-size: 14px; }
+    .recent-searches > small { color: var(--app-text-muted); font-size: 11px; }
+
+    .trace-loading { display: flex; align-items: center; justify-content: center; gap: 13px; min-height: 112px; padding: 22px; border: 1px dashed color-mix(in srgb, var(--app-accent) 42%, var(--app-border)); border-radius: 18px; background: color-mix(in srgb, var(--app-surface) 92%, var(--app-accent)); }
+    .trace-loading > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: #0f8f87; background: color-mix(in srgb, var(--app-surface) 78%, #ccfbf1); }
+    .trace-loading mat-icon { animation: trace-pulse 1.2s ease-in-out infinite; }
+    .trace-loading div { display: grid; }
+    .trace-loading strong { font-size: 13px; }
+    .trace-loading small { color: var(--app-text-muted); font-size: 11px; }
 
     .result-heading { padding: 4px 5px; }
     .result-identity { display: flex; align-items: center; gap: 14px; }
@@ -261,6 +263,9 @@ interface TraceEvent {
     .result-status span { display: grid; }
     .result-status strong { color: #15803d; font-size: 12px; }
     .result-status small { color: var(--app-text-muted); font-size: 10px; }
+    .result-status--inactive { border-color: rgba(220, 38, 38, .22); background: color-mix(in srgb, var(--app-surface) 88%, #fee2e2); }
+    .result-status--inactive i { background: #dc2626; box-shadow: 0 0 0 5px rgba(220, 38, 38, .11); }
+    .result-status--inactive strong { color: #b91c1c; }
 
     .current-layout { display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(300px, .85fr); gap: 16px; }
     .truth-card, .proof-card, .history-section { border: 1px solid var(--app-border); border-radius: 22px; background: var(--app-surface); box-shadow: var(--app-shadow-soft); }
@@ -277,6 +282,7 @@ interface TraceEvent {
     .truth-value strong { margin: 6px 0 4px; font-size: 15px; line-height: 1.35; }
     .truth-value--price strong { color: #15803d; font-size: 27px; letter-spacing: -.03em; }
     .truth-value small { color: var(--app-text-muted); font-size: 11px; }
+    .truth-value--empty { grid-column: 1 / -1; min-height: 130px; text-align: center; }
     .truth-card > footer { display: flex; align-items: center; gap: 24px; padding: 15px 20px; }
     .truth-card > footer > span { min-width: 0; display: flex; align-items: center; gap: 9px; }
     .truth-card > footer > span > mat-icon { color: var(--app-accent); }
@@ -332,6 +338,7 @@ interface TraceEvent {
     .change-set { display: grid; gap: 1px; margin: 0 17px 14px; overflow: hidden; border: 1px solid var(--app-border); border-radius: 10px; background: var(--app-border); }
     .change-set > div { min-height: 39px; display: grid; grid-template-columns: 120px minmax(100px, 1fr) 20px minmax(100px, 1fr); align-items: center; gap: 9px; padding: 8px 11px; background: var(--app-surface); font-size: 11px; }
     .change-set span { color: var(--app-text-muted); font-weight: 800; }
+    .change-set span small { display: block; margin-top: 2px; font-size: 8px; font-weight: 700; text-transform: uppercase; }
     .change-set del { color: #b91c1c; text-decoration: none; }
     .change-set del::before { content: '− '; font-weight: 900; }
     .change-set strong { color: #15803d; }
@@ -344,7 +351,7 @@ interface TraceEvent {
     .event-card > footer mat-icon { grid-row: 1 / 3; align-self: center; width: 17px; height: 17px; color: var(--app-text-muted); font-size: 17px; }
     .event-card > footer small { color: var(--app-text-muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
     .event-card > footer strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
-    .event-card > footer button { border-radius: 999px; color: var(--app-accent); font-weight: 750; }
+    .event-card > footer button, .event-card > footer a { border-radius: 999px; color: var(--app-accent); font-weight: 750; text-decoration: none; }
     .history-origin { display: flex; align-items: center; gap: 11px; margin: 0 0 0 113px; padding: 13px 16px; border: 1px dashed var(--app-border); border-radius: 13px; }
     .history-origin > span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: #0f766e; background: color-mix(in srgb, var(--app-surface) 80%, #ccfbf1); }
     .history-origin mat-icon { width: 17px; height: 17px; font-size: 17px; }
@@ -356,6 +363,9 @@ interface TraceEvent {
     .empty-result > span { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 14px; border-radius: 18px; color: var(--app-text-muted); background: var(--app-soft-surface); }
     .empty-result h2 { margin: 0; font-size: 20px; }
     .empty-result p { max-width: 570px; margin: 8px auto 0; color: var(--app-text-muted); }
+
+    @keyframes trace-spin { to { transform: rotate(360deg); } }
+    @keyframes trace-pulse { 0%, 100% { transform: scale(.92); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
 
     :host-context(.theme-dark) .eyebrow, :host-context(.theme-dark) .section-kicker, :host-context(.theme-dark) h1 span { color: #5eead4; }
     :host-context(.theme-dark) .scope-card__signal, :host-context(.theme-dark) .scope-card small { color: #5eead4; }
@@ -410,7 +420,7 @@ interface TraceEvent {
       .change-set span { grid-column: 1 / -1; }
       .change-set mat-icon { display: none; }
       .event-card > footer { grid-template-columns: 1fr; }
-      .event-card > footer button { width: 100%; justify-content: center; margin-top: 3px; }
+      .event-card > footer button, .event-card > footer a { width: 100%; justify-content: center; margin-top: 3px; }
       .history-origin { margin-left: 43px; }
     }
 
@@ -430,63 +440,30 @@ interface TraceEvent {
     }
   `]
 })
-export class BusinessTraceComponent {
+export class BusinessTraceComponent implements OnInit {
+  private readonly importService = inject(ImportService);
+
   readonly pilotScope = PILOT_SCOPE;
-  objectType = 'Article';
-  query = '1_D001951AA';
-  displayIdentifier = '1_D001951AA';
-  hasSearched = true;
+  readonly scopeKey = 'saint-marcellin-pdu';
+  objectType: TraceObjectType = 'Article';
+  query = '';
+  trace: BusinessTraceResult | null = null;
+  suggestions: BusinessTraceSuggestion[] = [];
+  isLoading = false;
+  suggestionsLoading = false;
   showEmpty = false;
+  searchError = '';
   filter: TraceFilter = 'all';
 
-  readonly recentSearches = [
-    { label: '1_D001951AA', type: 'Article', icon: 'inventory_2' },
-    { label: '1_A023384AA', type: 'Article', icon: 'inventory_2' },
-    { label: 'Price · 1_CB00320AA', type: 'Basis price', icon: 'payments' }
-  ];
+  ngOnInit(): void {
+    this.loadSuggestions(true);
+  }
 
-  readonly events: TraceEvent[] = [
-    {
-      kind: 'published', date: '16 Jul 2026', time: '09:18', title: 'Annual 2026 values published to CPQ',
-      summary: 'The approved coordinated release became the active source for Article Master and Basis Price.',
-      actorLabel: 'Published by', actor: 'Walid', source: 'Prices_PDU_SM_2026', release: 'Annual PDU 2026',
-      changes: [
-        { field: 'Basis price', before: '€1.16', after: '€1.20' },
-        { field: 'Valid to', before: '31 Dec 2025', after: '31 Dec 2026' }
-      ]
-    },
-    {
-      kind: 'approved', date: '16 Jul 2026', time: '09:12', title: 'Release approved for publication',
-      summary: 'The approver accepted the exact Article Master and Basis Price comparison presented at the review gate.',
-      actorLabel: 'Approved by', actor: 'Hanan', source: 'Approval record #AR-1042', release: 'Annual PDU 2026',
-      decision: 'Validated against the complete annual portfolio. Price update accepted with no orphan or unpriced articles.'
-    },
-    {
-      kind: 'submitted', date: '14 Jul 2026', time: '18:24', title: 'Coordinated release submitted for review',
-      summary: 'The Article Master and Basis Price drafts were locked together and shared with approvers.',
-      actorLabel: 'Submitted by', actor: 'Walid Benhamed', source: '2 governed uploads', release: 'Annual PDU 2026'
-    },
-    {
-      kind: 'published', date: '15 Jan 2025', time: '11:36', title: 'Article description clarified',
-      summary: 'A commercial wording update was approved and published without changing the article identity.',
-      actorLabel: 'Published by', actor: 'Nadia', source: 'Articles_PDU_SM_2025', release: 'Annual PDU 2025',
-      changes: [{ field: 'Description', before: 'PDU power unit, 16A', after: 'PDU standard power distribution unit, 16A' }]
-    },
-    {
-      kind: 'introduced', date: '12 Jan 2025', time: '14:08', title: 'Article introduced into the governed portfolio',
-      summary: 'The article and its first basis price were approved together and published to CPQ.',
-      actorLabel: 'Introduced by', actor: 'Sophie Martin', source: 'Initial_PDU_Portfolio_2025', release: 'Pilot baseline 2025',
-      changes: [
-        { field: 'Article', before: 'Not in CPQ', after: 'Active' },
-        { field: 'Basis price', before: '—', after: '€1.16' }
-      ]
-    }
-  ];
-
-  get visibleEvents(): TraceEvent[] {
-    if (this.filter === 'changes') return this.events.filter(event => !!event.changes?.length);
-    if (this.filter === 'decisions') return this.events.filter(event => event.kind === 'approved' || event.kind === 'submitted');
-    return this.events;
+  get visibleEvents(): BusinessTraceEvent[] {
+    const events = this.trace?.events ?? [];
+    if (this.filter === 'changes') return events.filter(event => event.category === 'changes');
+    if (this.filter === 'decisions') return events.filter(event => event.category === 'decisions');
+    return events;
   }
 
   get resultIcon(): string {
@@ -496,37 +473,128 @@ export class BusinessTraceComponent {
   get resultDescription(): string {
     return this.objectType === 'Basis price'
       ? 'Current governed price · Standard PDU portfolio'
-      : 'Low-voltage distribution unit · Standard portfolio';
+      : 'Governed article · Standard PDU portfolio';
   }
 
   get historySubject(): string {
     return this.objectType === 'Basis price' ? 'price record' : 'article';
   }
 
-  search(): void {
-    const value = this.query.trim();
-    this.showEmpty = !value || value.toLowerCase().includes('unknown');
-    this.hasSearched = !this.showEmpty;
-    if (this.hasSearched) this.displayIdentifier = value;
+  get primarySource() {
+    return [...(this.trace?.sources ?? [])].sort((left, right) =>
+      new Date(right.publishedAt ?? 0).getTime() - new Date(left.publishedAt ?? 0).getTime())[0] ?? null;
   }
 
-  useRecent(item: { label: string; type: string }): void {
-    this.objectType = item.type;
-    this.query = item.label.replace('Price · ', '');
+  get evidenceLabel(): string {
+    return this.primarySource?.releaseName || 'Published evidence';
+  }
+
+  get responsibilityActors(): BusinessTraceActor[] {
+    const responsibility = this.trace?.responsibility;
+    return responsibility
+      ? [responsibility.prepared, responsibility.approved, responsibility.published].filter((actor): actor is BusinessTraceActor => !!actor)
+      : [];
+  }
+
+  search(): void {
+    const identifier = this.query.trim();
+    if (!identifier || this.isLoading) return;
+
+    this.isLoading = true;
+    this.trace = null;
+    this.showEmpty = false;
+    this.searchError = '';
+    this.filter = 'all';
+    this.importService.searchBusinessTrace(this.scopeKey, this.apiObjectType, identifier)
+      .pipe(finalize(() => this.isLoading = false))
+      .subscribe({
+        next: result => {
+          this.trace = result;
+          this.query = result.identifier;
+        },
+        error: (error: HttpErrorResponse) => {
+          this.showEmpty = true;
+          this.searchError = error.error?.error || 'The business trace could not be loaded.';
+        }
+      });
+  }
+
+  useSuggestion(item: BusinessTraceSuggestion): void {
+    this.query = item.identifier;
     this.search();
   }
 
   selectObjectType(): void {
-    if (this.objectType === 'Basis price') this.query = '1_CB00320AA';
-    else this.query = '1_D001951AA';
-    this.search();
+    this.query = '';
+    this.trace = null;
+    this.showEmpty = false;
+    this.searchError = '';
+    this.loadSuggestions(true);
   }
 
-  iconFor(kind: TraceKind): string {
-    return { published: 'rocket_launch', approved: 'verified', submitted: 'send', introduced: 'add' }[kind];
+  iconFor(kind: BusinessTraceEvent['kind']): string {
+    return { published: 'rocket_launch', approved: 'verified', submitted: 'send', introduced: 'add', removed: 'remove' }[kind];
   }
 
-  labelFor(kind: TraceKind): string {
-    return { published: 'Published change', approved: 'Approval decision', submitted: 'Review started', introduced: 'Introduced' }[kind];
+  labelFor(kind: BusinessTraceEvent['kind']): string {
+    return { published: 'Published change', approved: 'Approval decision', submitted: 'Review started', introduced: 'Introduced', removed: 'Removed' }[kind];
+  }
+
+  sourceIcon(dataset: string): string {
+    if (dataset.toLowerCase().includes('price')) return 'payments';
+    if (dataset.toLowerCase().includes('description')) return 'translate';
+    return 'inventory_2';
+  }
+
+  initials(name: string): string {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+  }
+
+  formatFieldValue(field: BusinessTraceField): string {
+    if (field.kind !== 'price') return field.value || '—';
+    const amount = Number(field.value);
+    if (Number.isNaN(amount)) return field.value || '—';
+    const currency = this.trace?.scope.currency || 'EUR';
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+  }
+
+  formatDate(value: string | null): string {
+    return value ? new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
+  }
+
+  formatLongDate(value: string): string {
+    return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value));
+  }
+
+  formatTime(value: string): string {
+    return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  }
+
+  formatDateTime(value: string | null): string {
+    return value ? `${this.formatDate(value)} · ${this.formatTime(value)}` : 'Time not recorded';
+  }
+
+  private loadSuggestions(searchFirst: boolean): void {
+    this.suggestionsLoading = true;
+    this.suggestions = [];
+    this.importService.getBusinessTraceSuggestions(this.scopeKey, this.apiObjectType)
+      .pipe(finalize(() => this.suggestionsLoading = false))
+      .subscribe({
+        next: suggestions => {
+          this.suggestions = suggestions;
+          if (searchFirst && suggestions.length) {
+            this.query = suggestions[0].identifier;
+            this.search();
+          }
+        },
+        error: () => {
+          this.searchError = 'Published records are temporarily unavailable.';
+          this.showEmpty = true;
+        }
+      });
+  }
+
+  private get apiObjectType(): 'Article' | 'PriceList' {
+    return this.objectType === 'Basis price' ? 'PriceList' : 'Article';
   }
 }
