@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnInit, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,7 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { debounceTime } from 'rxjs';
+import { debounceTime, forkJoin, map, of, switchMap } from 'rxjs';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { DATASET_CATALOG, EntityType, ImportJob } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
@@ -21,6 +21,8 @@ import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/r
 import { ReleaseWithdrawDialogComponent } from '../../shared/release-withdraw-dialog/release-withdraw-dialog.component';
 
 type UploadSpace = 'workspace' | 'review' | 'history';
+type UploadViewMode = 'detailed' | 'compact';
+type UploadSort = 'latest' | 'oldest' | 'name' | 'status';
 
 interface UploadSpaceDefinition {
   key: UploadSpace;
@@ -28,6 +30,13 @@ interface UploadSpaceDefinition {
   title: string;
   description: string;
   icon: string;
+}
+
+interface UploadDisplayGroup {
+  key: string;
+  name: string;
+  isRelease: boolean;
+  jobs: ImportJob[];
 }
 
 @Component({
@@ -54,6 +63,10 @@ interface UploadSpaceDefinition {
   styleUrl: './uploads.component.scss'
 })
 export class UploadsComponent implements OnInit {
+  private static readonly pageSize = 100;
+  private static readonly viewPreferenceKey = 'cpq.uploads.view';
+  private static readonly groupingPreferenceKey = 'cpq.uploads.groupReleases';
+
   readonly auth = inject(AuthFacade);
   private readonly importService = inject(ImportService);
   private readonly fb = inject(FormBuilder);
@@ -90,52 +103,143 @@ export class UploadsComponent implements OnInit {
   readonly datasetOptions = DATASET_CATALOG;
   readonly filtersForm = this.fb.nonNullable.group({
     search: [''],
-    entityType: ['']
+    entityType: [''],
+    status: [''],
+    sort: ['latest' as UploadSort]
   });
 
   jobs: ImportJob[] = [];
   activeSpace: UploadSpace = 'workspace';
   loading = false;
+  loadError = false;
   searchFocused = false;
   actionJobId: string | null = null;
   copySource: ImportJob | null = null;
   workingCopyName = '';
+  viewMode: UploadViewMode = this.readViewPreference();
+  groupByRelease = this.readGroupingPreference();
+  compactMenuJobId: string | null = null;
 
   ngOnInit(): void {
-    const requestedSpace = this.route.snapshot.queryParamMap.get('space');
+    const params = this.route.snapshot.queryParamMap;
+    const requestedSpace = params.get('space');
     if (requestedSpace === 'workspace' || requestedSpace === 'review' || requestedSpace === 'history') {
       this.activeSpace = requestedSpace;
     }
+
+    const requestedView = params.get('view');
+    if (requestedView === 'detailed' || requestedView === 'compact') this.viewMode = requestedView;
+    if (params.get('grouped') === 'false') this.groupByRelease = false;
+
+    const requestedSort = params.get('sort');
+    const sort: UploadSort = requestedSort === 'oldest' || requestedSort === 'name' || requestedSort === 'status'
+      ? requestedSort
+      : 'latest';
+    this.filtersForm.patchValue({
+      search: params.get('q') ?? '',
+      entityType: params.get('dataset') ?? '',
+      status: params.get('status') ?? '',
+      sort
+    }, { emitEvent: false });
+
     this.filtersForm.valueChanges
       .pipe(debounceTime(150), takeUntilDestroyed(this.destroyRef))
-      .subscribe();
+      .subscribe(() => this.syncRouteState());
     this.load();
   }
 
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.closeCompactMenu();
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.closeCompactMenu();
+  }
+
   get filteredJobs(): ImportJob[] {
-    const { search, entityType } = this.filtersForm.getRawValue();
+    const { search, entityType, status, sort } = this.filtersForm.getRawValue();
     const normalizedSearch = search.trim().toLowerCase();
 
-    return this.jobs.filter(job => {
+    const filtered = this.jobs.filter(job => {
       if (!this.isInSpace(job, this.activeSpace)) return false;
       if (entityType && job.entityTypeLabel !== entityType) return false;
+      if (status && this.displayStatus(job) !== status) return false;
       if (!normalizedSearch) return true;
 
       return job.originalFileName.toLowerCase().includes(normalizedSearch)
         || job.createdByDisplayName.toLowerCase().includes(normalizedSearch)
-        || job.entityTypeLabel.toLowerCase().includes(normalizedSearch);
+        || job.entityTypeLabel.toLowerCase().includes(normalizedSearch)
+        || job.releasePackageName?.toLowerCase().includes(normalizedSearch);
     });
+
+    return [...filtered].sort((left, right) => {
+      if (sort === 'oldest') return this.activityTime(left) - this.activityTime(right);
+      if (sort === 'name') return left.originalFileName.localeCompare(right.originalFileName);
+      if (sort === 'status') return this.displayStatus(left).localeCompare(this.displayStatus(right));
+      return this.activityTime(right) - this.activityTime(left);
+    });
+  }
+
+  get displayGroups(): UploadDisplayGroup[] {
+    if (!this.groupByRelease) {
+      return this.filteredJobs.map(job => ({ key: job.id, name: '', isRelease: false, jobs: [job] }));
+    }
+
+    const groups = new Map<string, UploadDisplayGroup>();
+    for (const job of this.filteredJobs) {
+      const key = job.releasePackageId ? `release-${job.releasePackageId}` : `job-${job.id}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.jobs.push(job);
+        continue;
+      }
+      groups.set(key, {
+        key,
+        name: job.releasePackageName || '',
+        isRelease: !!job.releasePackageId,
+        jobs: [job]
+      });
+    }
+    return [...groups.values()];
+  }
+
+  get statusOptions(): string[] {
+    return [...new Set(this.jobs
+      .filter(job => this.isInSpace(job, this.activeSpace))
+      .map(job => this.displayStatus(job)))].sort();
+  }
+
+  get activeFilterCount(): number {
+    const value = this.filtersForm.getRawValue();
+    return [value.search.trim(), value.entityType, value.status].filter(Boolean).length;
   }
 
   load(): void {
     this.loading = true;
-    this.importService.getJobs(1, 100).subscribe({
-      next: result => {
-        this.jobs = result.items;
+    this.loadError = false;
+    this.importService.getJobs(1, UploadsComponent.pageSize).pipe(
+      switchMap(firstPage => {
+        const pageCount = Math.ceil(firstPage.total / UploadsComponent.pageSize);
+        if (pageCount <= 1) return of(firstPage.items);
+
+        const remainingPages = Array.from(
+          { length: pageCount - 1 },
+          (_, index) => this.importService.getJobs(index + 2, UploadsComponent.pageSize)
+        );
+        return forkJoin(remainingPages).pipe(
+          map(results => [firstPage.items, ...results.map(result => result.items)].flat())
+        );
+      })
+    ).subscribe({
+      next: jobs => {
+        this.jobs = [...new Map(jobs.map(job => [job.id, job])).values()];
         this.loading = false;
       },
       error: () => {
         this.loading = false;
+        this.loadError = true;
         this.snackBar.open('Uploads could not be loaded.', 'Close', { duration: 5000 });
       }
     });
@@ -143,6 +247,9 @@ export class UploadsComponent implements OnInit {
 
   selectSpace(space: UploadSpace): void {
     this.activeSpace = space;
+    this.compactMenuJobId = null;
+    this.filtersForm.patchValue({ status: '' });
+    this.syncRouteState();
   }
 
   spaceCount(space: UploadSpace): number {
@@ -157,8 +264,50 @@ export class UploadsComponent implements OnInit {
     return this.spaces.find(space => space.key === this.activeSpace)?.description ?? '';
   }
 
+  spaceSummary(): string {
+    const jobs = this.jobs.filter(job => this.isInSpace(job, this.activeSpace));
+    if (this.activeSpace === 'workspace') {
+      const ready = jobs.filter(job => this.canSubmit(job)).length;
+      const correction = jobs.filter(job => job.errorRows > 0 || job.statusLabel === 'NeedsCorrection').length;
+      return `${jobs.length} private ${jobs.length === 1 ? 'draft' : 'drafts'} · ${ready} ready to submit · ${correction} need correction`;
+    }
+    if (this.activeSpace === 'review') {
+      const awaiting = jobs.filter(job => job.statusLabel === 'AwaitingApproval').length;
+      const approved = jobs.filter(job => job.statusLabel === 'Approved').length;
+      return `${awaiting} awaiting approval · ${approved} ready to publish`;
+    }
+    const published = jobs.filter(job => job.statusLabel === 'Committed').length;
+    const active = jobs.filter(job => job.isActiveBaseline).length;
+    return `${published} publications · ${active} active ${active === 1 ? 'baseline' : 'baselines'} · Evidence retained`;
+  }
+
+  setViewMode(mode: UploadViewMode): void {
+    this.viewMode = mode;
+    this.compactMenuJobId = null;
+    if (typeof localStorage !== 'undefined') localStorage.setItem(UploadsComponent.viewPreferenceKey, mode);
+    this.syncRouteState();
+  }
+
+  toggleReleaseGrouping(): void {
+    this.groupByRelease = !this.groupByRelease;
+    this.compactMenuJobId = null;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(UploadsComponent.groupingPreferenceKey, String(this.groupByRelease));
+    }
+    this.syncRouteState();
+  }
+
+  toggleCompactMenu(job: ImportJob, event: Event): void {
+    event.stopPropagation();
+    this.compactMenuJobId = this.compactMenuJobId === job.id ? null : job.id;
+  }
+
+  closeCompactMenu(): void {
+    this.compactMenuJobId = null;
+  }
+
   clearFilters(): void {
-    this.filtersForm.reset({ search: '', entityType: '' });
+    this.filtersForm.reset({ search: '', entityType: '', status: '', sort: 'latest' });
   }
 
   view(job: ImportJob): void {
@@ -167,12 +316,22 @@ export class UploadsComponent implements OnInit {
 
   downloadOriginal(job: ImportJob, event?: Event): void {
     event?.stopPropagation();
-    this.importService.downloadOriginal(job.id).subscribe(blob => {
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `${job.originalFileName}${job.fileExtension}`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+    if (this.actionJobId === job.id) return;
+    this.actionJobId = job.id;
+    this.importService.downloadOriginal(job.id).subscribe({
+      next: blob => {
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = `${job.originalFileName}${job.fileExtension}`;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.actionJobId = null;
+      },
+      error: () => {
+        this.actionJobId = null;
+        this.snackBar.open('The original file could not be downloaded.', 'Close', { duration: 5000 });
+      }
     });
   }
 
@@ -383,6 +542,36 @@ export class UploadsComponent implements OnInit {
     return job.statusLabel;
   }
 
+  displayStatus(job: ImportJob): string {
+    if (this.activeSpace === 'workspace') return this.workspaceStatus(job);
+    if (job.statusLabel === 'Committed') return 'Published';
+    if (job.statusLabel === 'Approved') return 'Ready to publish';
+    if (job.statusLabel === 'AwaitingApproval') return 'Awaiting approval';
+    if (job.statusLabel === 'Rejected') return 'Returned by approver';
+    if (job.statusLabel === 'Cancelled') return 'Withdrawn';
+    return job.statusLabel;
+  }
+
+  releaseGroupStatus(group: UploadDisplayGroup): string {
+    if (group.jobs.some(job => job.statusLabel === 'NeedsCorrection' || job.errorRows > 0)) return 'Needs correction';
+    if (group.jobs.every(job => job.statusLabel === 'Committed')) return 'Published';
+    if (group.jobs.some(job => job.statusLabel === 'Approved')) return 'Ready to publish';
+    if (group.jobs.some(job => job.statusLabel === 'AwaitingApproval' && job.workflowStageLabel === 'Submitted')) return 'Awaiting approval';
+    return group.jobs[0] ? this.displayStatus(group.jobs[0]) : '';
+  }
+
+  releaseGroupRows(group: UploadDisplayGroup): number {
+    return group.jobs.reduce((total, job) => total + job.totalRows, 0);
+  }
+
+  trackGroup(_index: number, group: UploadDisplayGroup): string {
+    return group.key;
+  }
+
+  trackJob(_index: number, job: ImportJob): string {
+    return job.id;
+  }
+
   emptyIcon(): string {
     if (this.activeSpace === 'workspace') return 'note_add';
     if (this.activeSpace === 'review') return 'task_alt';
@@ -418,6 +607,38 @@ export class UploadsComponent implements OnInit {
 
   private suggestWorkingCopyName(fileName: string): string {
     return `${fileName} - Working Copy`;
+  }
+
+  private activityTime(job: ImportJob): number {
+    return new Date(job.committedAt ?? job.approvedAt ?? job.rejectedAt ?? job.submittedAt ?? job.createdAt).getTime();
+  }
+
+  private readViewPreference(): UploadViewMode {
+    if (typeof localStorage === 'undefined') return 'detailed';
+    return localStorage.getItem(UploadsComponent.viewPreferenceKey) === 'compact' ? 'compact' : 'detailed';
+  }
+
+  private readGroupingPreference(): boolean {
+    if (typeof localStorage === 'undefined') return true;
+    return localStorage.getItem(UploadsComponent.groupingPreferenceKey) !== 'false';
+  }
+
+  private syncRouteState(): void {
+    const filters = this.filtersForm.getRawValue();
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      replaceUrl: true,
+      queryParamsHandling: 'merge',
+      queryParams: {
+        space: this.activeSpace,
+        q: filters.search.trim() || null,
+        dataset: filters.entityType || null,
+        status: filters.status || null,
+        sort: filters.sort === 'latest' ? null : filters.sort,
+        view: this.viewMode === 'detailed' ? null : this.viewMode,
+        grouped: this.groupByRelease ? null : 'false'
+      }
+    });
   }
 
 }

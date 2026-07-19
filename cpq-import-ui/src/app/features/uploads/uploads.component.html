@@ -1,173 +1,191 @@
-<header class="page-header">
-  <div>
-    <div class="eyebrow">Submission centre</div>
-    <h1>Uploads</h1>
-    <p>Prepare privately, submit deliberately and keep every governed decision traceable.</p>
-  </div>
-  <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" (click)="newImport()">
-    <mat-icon>add</mat-icon> Start private upload
-  </button>
-</header>
-
-<section class="journey" aria-label="Upload workflow">
-  <div><span>1</span><strong>Prepare privately</strong><small>Upload, validate and compare</small></div>
-  <mat-icon>arrow_forward</mat-icon>
-  <div><span>2</span><strong>Share for review</strong><small>Freeze and send your version</small></div>
-  <mat-icon>arrow_forward</mat-icon>
-  <div><span>3</span><strong>Publish with proof</strong><small>Approve, publish and retain</small></div>
-</section>
-
-<nav class="space-switcher" aria-label="Upload spaces">
-  <button
-    *ngFor="let space of spaces"
-    type="button"
-    class="space-card"
-    [class.space-card--active]="activeSpace === space.key"
-    (click)="selectSpace(space.key)">
-    <span class="space-icon"><mat-icon>{{ space.icon }}</mat-icon></span>
-    <span class="space-copy">
-      <small>{{ space.eyebrow }}</small>
-      <strong>{{ space.title }}</strong>
-      <span>{{ space.description }}</span>
-    </span>
-    <span class="space-count">{{ spaceCount(space.key) }}</span>
-  </button>
-</nav>
-
-<mat-card class="workspace-shell">
-  <header class="workspace-heading">
-    <div>
-      <div class="privacy-label" [class.privacy-label--shared]="activeSpace === 'review'" [class.privacy-label--history]="activeSpace === 'history'">
-        <mat-icon>{{ activeSpace === 'workspace' ? 'lock' : activeSpace === 'review' ? 'visibility' : 'verified' }}</mat-icon>
-        {{ activeSpace === 'workspace' ? 'Only visible to you' : activeSpace === 'review' ? 'Visible to the review team' : 'Retained as governed evidence' }}
-      </div>
-      <h2>{{ spaceTitle() }}</h2>
-      <p>{{ spaceDescription() }}</p>
+<div class="uploads-centre">
+  <header class="uploads-hero">
+    <div class="uploads-hero__copy">
+      <span class="eyebrow"><mat-icon>account_tree</mat-icon> Governed publication workspace</span>
+      <h1>Prepare privately.<br><span>Publish with confidence.</span></h1>
+      <p>Move connected CPQ datasets through controlled preparation, review and publication without losing ownership or evidence.</p>
+      <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" (click)="newImport()">
+        <mat-icon>add</mat-icon> Start an update
+      </button>
     </div>
-    <span class="result-count">{{ filteredJobs.length }} {{ filteredJobs.length === 1 ? 'item' : 'items' }}</span>
+
+    <aside class="scope-journey">
+      <div class="scope-journey__head"><span><i></i> Saint-Marcellin · PDU</span><mat-icon>verified_user</mat-icon></div>
+      <div class="journey-steps" aria-label="Upload workflow">
+        <span><b>1</b><small>Prepare</small></span><i></i>
+        <span><b>2</b><small>Review</small></span><i></i>
+        <span><b>3</b><small>Publish</small></span>
+      </div>
+      <p>Private preparation becomes shared only when the contributor deliberately submits it.</p>
+    </aside>
   </header>
 
-  <form class="filters" [formGroup]="filtersForm">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Search this space</mat-label>
-      <input matInput formControlName="search" [placeholder]="searchFocused ? 'File name, dataset or contributor' : ''" (focus)="searchFocused = true" (blur)="searchFocused = false" />
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
-    <mat-form-field appearance="outline" subscriptSizing="dynamic">
-      <mat-label>Dataset</mat-label>
-      <mat-select formControlName="entityType">
-        <mat-option value="">All datasets</mat-option>
-        <mat-option *ngFor="let dataset of datasetOptions" [value]="dataset.name">{{ dataset.name }}</mat-option>
-      </mat-select>
-    </mat-form-field>
-    <button mat-button type="button" (click)="clearFilters()"><mat-icon>filter_alt_off</mat-icon> Clear</button>
-  </form>
-
-  <div class="loading" *ngIf="loading">
-    <mat-icon>hourglass_top</mat-icon>
-    <span>Loading your submission spaces...</span>
-  </div>
-
-  <div class="upload-list" *ngIf="!loading && filteredJobs.length">
-    <article class="upload-item" *ngFor="let job of filteredJobs" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
-      <div
-        class="file-mark"
-        [class.file-mark--published]="job.statusLabel === 'Committed'"
-        [class.file-mark--active]="activeSpace === 'history' && job.isActiveBaseline">
-        <mat-icon>{{ job.statusLabel === 'Committed' ? 'verified' : 'description' }}</mat-icon>
-        <span
-          *ngIf="activeSpace === 'history' && job.isActiveBaseline"
-          class="active-baseline-led"
-          matTooltip="Active baseline"
-          aria-label="Active baseline"></span>
-      </div>
-
-      <div class="upload-main">
-        <div class="upload-title-row">
-          <strong>{{ job.originalFileName }}</strong>
-          <button
-            *ngIf="canRename(job)"
-            mat-icon-button
-            class="rename-upload"
-            [disabled]="actionJobId === job.id"
-            matTooltip="Rename upload"
-            aria-label="Rename upload"
-            (click)="rename(job, $event)">
-            <mat-icon>edit</mat-icon>
-          </button>
-          <span class="prototype-status" *ngIf="activeSpace === 'workspace'">{{ workspaceStatus(job) }}</span>
-          <app-status-badge *ngIf="activeSpace !== 'workspace'" [status]="job.statusLabel" />
-        </div>
-        <div
-          class="release-membership"
-          *ngIf="job.releasePackageId"
-          [matTooltip]="'Part of coordinated release: ' + (job.releasePackageName || 'Coordinated release')">
-          <mat-icon>hub</mat-icon>
-          <span>Release</span>
-          <strong>{{ job.releasePackageName || 'Coordinated release' }}</strong>
-        </div>
-        <div class="upload-details">
-          <span><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
-          <span><mat-icon>table_rows</mat-icon>{{ job.totalRows }} rows</span>
-          <span><mat-icon>schedule</mat-icon>{{ job.createdAt | date:'dd MMM yyyy, HH:mm' }}</span>
-          <span *ngIf="activeSpace !== 'workspace'"><mat-icon>person</mat-icon>{{ job.createdByDisplayName }}</span>
-        </div>
-        <div class="quality-line" *ngIf="activeSpace === 'workspace'">
-          <span class="quality quality--valid">{{ job.validRows }} valid</span>
-          <span class="quality quality--warning">{{ job.warningRows }} warnings</span>
-          <span class="quality quality--error">{{ job.errorRows }} errors</span>
-        </div>
-        <p class="item-note" *ngIf="canSubmit(job)">
-          Your comparison is ready. Nobody else can see this version until you submit it.
-        </p>
-        <p class="item-note item-note--release" *ngIf="activeSpace === 'workspace' && job.releasePackageId">
-          Open this draft to review and submit the complete release package.
-        </p>
-      </div>
-
-      <div class="item-actions" (click)="$event.stopPropagation()">
-        <button *ngIf="canSubmit(job)" mat-raised-button color="primary" (click)="submitForReview(job, $event)">
-          <mat-icon>send</mat-icon> Submit for review
-        </button>
-        <button *ngIf="canWithdraw(job)" mat-stroked-button (click)="withdraw(job, $event)">
-          <mat-icon>undo</mat-icon> {{ job.releasePackageId ? 'Withdraw release' : 'Withdraw' }}
-        </button>
-        <button *ngIf="canCopyToWorkspace(job)" mat-stroked-button class="copy-to-workspace" (click)="openCopyDialog(job, $event)">
-          <mat-icon>library_add</mat-icon> Copy to workspace
-        </button>
-        <button mat-stroked-button (click)="view(job)">
-          <mat-icon>{{ activeSpace === 'workspace' ? 'edit_note' : 'visibility' }}</mat-icon>
-          {{ activeSpace === 'workspace' ? 'Continue' : 'Open' }}
-        </button>
-        <button *ngIf="canDiscard(job) && activeSpace === 'workspace'" mat-button class="discard" [disabled]="actionJobId === job.id" (click)="discard(job, $event)">
-          <mat-icon>delete_outline</mat-icon> Discard
-        </button>
-        <button *ngIf="activeSpace === 'history'" mat-icon-button matTooltip="Download original file" (click)="downloadOriginal(job, $event)">
-          <mat-icon>download</mat-icon>
-        </button>
-      </div>
-    </article>
-  </div>
-
-  <div class="empty-state" *ngIf="!loading && !filteredJobs.length">
-    <span><mat-icon>{{ emptyIcon() }}</mat-icon></span>
-    <h3>{{ emptyTitle() }}</h3>
-    <p>{{ emptyCopy() }}</p>
-    <button *ngIf="activeSpace === 'workspace' && auth.hasCapability('imports.upload')" mat-raised-button color="primary" (click)="newImport()">
-      <mat-icon>add</mat-icon> Start private upload
+  <nav class="space-switcher" aria-label="Upload spaces">
+    <button *ngFor="let space of spaces" type="button" class="space-card" [class.space-card--active]="activeSpace === space.key" [class.space-card--review]="space.key === 'review'" [class.space-card--history]="space.key === 'history'" (click)="selectSpace(space.key)">
+      <span class="space-icon"><mat-icon>{{ space.icon }}</mat-icon></span>
+      <span class="space-copy"><small>{{ space.eyebrow }}</small><strong>{{ space.title }}</strong><span>{{ space.description }}</span></span>
+      <span class="space-count">{{ spaceCount(space.key) }}</span>
     </button>
-  </div>
-</mat-card>
+  </nav>
+
+  <mat-card class="workspace-shell">
+    <header class="workspace-heading">
+      <div>
+        <span class="privacy-label" [class.privacy-label--shared]="activeSpace === 'review'" [class.privacy-label--history]="activeSpace === 'history'">
+          <mat-icon>{{ activeSpace === 'workspace' ? 'lock' : activeSpace === 'review' ? 'visibility' : 'workspace_premium' }}</mat-icon>
+          {{ activeSpace === 'workspace' ? 'Only visible to you' : activeSpace === 'review' ? 'Visible to the review team' : 'Retained as governed evidence' }}
+        </span>
+        <h2>{{ spaceTitle() }}</h2>
+        <p>{{ spaceDescription() }}</p>
+        <strong class="space-summary">{{ spaceSummary() }}</strong>
+      </div>
+      <span class="result-count">{{ filteredJobs.length }} {{ filteredJobs.length === 1 ? 'item' : 'items' }}</span>
+    </header>
+
+    <form class="controls" [formGroup]="filtersForm">
+      <div class="control-fields">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+          <mat-label>Search this space</mat-label>
+          <input matInput formControlName="search" [placeholder]="searchFocused ? 'File, release, dataset or contributor' : ''" (focus)="searchFocused = true" (blur)="searchFocused = false" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Dataset</mat-label>
+          <mat-select formControlName="entityType">
+            <mat-option value="">All datasets</mat-option>
+            <mat-option *ngFor="let dataset of datasetOptions" [value]="dataset.name">{{ dataset.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            <mat-option value="">All statuses</mat-option>
+            <mat-option *ngFor="let status of statusOptions" [value]="status">{{ status }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="sort-field">
+          <mat-label>Sort</mat-label>
+          <mat-select formControlName="sort">
+            <mat-option value="latest">Latest activity</mat-option>
+            <mat-option value="oldest">Oldest activity</mat-option>
+            <mat-option value="name">Name</mat-option>
+            <mat-option value="status">Status</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="view-toolbar">
+        <div class="view-switch" role="group" aria-label="Upload list view">
+          <button type="button" [class.active]="viewMode === 'detailed'" (click)="setViewMode('detailed')" matTooltip="Detailed view"><mat-icon>view_agenda</mat-icon><span>Detailed</span></button>
+          <button type="button" [class.active]="viewMode === 'compact'" (click)="setViewMode('compact')" matTooltip="Compact view"><mat-icon>view_list</mat-icon><span>Compact</span></button>
+        </div>
+        <button type="button" class="group-toggle" [class.active]="groupByRelease" (click)="toggleReleaseGrouping()"><mat-icon>account_tree</mat-icon><span>Group releases</span></button>
+        <button mat-button type="button" class="clear-filters" [class.clear-filters--active]="activeFilterCount > 0" (click)="clearFilters()"><mat-icon>filter_alt_off</mat-icon> Clear <b *ngIf="activeFilterCount">{{ activeFilterCount }}</b></button>
+      </div>
+    </form>
+
+    <div class="loading" *ngIf="loading" role="status" aria-live="polite">
+      <span><mat-icon>hourglass_top</mat-icon></span><div><strong>Opening {{ spaceTitle() }}</strong><small>Preparing uploads and release context...</small></div>
+    </div>
+
+    <div class="error-state" *ngIf="!loading && loadError" role="alert">
+      <span><mat-icon>cloud_off</mat-icon></span>
+      <h3>Uploads are temporarily unavailable</h3>
+      <p>Your filters and workspace selection are safe. Retry when the connection is ready.</p>
+      <button mat-raised-button color="primary" type="button" (click)="load()"><mat-icon>refresh</mat-icon> Retry loading</button>
+    </div>
+
+    <div class="upload-groups" *ngIf="!loading && !loadError && filteredJobs.length" [class.upload-groups--compact]="viewMode === 'compact'">
+      <section class="upload-group" *ngFor="let group of displayGroups; trackBy: trackGroup" [class.upload-group--release]="group.isRelease">
+        <header class="release-header" *ngIf="group.isRelease">
+          <span class="release-header__icon"><mat-icon>deployed_code</mat-icon></span>
+          <div><small>Coordinated release</small><strong>{{ group.name || 'Coordinated release' }}</strong><span>{{ group.jobs.length }} connected datasets · {{ releaseGroupRows(group) }} total rows</span></div>
+          <em>{{ releaseGroupStatus(group) }}</em>
+        </header>
+
+        <div class="detailed-list" *ngIf="viewMode === 'detailed'">
+          <article class="upload-item" *ngFor="let job of group.jobs; trackBy: trackJob" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
+            <div class="file-mark" [class.file-mark--published]="job.statusLabel === 'Committed'" [class.file-mark--active]="activeSpace === 'history' && job.isActiveBaseline">
+              <mat-icon>{{ job.statusLabel === 'Committed' ? 'verified' : job.releasePackageId ? 'description' : 'draft' }}</mat-icon>
+              <span *ngIf="activeSpace === 'history' && job.isActiveBaseline" class="active-baseline-led" matTooltip="Current CPQ source" aria-label="Current CPQ source"></span>
+            </div>
+
+            <div class="upload-main">
+              <div class="upload-title-row">
+                <strong>{{ job.originalFileName }}</strong>
+                <button *ngIf="canRename(job)" mat-icon-button class="rename-upload" [disabled]="actionJobId === job.id" matTooltip="Rename upload" aria-label="Rename upload" (click)="rename(job, $event)"><mat-icon>edit</mat-icon></button>
+                <span class="workspace-status" *ngIf="activeSpace === 'workspace'">{{ workspaceStatus(job) }}</span>
+                <app-status-badge *ngIf="activeSpace !== 'workspace'" [status]="job.statusLabel" />
+                <span class="current-source" *ngIf="activeSpace === 'history' && job.isActiveBaseline"><i></i> Current CPQ source</span>
+              </div>
+
+              <div class="release-membership" *ngIf="job.releasePackageId && !group.isRelease"><mat-icon>hub</mat-icon><span>Release</span><strong>{{ job.releasePackageName || 'Coordinated release' }}</strong></div>
+
+              <div class="upload-details">
+                <span><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
+                <span><mat-icon>table_rows</mat-icon>{{ job.totalRows }} rows</span>
+                <span><mat-icon>schedule</mat-icon>{{ job.createdAt | date:'dd MMM yyyy, HH:mm' }}</span>
+                <span *ngIf="activeSpace !== 'workspace'"><mat-icon>person</mat-icon>{{ job.createdByDisplayName }}</span>
+              </div>
+
+              <div class="quality-line" *ngIf="activeSpace === 'workspace'">
+                <span class="quality quality--valid">{{ job.validRows }} valid</span>
+                <span class="quality quality--warning">{{ job.warningRows }} warnings</span>
+                <span class="quality quality--error">{{ job.errorRows }} errors</span>
+              </div>
+              <p class="item-note" *ngIf="canSubmit(job)">This comparison is ready. It remains private until you submit it.</p>
+              <p class="item-note item-note--release" *ngIf="activeSpace === 'workspace' && job.releasePackageId">Open this dataset to review and submit the complete coordinated release.</p>
+            </div>
+
+            <div class="item-actions" (click)="$event.stopPropagation()">
+              <button *ngIf="canSubmit(job)" mat-raised-button color="primary" (click)="submitForReview(job, $event)"><mat-icon>send</mat-icon> Submit for review</button>
+              <button *ngIf="canWithdraw(job)" mat-stroked-button (click)="withdraw(job, $event)"><mat-icon>undo</mat-icon> {{ job.releasePackageId ? 'Withdraw release' : 'Withdraw' }}</button>
+              <button *ngIf="canCopyToWorkspace(job)" mat-stroked-button class="copy-to-workspace" (click)="openCopyDialog(job, $event)"><mat-icon>library_add</mat-icon> Copy to workspace</button>
+              <button mat-stroked-button (click)="view(job)"><mat-icon>{{ activeSpace === 'workspace' ? 'edit_note' : 'visibility' }}</mat-icon>{{ activeSpace === 'workspace' ? 'Continue' : 'Open' }}</button>
+              <button *ngIf="canDiscard(job) && activeSpace === 'workspace'" mat-button class="discard" [disabled]="actionJobId === job.id" (click)="discard(job, $event)"><mat-icon>delete_outline</mat-icon> Discard</button>
+              <button *ngIf="activeSpace === 'history'" mat-icon-button matTooltip="Download original file" [disabled]="actionJobId === job.id" (click)="downloadOriginal(job, $event)"><mat-icon>{{ actionJobId === job.id ? 'hourglass_top' : 'download' }}</mat-icon></button>
+            </div>
+          </article>
+        </div>
+
+        <div class="compact-list" *ngIf="viewMode === 'compact'">
+          <article class="compact-row" *ngFor="let job of group.jobs; trackBy: trackJob" (click)="view(job)" tabindex="0" (keydown.enter)="view(job)">
+            <span class="compact-led" [class.compact-led--active]="job.isActiveBaseline" [class.compact-led--error]="job.errorRows > 0"></span>
+            <span class="compact-name"><strong>{{ job.originalFileName }}</strong><small *ngIf="job.releasePackageId && !group.isRelease"><mat-icon>hub</mat-icon>{{ job.releasePackageName }}</small></span>
+            <span class="compact-dataset"><mat-icon>database</mat-icon>{{ job.entityTypeLabel }}</span>
+            <span class="compact-rows">{{ job.totalRows }} rows</span>
+            <span class="compact-owner" *ngIf="activeSpace !== 'workspace'">{{ job.createdByDisplayName }}</span>
+            <span class="compact-date">{{ job.createdAt | date:'dd MMM, HH:mm' }}</span>
+            <span class="compact-status" [class.compact-status--error]="job.errorRows > 0">{{ displayStatus(job) }}</span>
+            <div class="compact-actions" (click)="$event.stopPropagation()">
+              <button mat-icon-button type="button" aria-label="Upload actions" [attr.aria-expanded]="compactMenuJobId === job.id" (click)="toggleCompactMenu(job, $event)"><mat-icon>more_horiz</mat-icon></button>
+              <div class="compact-menu" *ngIf="compactMenuJobId === job.id">
+                <button type="button" (click)="view(job); closeCompactMenu()"><mat-icon>{{ activeSpace === 'workspace' ? 'edit_note' : 'visibility' }}</mat-icon><span>{{ activeSpace === 'workspace' ? 'Continue working' : 'Open upload' }}</span></button>
+                <button type="button" *ngIf="canSubmit(job)" (click)="submitForReview(job, $event); closeCompactMenu()"><mat-icon>send</mat-icon><span>Submit for review</span></button>
+                <button type="button" *ngIf="canWithdraw(job)" (click)="withdraw(job, $event); closeCompactMenu()"><mat-icon>undo</mat-icon><span>{{ job.releasePackageId ? 'Withdraw release' : 'Withdraw' }}</span></button>
+                <button type="button" *ngIf="canCopyToWorkspace(job)" (click)="openCopyDialog(job, $event); closeCompactMenu()"><mat-icon>library_add</mat-icon><span>Copy to workspace</span></button>
+                <button type="button" *ngIf="canRename(job)" (click)="rename(job, $event); closeCompactMenu()"><mat-icon>edit</mat-icon><span>Rename</span></button>
+                <button type="button" *ngIf="activeSpace === 'history'" [disabled]="actionJobId === job.id" (click)="downloadOriginal(job, $event); closeCompactMenu()"><mat-icon>{{ actionJobId === job.id ? 'hourglass_top' : 'download' }}</mat-icon><span>{{ actionJobId === job.id ? 'Preparing download...' : 'Download original' }}</span></button>
+                <button type="button" class="discard-menu" *ngIf="canDiscard(job) && activeSpace === 'workspace'" (click)="discard(job, $event); closeCompactMenu()"><mat-icon>delete_outline</mat-icon><span>Discard draft</span></button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <div class="empty-state" *ngIf="!loading && !loadError && !filteredJobs.length">
+      <span><mat-icon>{{ emptyIcon() }}</mat-icon></span><h3>{{ emptyTitle() }}</h3><p>{{ emptyCopy() }}</p>
+      <button *ngIf="activeSpace === 'workspace' && auth.hasCapability('imports.upload')" mat-raised-button color="primary" (click)="newImport()"><mat-icon>add</mat-icon> Start private upload</button>
+    </div>
+  </mat-card>
+</div>
 
 <div class="copy-dialog-backdrop" *ngIf="copySource as source" (click)="closeCopyDialog()">
   <section class="copy-dialog" role="dialog" aria-modal="true" aria-labelledby="copy-dialog-title" (click)="$event.stopPropagation()">
     <header class="copy-dialog__header">
       <span class="copy-dialog__mark"><mat-icon>content_copy</mat-icon></span>
-      <div>
-        <span class="dialog-kicker">Private working copy</span>
-        <h2 id="copy-dialog-title">Copy to my workspace?</h2>
-        <p>Start from this exact version without changing the shared record.</p>
-      </div>
+      <div><span class="dialog-kicker">Private working copy</span><h2 id="copy-dialog-title">Copy to my workspace?</h2><p>Start from this exact version without changing the shared record.</p></div>
       <button mat-icon-button type="button" aria-label="Close copy dialog" [disabled]="actionJobId === source.id" (click)="closeCopyDialog()"><mat-icon>close</mat-icon></button>
     </header>
 
@@ -177,28 +195,18 @@
         <div><small>Source version</small><strong>{{ source.originalFileName }}</strong><span>{{ source.entityTypeLabel }} &middot; {{ source.totalRows }} rows &middot; {{ source.createdByDisplayName }}</span></div>
         <app-status-badge [status]="source.statusLabel" />
       </div>
-
-      <label class="copy-name-field">
-        <span>Working copy name</span>
-        <input [(ngModel)]="workingCopyName" maxlength="180" autocomplete="off" />
-        <small>This name is visible only in your private workspace until submission.</small>
-      </label>
-
+      <label class="copy-name-field"><span>Working copy name</span><input [(ngModel)]="workingCopyName" maxlength="180" autocomplete="off" /><small>This name is visible only in your private workspace until submission.</small></label>
       <div class="copy-guarantees">
         <div><span><mat-icon>lock</mat-icon></span><p><strong>Private by default</strong><small>Only you can see and edit the new draft.</small></p></div>
         <div><span><mat-icon>verified_user</mat-icon></span><p><strong>Source stays governed</strong><small>The shared or published version remains unchanged.</small></p></div>
         <div><span><mat-icon>fork_right</mat-icon></span><p><strong>Independent lifecycle</strong><small>Approvals, decisions and publication proof are not copied.</small></p></div>
       </div>
-
       <div class="copy-dialog__note"><mat-icon>info</mat-icon><span>The copied rows and current validation results become your starting point. You can then edit, compare, delete or add rows privately.</span></div>
     </div>
 
     <footer class="copy-dialog__actions">
       <button mat-button type="button" [disabled]="actionJobId === source.id" (click)="closeCopyDialog()">Cancel</button>
-      <button mat-raised-button color="primary" type="button" [disabled]="!workingCopyName.trim() || actionJobId === source.id" (click)="createWorkingCopy()">
-        <mat-icon>{{ actionJobId === source.id ? 'hourglass_top' : 'add_to_photos' }}</mat-icon>
-        {{ actionJobId === source.id ? 'Creating copy...' : 'Create private copy' }}
-      </button>
+      <button mat-raised-button color="primary" type="button" [disabled]="!workingCopyName.trim() || actionJobId === source.id" (click)="createWorkingCopy()"><mat-icon>{{ actionJobId === source.id ? 'hourglass_top' : 'add_to_photos' }}</mat-icon>{{ actionJobId === source.id ? 'Creating copy...' : 'Create private copy' }}</button>
     </footer>
   </section>
 </div>
