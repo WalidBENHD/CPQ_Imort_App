@@ -2,7 +2,6 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,370 +11,191 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterLink,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatIconModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule],
   template: `
-    <section class="register-shell">
-      <div class="register-grid">
-        <div class="register-story">
-          <a class="back-link" routerLink="/login">
-            <mat-icon aria-hidden="true">arrow_back</mat-icon>
-            Back to portal
-          </a>
+    <section class="request-shell">
+      <header class="request-header">
+        <a class="brand" routerLink="/login">
+          <span class="brand__mark"><mat-icon>cloud_upload</mat-icon></span>
+          <span><strong>CPQ Platform</strong><small>Governed data operations</small></span>
+        </a>
+        <a class="back-link" routerLink="/login"><mat-icon>arrow_back</mat-icon> Back to business overview</a>
+      </header>
 
-          <div class="brand-line">
-            <span class="brand-mark" aria-hidden="true">
-              <mat-icon>person_add</mat-icon>
-            </span>
-            <div>
-              <p class="eyebrow">Account request</p>
-              <p class="brand-subtitle">Data Quality &amp; Validation Portal</p>
-            </div>
-          </div>
-
-          <h1>Create your platform access</h1>
-          <p class="hero-copy">
-            Request access to submit validated CPQ data, collaborate with approvers and follow each update through the governance workflow.
+      <main class="request-layout">
+        <section class="request-story">
+          <div class="story-kicker"><i></i> Governed onboarding</div>
+          <h1>Access follows <span>responsibility.</span></h1>
+          <p class="story-lead">
+            Request access to the CPQ data workflow. An administrator will verify your account and assign capabilities based on your operational role.
           </p>
 
-          <div class="approval-panel" aria-label="Account approval process">
-            <article>
-              <span><mat-icon aria-hidden="true">assignment_ind</mat-icon></span>
-              <h2>Submit request</h2>
-              <p>Provide your display name and account credentials.</p>
-            </article>
-            <article>
-              <span><mat-icon aria-hidden="true">admin_panel_settings</mat-icon></span>
-              <h2>Admin review</h2>
-              <p>An administrator validates your request before activation.</p>
-            </article>
-            <article>
-              <span><mat-icon aria-hidden="true">verified_user</mat-icon></span>
-              <h2>Approved access</h2>
-              <p>Once approved, you can sign in and use the portal.</p>
+          <div class="control-note">
+            <span><mat-icon>admin_panel_settings</mat-icon></span>
+            <div>
+              <strong>This is an access request, not automatic authorization.</strong>
+              <p>Uploading, approving, publishing and administration are separate responsibilities. Each capability is assigned deliberately.</p>
+            </div>
+          </div>
+
+          <div class="request-journey" aria-label="Account approval journey">
+            <article *ngFor="let step of onboardingSteps; let i = index">
+              <span class="request-journey__number">0{{ i + 1 }}</span>
+              <span class="request-journey__icon"><mat-icon>{{ step.icon }}</mat-icon></span>
+              <div><h2>{{ step.title }}</h2><p>{{ step.description }}</p></div>
             </article>
           </div>
-        </div>
 
-        <aside class="register-column" aria-label="Create account">
-          <mat-card class="register-card">
-            <div class="card-header">
-              <div>
-                <p class="card-kicker">Secure onboarding</p>
-                <h2>Create account</h2>
-              </div>
-              <span class="card-badge">
-                <mat-icon aria-hidden="true">lock_person</mat-icon>
-              </span>
-            </div>
+          <div class="responsibility-strip">
+            <span>Capabilities may include</span>
+            <div><em><mat-icon>edit_note</mat-icon> Prepare</em><em><mat-icon>approval</mat-icon> Approve</em><em><mat-icon>rocket_launch</mat-icon> Publish</em><em><mat-icon>settings</mat-icon> Administer</em></div>
+          </div>
+        </section>
 
-            <p class="muted">Your account remains pending until an admin approves it.</p>
+        <aside class="form-panel" aria-label="Request platform access">
+          <div class="form-panel__status"><i></i> Controlled account creation</div>
+          <span class="form-panel__icon"><mat-icon>person_add</mat-icon></span>
+          <h2>Request platform access</h2>
+          <p>Create your credentials. Your account will remain inactive until an administrator completes the review.</p>
 
-            <form [formGroup]="form" (ngSubmit)="submit()">
-              <mat-form-field appearance="outline">
-                <mat-label>Display name</mat-label>
-                <input matInput formControlName="displayName" autocomplete="name" />
-              </mat-form-field>
+          <form [formGroup]="form" (ngSubmit)="submit()">
+            <mat-form-field appearance="outline">
+              <mat-label>Full display name</mat-label>
+              <input matInput formControlName="displayName" autocomplete="name" />
+              <mat-hint>The name colleagues will see in approvals</mat-hint>
+            </mat-form-field>
 
-              <mat-form-field appearance="outline">
-                <mat-label>Username</mat-label>
-                <input matInput formControlName="userName" autocomplete="username" />
-              </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Username</mat-label>
+              <input matInput formControlName="userName" autocomplete="username" />
+            </mat-form-field>
 
-              <mat-form-field appearance="outline">
-                <mat-label>Password</mat-label>
-                <input matInput type="password" formControlName="password" autocomplete="new-password" />
-              </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Password</mat-label>
+              <input matInput type="password" formControlName="password" autocomplete="new-password" />
+              <mat-hint>Use at least 8 characters</mat-hint>
+            </mat-form-field>
 
-              <p *ngIf="message" class="success">{{ message }}</p>
-              <p *ngIf="error" class="error">{{ error }}</p>
+            <p *ngIf="message" class="form-message form-message--success"><mat-icon>check_circle</mat-icon>{{ message }}</p>
+            <p *ngIf="error" class="form-message form-message--error"><mat-icon>error</mat-icon>{{ error }}</p>
 
-              <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
-                <mat-icon aria-hidden="true">person_add</mat-icon>
-                {{ submitting ? 'Creating...' : 'Create account' }}
-              </button>
-            </form>
+            <button mat-flat-button type="submit" [disabled]="form.invalid || submitting">
+              {{ submitting ? 'Submitting request...' : 'Submit access request' }}
+              <mat-icon>arrow_forward</mat-icon>
+            </button>
+          </form>
 
-            <div class="account-panel">
-              <p>Already registered?</p>
-              <a mat-stroked-button color="primary" routerLink="/login">
-                <mat-icon aria-hidden="true">login</mat-icon>
-                Sign in
-              </a>
-            </div>
-          </mat-card>
+          <div class="form-panel__footer">
+            <span><small>Already approved?</small><strong>Return to your workspace</strong></span>
+            <a routerLink="/login">Sign in</a>
+          </div>
         </aside>
-      </div>
+      </main>
+
+      <footer class="request-footer">
+        <span><mat-icon>lock</mat-icon> Responsibilities remain separated by capability</span>
+        <span>Saint-Marcellin · PDU pilot</span>
+      </footer>
     </section>
   `,
   styles: [`
-    :host {
-      display: block;
+    :host { display: block; color: #14213b; font-family: "Aptos", "Trebuchet MS", sans-serif; }
+    * { box-sizing: border-box; }
+    .request-shell {
       min-height: 100vh;
-      background:
-        linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(244, 248, 252, 0.94)),
-        radial-gradient(circle at top left, rgba(18, 97, 166, 0.08), transparent 34%),
-        repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.05) 0 1px, transparent 1px 120px);
-      color: #172033;
-    }
-
-    .register-shell {
-      min-height: 100vh;
-      padding: 60px 32px 72px;
-    }
-
-    .register-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 680px) minmax(340px, 420px);
-      gap: 76px;
-      width: min(1180px, 100%);
-      margin: 0 auto;
-      align-items: start;
-    }
-
-    .register-story {
-      display: grid;
-      gap: 28px;
-      min-width: 0;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: max-content;
-      color: #1261a6;
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .brand-line {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .brand-mark,
-    .card-badge,
-    .approval-panel span {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-    }
-
-    .brand-mark {
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #195b9a, #1261a6);
-      color: #fff;
-      box-shadow: 0 10px 24px rgba(18, 97, 166, 0.22);
-    }
-
-    .eyebrow,
-    .card-kicker {
-      margin: 0;
-      color: #1261a6;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .brand-subtitle {
-      margin: 4px 0 0;
-      color: #53657d;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    h1 {
-      max-width: 680px;
-      margin: 0;
-      color: #0e2038;
-      font-size: 48px;
-      font-weight: 700;
-      line-height: 1.08;
-    }
-
-    .hero-copy {
-      max-width: 660px;
-      margin: 0;
-      color: #44556c;
-      font-size: 19px;
-      line-height: 1.55;
-    }
-
-    .approval-panel {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .approval-panel article {
-      min-height: 172px;
-      padding: 18px;
-      border: 1px solid #d9e3ee;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,250,253,.97));
-      box-shadow: 0 12px 28px rgba(15, 31, 53, 0.06);
-    }
-
-    .approval-panel span {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: #eff6ff;
-      color: #1261a6;
-    }
-
-    .approval-panel h2 {
-      margin: 16px 0 8px;
-      color: #132840;
-      font-size: 17px;
-      font-weight: 700;
-    }
-
-    .approval-panel p {
-      margin: 0;
-      color: #526276;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .register-card {
-      position: relative;
       overflow: hidden;
-      width: 100%;
-      padding: 28px;
-      border: 1px solid #d8e4f0;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,251,255,.98));
-      box-shadow: 0 28px 70px rgba(15,31,53,.18), 0 4px 12px rgba(18,97,166,.08);
+      background:
+        linear-gradient(115deg, rgba(247,246,241,.98), rgba(243,247,250,.96)),
+        radial-gradient(circle at 10% 10%, rgba(15,159,150,.13), transparent 30%),
+        #f7f6f1;
     }
-
-    .register-card::before {
-      content: '';
-      position: absolute;
-      inset: 0 0 auto;
-      height: 4px;
-      background: linear-gradient(90deg, #1261a6, #28724f);
-    }
-
-    .card-header {
+    .request-header {
+      min-height: 74px;
+      width: min(1240px, calc(100% - 48px));
+      margin: 0 auto;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
-      gap: 18px;
+      border-bottom: 1px solid rgba(20,33,59,.12);
     }
-
-    .register-card h2 {
-      margin: 6px 0 0;
-      color: #0f1f35;
-      font-size: 28px;
-      font-weight: 700;
+    .brand { display: inline-flex; align-items: center; gap: 11px; color: #14213b; text-decoration: none; }
+    .brand__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: #173b8f; box-shadow: 0 8px 20px rgba(23,59,143,.2); }
+    .brand__mark mat-icon { width: 20px; height: 20px; font-size: 20px; }
+    .brand > span:last-child { display: flex; flex-direction: column; }
+    .brand strong { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; font-size: 15px; }
+    .brand small { color: #6e798c; font-size: 10px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: #173b8f; font-size: 11px; font-weight: 850; text-decoration: none; }
+    .back-link mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .request-layout { min-height: calc(100vh - 148px); width: min(1240px, calc(100% - 48px)); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(360px, 460px); gap: clamp(60px, 9vw, 130px); align-items: center; padding: 58px 0 70px; }
+    .request-story { max-width: 720px; animation: reveal 520ms ease both; }
+    .story-kicker { display: inline-flex; align-items: center; gap: 9px; color: #0b7a72; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .story-kicker i { width: 22px; height: 2px; background: #0f9f96; }
+    h1, h2 { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; }
+    h1 { max-width: 660px; margin: 22px 0 20px; color: #0b1731; font-size: clamp(50px, 5.4vw, 76px); line-height: .98; letter-spacing: -.045em; font-weight: 650; }
+    h1 span { color: #2854c5; }
+    .story-lead { max-width: 650px; margin: 0; color: #58657a; font-size: 18px; line-height: 1.58; }
+    .control-note { display: grid; grid-template-columns: 44px 1fr; gap: 14px; margin-top: 30px; padding: 17px; border: 1px solid rgba(15,142,132,.22); border-radius: 16px; background: rgba(255,255,255,.65); }
+    .control-note > span { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: #08776f; background: #ddf4f0; }
+    .control-note strong { color: #15304a; font-size: 13px; }
+    .control-note p { margin: 4px 0 0; color: #68758a; font-size: 11px; line-height: 1.5; }
+    .request-journey { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 34px; }
+    .request-journey::before { content: ''; position: absolute; left: 8%; right: 8%; top: 28px; height: 1px; background: #c9d2df; }
+    .request-journey article { position: relative; z-index: 1; padding-right: 20px; }
+    .request-journey__number { position: absolute; top: 4px; right: 20px; color: #a0a9b7; font-size: 9px; font-weight: 900; }
+    .request-journey__icon { width: 56px; height: 56px; display: grid; place-items: center; border: 7px solid #f7f6f1; border-radius: 50%; color: #173b8f; background: #e7edfb; }
+    .request-journey h2 { margin: 14px 0 5px; color: #17253e; font-size: 14px; }
+    .request-journey p { margin: 0; color: #6b7688; font-size: 10px; line-height: 1.45; }
+    .responsibility-strip { margin-top: 28px; padding-top: 19px; border-top: 1px solid #d8dde5; }
+    .responsibility-strip > span { color: #7a8596; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .responsibility-strip > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .responsibility-strip em { display: inline-flex; align-items: center; gap: 6px; min-height: 29px; padding: 0 10px; border: 1px solid #d3d9e2; border-radius: 999px; color: #4e5d73; background: rgba(255,255,255,.55); font-size: 9px; font-weight: 800; font-style: normal; }
+    .responsibility-strip mat-icon { width: 14px; height: 14px; font-size: 14px; color: #0f8e84; }
+    .form-panel { position: relative; overflow: hidden; padding: 32px; border: 1px solid rgba(20,33,59,.14); border-radius: 24px; background: #fff; box-shadow: 0 30px 80px rgba(25,39,72,.17); animation: reveal 520ms 100ms ease both; }
+    .form-panel::before { content: ''; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, #0f9f96, #3158c8); }
+    .form-panel__status { display: inline-flex; align-items: center; gap: 8px; color: #0b7a72; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .form-panel__status i { width: 7px; height: 7px; border-radius: 50%; background: #18b7a8; box-shadow: 0 0 0 5px rgba(24,183,168,.12); }
+    .form-panel__icon { width: 48px; height: 48px; display: grid; place-items: center; margin-top: 23px; border-radius: 14px; color: #2854c5; background: #e8edfc; }
+    .form-panel h2 { margin: 18px 0 9px; color: #0b1731; font-size: 30px; line-height: 1.05; }
+    .form-panel > p { margin: 0; color: #657188; font-size: 13px; line-height: 1.55; }
+    form { display: grid; gap: 8px; margin-top: 22px; }
+    mat-form-field { width: 100%; }
+    form button { min-height: 48px; border-radius: 11px; color: #fff !important; background: #173b8f !important; font-weight: 850; }
+    form button mat-icon { margin-left: 8px; }
+    .form-message { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 4px; padding: 10px; border-radius: 9px; font-size: 11px; line-height: 1.4; }
+    .form-message mat-icon { width: 17px; height: 17px; font-size: 17px; flex: 0 0 auto; }
+    .form-message--success { color: #07685f; background: #e6f7f3; }
+    .form-message--error { color: #a52d27; background: #fff0ef; }
+    .form-panel__footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; padding-top: 17px; border-top: 1px solid #e4e8ee; }
+    .form-panel__footer > span { display: flex; flex-direction: column; gap: 2px; }
+    .form-panel__footer small { color: #7b8697; font-size: 9px; }
+    .form-panel__footer strong { color: #2d3a50; font-size: 11px; }
+    .form-panel__footer a { min-height: 36px; display: inline-flex; align-items: center; padding: 0 13px; border: 1px solid #cad2df; border-radius: 9px; color: #173b8f; font-size: 10px; font-weight: 850; text-decoration: none; }
+    .request-footer { min-height: 74px; width: min(1240px, calc(100% - 48px)); margin: 0 auto; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(20,33,59,.12); color: #758094; font-size: 10px; }
+    .request-footer span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+    .request-footer mat-icon { width: 15px; height: 15px; font-size: 15px; color: #0f8e84; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 960px) {
+      .request-layout { grid-template-columns: 1fr; gap: 48px; }
+      .form-panel { max-width: 560px; }
     }
-
-    .card-badge {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      background: #edf7f2;
-      color: #28724f;
+    @media (max-width: 640px) {
+      .request-header, .request-layout, .request-footer { width: calc(100% - 28px); }
+      .request-header { min-height: 64px; }
+      .brand small { display: none; }
+      .back-link { font-size: 0; }
+      .back-link mat-icon { width: 22px; height: 22px; font-size: 22px; }
+      .request-layout { padding: 42px 0 48px; }
+      h1 { font-size: clamp(45px, 13vw, 60px); }
+      .story-lead { font-size: 16px; }
+      .request-journey { grid-template-columns: 1fr; gap: 16px; }
+      .request-journey::before { top: 15px; bottom: 15px; left: 27px; right: auto; width: 1px; height: auto; }
+      .request-journey article { display: grid; grid-template-columns: 56px 1fr; gap: 13px; padding: 0; }
+      .request-journey__number { display: none; }
+      .request-journey h2 { margin-top: 7px; }
+      .form-panel { padding: 25px 20px; border-radius: 20px; }
+      .request-footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 6px; }
     }
-
-    form {
-      display: grid;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    button[mat-raised-button],
-    a[mat-stroked-button] {
-      min-height: 44px;
-      border-radius: 6px;
-      font-weight: 700;
-      letter-spacing: 0;
-    }
-
-    button[mat-raised-button] mat-icon,
-    a[mat-stroked-button] mat-icon {
-      margin-right: 8px;
-    }
-
-    .muted {
-      margin: 12px 0 0;
-      color: #5d6d80;
-      line-height: 1.5;
-    }
-
-    .error { color: #b91c1c; margin: 0; }
-    .success { color: #065f46; margin: 0; }
-
-    .account-panel {
-      display: grid;
-      gap: 12px;
-      margin-top: 22px;
-      padding-top: 20px;
-      border-top: 1px solid #e3eaf2;
-    }
-
-    .account-panel p {
-      margin: 0;
-      color: #5d6d80;
-      font-size: 14px;
-    }
-
-    @media (max-width: 900px) {
-      .register-grid {
-        grid-template-columns: 1fr;
-        gap: 32px;
-      }
-
-      .approval-panel {
-        grid-template-columns: 1fr;
-      }
-
-      .register-card {
-        max-width: 520px;
-      }
-    }
-
-    @media (max-width: 620px) {
-      .register-shell {
-        padding: 28px 16px 48px;
-      }
-
-      .register-story {
-        gap: 24px;
-      }
-
-      .brand-line {
-        align-items: flex-start;
-      }
-
-      h1 {
-        font-size: 36px;
-      }
-
-      .hero-copy {
-        font-size: 17px;
-      }
-
-      .register-card {
-        padding: 22px;
-      }
-    }
+    @media (prefers-reduced-motion: reduce) { .request-story, .form-panel { animation: none; } }
   `]
 })
 export class RegisterComponent {
@@ -391,6 +211,12 @@ export class RegisterComponent {
   submitting = false;
   message = '';
   error = '';
+
+  readonly onboardingSteps = [
+    { icon: 'person_add', title: 'Request account', description: 'Create your identity and credentials.' },
+    { icon: 'manage_search', title: 'Administrative review', description: 'Your operational responsibility is verified.' },
+    { icon: 'key', title: 'Capabilities assigned', description: 'Access is granted according to your role.' }
+  ];
 
   submit(): void {
     if (this.form.invalid || this.submitting) return;

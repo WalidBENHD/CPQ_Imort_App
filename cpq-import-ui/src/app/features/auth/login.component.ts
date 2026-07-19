@@ -24,101 +24,59 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
   ],
   template: `
     <section class="landing-shell">
-      <div class="landing-grid">
-        <div class="business-column">
-          <div class="brand-line">
-            <span class="brand-mark" aria-hidden="true">
-              <mat-icon>cloud_upload</mat-icon>
-            </span>
-            <div>
-              <p class="eyebrow">Legrand internal platform</p>
-              <p class="brand-subtitle">Data governance for CPQ operations</p>
-            </div>
-          </div>
+      <header class="public-header">
+        <a class="public-brand" href="#top" (click)="scrollToSection($event, 'top')" aria-label="CPQ Platform home">
+          <span class="public-brand__mark"><mat-icon>cloud_upload</mat-icon></span>
+          <span><strong>CPQ Platform</strong><small>Governed data operations</small></span>
+        </a>
 
-          <h1>Data Quality &amp; Validation Portal</h1>
-          <p class="hero-copy">
-            A centralized platform to simplify data submissions, improve data quality and accelerate CPQ updates across all sites.
-          </p>
+        <nav aria-label="Landing page navigation">
+          <a href="#business-case" (click)="scrollToSection($event, 'business-case')">Why it matters</a>
+          <a href="#operating-model" (click)="scrollToSection($event, 'operating-model')">How it works</a>
+          <a href="#governance" (click)="scrollToSection($event, 'governance')">Governance</a>
+        </nav>
 
-          <div class="trust-row" aria-label="Platform highlights">
-            <span class="trust-pill">
-              <mat-icon>verified</mat-icon>
-              Standardized workflow
-            </span>
-            <span class="trust-pill">
-              <mat-icon>shield</mat-icon>
-              Controlled approvals
-            </span>
-            <span class="trust-pill">
-              <mat-icon>sync_alt</mat-icon>
-              Faster CPQ updates
-            </span>
-          </div>
+        <a class="header-access" href="#account-access" (click)="scrollToSection($event, 'account-access')">
+          Sign in
+          <mat-icon>arrow_forward</mat-icon>
+        </a>
+      </header>
 
-          <section class="mission-panel" aria-labelledby="mission-title">
-            <div class="mission-icon" aria-hidden="true">
-              <mat-icon>verified</mat-icon>
-            </div>
-            <div>
-              <h2 id="mission-title">Mission</h2>
-              <p>
-                Enable every site to deliver complete, validated and consistent data through a simple, transparent and collaborative workflow.
-              </p>
-            </div>
-          </section>
+      <main id="top">
+        <section class="hero-section">
+          <div class="hero-story">
+            <div class="hero-kicker"><i></i> Governed CPQ data operations</div>
+            <h1>Move CPQ updates from <span>spreadsheet risk</span> to controlled publication.</h1>
+            <p class="hero-copy">
+              One operating workspace to prepare, validate, approve and publish connected CPQ datasets with confidence.
+            </p>
 
-          <section class="value-section" aria-labelledby="value-title">
-            <div class="section-heading">
-              <p>Business Value</p>
-              <h2 id="value-title">Built for operational excellence</h2>
+            <div class="hero-actions">
+              <a class="primary-action" href="#account-access" (click)="scrollToSection($event, 'account-access')">
+                Continue to workspace
+                <mat-icon>arrow_forward</mat-icon>
+              </a>
+              <a class="secondary-action" routerLink="/register">Request access</a>
             </div>
 
-            <div class="value-grid">
-              <article class="value-card" *ngFor="let value of businessValues">
-                <span class="value-icon" aria-hidden="true">
-                  <mat-icon>{{ value.icon }}</mat-icon>
-                </span>
-                <h3>{{ value.title }}</h3>
-                <p>{{ value.description }}</p>
-              </article>
-            </div>
-          </section>
-
-          <section class="workflow-section" aria-labelledby="workflow-title">
-            <div class="section-heading">
-              <p>Standard Workflow</p>
-              <h2 id="workflow-title">From preparation to integration</h2>
-            </div>
-
-            <div class="workflow-track">
-              <article class="workflow-step" *ngFor="let step of workflowSteps; let i = index">
-                <span class="workflow-icon" aria-hidden="true">
-                  <mat-icon>{{ step.icon }}</mat-icon>
-                </span>
-                <span class="workflow-step-index" aria-hidden="true">Step {{ formatStep(i) }}</span>
-                <div>
-                  <h3>{{ step.title }}</h3>
-                  <p>{{ step.description }}</p>
-                </div>
-              </article>
-            </div>
-          </section>
-        </div>
-
-        <aside id="account-access" class="auth-column" aria-label="Account access">
-          <mat-card class="auth-card">
-            <div class="card-header">
-              <div>
-                <p class="card-kicker">Secure access</p>
-                <h2>Sign in</h2>
-              </div>
-              <span class="card-badge">
-                <mat-icon aria-hidden="true">lock</mat-icon>
+            <div class="pilot-card">
+              <span class="pilot-card__icon"><mat-icon>flag</mat-icon></span>
+              <span>
+                <small>Current pilot scope</small>
+                <strong>Saint-Marcellin · PDU</strong>
+                <em>Annual Article Master and Basis Price publication</em>
               </span>
+              <span class="pilot-card__status"><i></i> Active pilot</span>
             </div>
+          </div>
 
-            <p class="muted">Use your approved platform account to continue.</p>
+          <aside id="account-access" class="access-panel" aria-label="Account access">
+            <div class="access-panel__topline">
+              <span><mat-icon>verified_user</mat-icon></span>
+              Controlled access
+            </div>
+            <h2>Continue to your workspace</h2>
+            <p>Prepare, review or publish CPQ datasets according to your assigned responsibilities.</p>
 
             <form [formGroup]="form" (ngSubmit)="submit()">
               <mat-form-field appearance="outline">
@@ -131,523 +89,330 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
                 <input matInput type="password" formControlName="password" autocomplete="current-password" />
               </mat-form-field>
 
-              <p *ngIf="error" class="error">{{ error }}</p>
+              <p *ngIf="error" class="form-message form-message--error">{{ error }}</p>
 
-              <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
-                <mat-icon aria-hidden="true">login</mat-icon>
+              <button mat-flat-button type="submit" [disabled]="form.invalid || submitting">
                 {{ submitting ? 'Signing in...' : 'Sign in' }}
+                <mat-icon>login</mat-icon>
               </button>
             </form>
 
-            <div class="account-panel">
-              <p>No account yet?</p>
-              <a mat-stroked-button color="primary" routerLink="/register">
-                <mat-icon aria-hidden="true">person_add</mat-icon>
-                Create account
-              </a>
+            <div class="access-panel__footer">
+              <span><small>New to the platform?</small><strong>Request governed access</strong></span>
+              <a routerLink="/register" aria-label="Create an account"><mat-icon>person_add</mat-icon></a>
             </div>
-          </mat-card>
-        </aside>
-      </div>
+          </aside>
+        </section>
+
+        <section class="release-model" aria-labelledby="release-model-title">
+          <div class="release-model__heading">
+            <span>One connected operating model</span>
+            <h2 id="release-model-title">From private preparation to published evidence</h2>
+          </div>
+
+          <div class="release-track">
+            <article *ngFor="let step of operatingSteps; let i = index">
+              <span class="release-track__index">0{{ i + 1 }}</span>
+              <span class="release-track__icon"><mat-icon>{{ step.icon }}</mat-icon></span>
+              <div><strong>{{ step.title }}</strong><small>{{ step.description }}</small></div>
+              <mat-icon class="release-track__arrow" *ngIf="i < operatingSteps.length - 1">east</mat-icon>
+            </article>
+          </div>
+        </section>
+
+        <section id="business-case" class="business-case">
+          <div class="section-intro">
+            <span>Business case</span>
+            <h2>Replace operational uncertainty with a governed way of working.</h2>
+            <p>The platform is not another place to store files. It closes the control gaps between preparation, approval and CPQ publication.</p>
+          </div>
+
+          <div class="comparison-board">
+            <div class="comparison-board__headings">
+              <div class="comparison-board__header comparison-board__header--today">
+                <mat-icon>warning_amber</mat-icon>
+                <span><small>Today's challenge</small><strong>Fragmented spreadsheet coordination</strong></span>
+              </div>
+              <div class="comparison-board__header comparison-board__header--future">
+                <mat-icon>task_alt</mat-icon>
+                <span><small>With CPQ Platform</small><strong>One controlled publication path</strong></span>
+              </div>
+            </div>
+
+            <div class="comparison-row" *ngFor="let item of problemSolutions">
+              <div class="comparison-cell comparison-cell--problem">{{ item.problem }}</div>
+              <div class="comparison-cell comparison-cell--solution"><mat-icon>arrow_forward</mat-icon>{{ item.solution }}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="outcome-section">
+          <div class="section-intro section-intro--compact">
+            <span>Operational value</span>
+            <h2>Control that helps people move faster.</h2>
+          </div>
+          <div class="outcome-grid">
+            <article *ngFor="let outcome of businessOutcomes">
+              <span class="outcome-icon"><mat-icon>{{ outcome.icon }}</mat-icon></span>
+              <h3>{{ outcome.title }}</h3>
+              <p>{{ outcome.description }}</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="operating-model" class="audience-section">
+          <div class="audience-card audience-card--users">
+            <span class="audience-card__label"><mat-icon>edit_note</mat-icon> For operational users</span>
+            <h2>Freedom to prepare. Confidence when submitting.</h2>
+            <p>Work privately, compare alternatives and correct data directly. The shared workflow starts only when the contributor decides the work is ready.</p>
+            <ul>
+              <li><mat-icon>check</mat-icon> Private drafts and working copies</li>
+              <li><mat-icon>check</mat-icon> In-platform row correction and recovery</li>
+              <li><mat-icon>check</mat-icon> Dependency checks before review</li>
+            </ul>
+          </div>
+
+          <div class="audience-card audience-card--leaders">
+            <span class="audience-card__label"><mat-icon>policy</mat-icon> For managers and approvers</span>
+            <h2>Understand the decision before accepting the risk.</h2>
+            <p>See additions, modifications, removals and connected-dataset impact before approval, then retain the exact decision as governed evidence.</p>
+            <ul>
+              <li><mat-icon>check</mat-icon> Explicit approval and publication gates</li>
+              <li><mat-icon>check</mat-icon> Coordinated releases for connected data</li>
+              <li><mat-icon>check</mat-icon> Permanent decision history</li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="governance" class="governance-section">
+          <div class="governance-copy">
+            <span>Governance by design</span>
+            <h2>Control without slowing people down.</h2>
+            <p>Responsibilities are separated through configurable capabilities. Contributors prepare, approvers decide, publishers release, and administrators retain oversight.</p>
+          </div>
+
+          <div class="governance-proof">
+            <article><mat-icon>lock_person</mat-icon><span><strong>Private by default</strong><small>Work remains personal until deliberately submitted.</small></span></article>
+            <article><mat-icon>account_tree</mat-icon><span><strong>Connected by design</strong><small>Master data and dependent datasets move together when required.</small></span></article>
+            <article><mat-icon>history_edu</mat-icon><span><strong>Traceable by evidence</strong><small>Every formal decision and publication remains explainable.</small></span></article>
+          </div>
+        </section>
+
+        <section class="closing-section">
+          <span class="closing-section__mark"><mat-icon>cloud_done</mat-icon></span>
+          <div><small>Saint-Marcellin · PDU pilot</small><h2>A safer annual update is the first step toward a repeatable CPQ operating model.</h2></div>
+          <a href="#account-access" (click)="scrollToSection($event, 'account-access')">Enter platform <mat-icon>arrow_upward</mat-icon></a>
+        </section>
+      </main>
+
+      <footer class="public-footer">
+        <span>CPQ Platform</span>
+        <span>Governed data operations for reliable CPQ publication.</span>
+        <span>Designed & built by Walid Benhamed</span>
+      </footer>
 
       <nav class="mobile-access-bar" aria-label="Account access shortcuts">
-        <a class="mobile-access-button mobile-access-button--primary" href="#account-access">
-          <mat-icon aria-hidden="true">login</mat-icon>
-          Sign in
-        </a>
-        <a class="mobile-access-button" routerLink="/register">
-          <mat-icon aria-hidden="true">person_add</mat-icon>
-          Create account
-        </a>
+        <a href="#account-access" (click)="scrollToSection($event, 'account-access')"><mat-icon>login</mat-icon> Sign in</a>
+        <a routerLink="/register">Request access</a>
       </nav>
     </section>
   `,
   styles: [`
-    :host {
-      display: block;
-      margin-top: 0;
-      background:
-        linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(244, 248, 252, 0.94)),
-        radial-gradient(circle at top left, rgba(18, 97, 166, 0.08), transparent 34%),
-        repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.05) 0 1px, transparent 1px 120px);
-      color: #172033;
-    }
-
+    :host { display: block; color: #14213b; font-family: "Aptos", "Trebuchet MS", sans-serif; }
+    * { box-sizing: border-box; }
     .landing-shell {
       min-height: 100vh;
-      padding: 60px 32px 72px;
-    }
-
-    .landing-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
-      gap: 48px;
-      width: min(1280px, 100%);
-      margin: 0 auto;
-      align-items: start;
-    }
-
-    .business-column {
-      display: grid;
-      gap: 30px;
-      min-width: 0;
-    }
-
-    .brand-line {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .brand-mark {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 50px;
-      height: 50px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #195b9a, #1261a6);
-      color: #fff;
-      box-shadow: 0 10px 24px rgba(18, 97, 166, 0.22);
-      flex: 0 0 auto;
-    }
-
-    .eyebrow,
-    .section-heading p,
-    .card-kicker {
-      margin: 0;
-      color: #1261a6;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .brand-subtitle {
-      margin: 4px 0 0;
-      color: #53657d;
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: 0;
-    }
-
-    h1 {
-      max-width: 780px;
-      margin: 2px 0 0;
-      color: #0e2038;
-      font-size: 54px;
-      font-weight: 700;
-      line-height: 1.08;
-      letter-spacing: 0;
-    }
-
-    .trust-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .trust-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 40px;
-      padding: 10px 14px;
-      border: 1px solid #d6e2ef;
-      background: rgba(255, 255, 255, 0.82);
-      color: #31455f;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .hero-copy {
-      max-width: 780px;
-      margin: 4px 0 0;
-      color: #44556c;
-      font-size: 20px;
-      line-height: 1.55;
-    }
-
-    .mission-panel {
-      display: flex;
-      gap: 18px;
-      max-width: 860px;
-      padding: 22px 24px;
-      border: 1px solid #d6e2ef;
-      border-left: 4px solid #1261a6;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.98));
-      box-shadow: 0 14px 38px rgba(15, 31, 53, 0.08);
-    }
-
-    .mission-icon,
-    .value-icon,
-    .workflow-icon,
-    .card-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-    }
-
-    .mission-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 8px;
-      background: #eaf4ff;
-      color: #1261a6;
-    }
-
-    .mission-panel h2,
-    .section-heading h2,
-    .auth-card h2 {
-      margin: 0;
-      color: #0f1f35;
-      font-weight: 700;
-      letter-spacing: 0;
-    }
-
-    .mission-panel h2 {
-      font-size: 22px;
-    }
-
-    .mission-panel p {
-      margin: 8px 0 0;
-      color: #4f5f73;
-      font-size: 16px;
-      line-height: 1.6;
-    }
-
-    .value-section,
-    .workflow-section {
-      display: grid;
-      gap: 18px;
-    }
-
-    .section-heading h2 {
-      margin-top: 6px;
-      font-size: 28px;
-    }
-
-    .value-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-    }
-
-    .value-card {
-      min-height: 180px;
-      padding: 22px;
-      border: 1px solid #d9e3ee;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.97));
-      box-shadow: 0 12px 28px rgba(15, 31, 53, 0.06);
-    }
-
-    .value-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 8px;
-      background: #eff6ff;
-      color: #1261a6;
-    }
-
-    .value-card h3,
-    .workflow-step h3 {
-      margin: 16px 0 8px;
-      color: #132840;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0;
-    }
-
-    .value-card p,
-    .workflow-step p {
-      margin: 0;
-      color: #526276;
-      font-size: 15px;
-      line-height: 1.55;
-    }
-
-    .workflow-track {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(180px, 1fr));
-      gap: 12px;
-      padding-bottom: 6px;
-    }
-
-    .workflow-step {
-      position: relative;
-      min-width: 132px;
-      min-height: 176px;
-      padding: 18px;
-      border: 1px solid #d9e3ee;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.97));
-    }
-
-    .workflow-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
-      background: #edf7f2;
-      color: #28724f;
-    }
-
-    .workflow-step h3 {
-      margin-top: 14px;
-      font-size: 16px;
-    }
-
-    .workflow-step p {
-      font-size: 13px;
-    }
-
-    .workflow-step-index {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      min-height: 24px;
-      border-radius: 999px;
-      border: 1px solid #dbe4f0;
-      background: #f8fafc;
-      color: #475569;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      padding: 2px 8px;
-    }
-
-    .auth-column {
-      align-self: start;
-      padding-top: 0;
-    }
-
-    .auth-card {
-      position: relative;
       overflow: hidden;
-      width: 100%;
-      padding: 28px;
-      border: 1px solid #d8e4f0;
-      border-radius: 8px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 251, 255, 0.98));
-      box-shadow: 0 28px 70px rgba(15, 31, 53, 0.18), 0 4px 12px rgba(18, 97, 166, 0.08);
+      background:
+        radial-gradient(circle at 8% 5%, rgba(30, 117, 111, .11), transparent 25%),
+        radial-gradient(circle at 92% 10%, rgba(47, 85, 200, .12), transparent 28%),
+        #f7f6f1;
     }
-
-    .auth-card::before {
-      content: '';
-      position: absolute;
-      inset: 0 0 auto;
-      height: 4px;
-      background: linear-gradient(90deg, #1261a6, #28724f);
-    }
-
-    .card-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 18px;
-    }
-
-    .auth-card h2 {
-      margin-top: 6px;
-      font-size: 28px;
-    }
-
-    .card-badge {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      background: #edf7f2;
-      color: #28724f;
-    }
-
-    form {
+    .public-header {
+      position: relative;
+      z-index: 5;
+      min-height: 74px;
+      width: min(1420px, calc(100% - 48px));
+      margin: 0 auto;
       display: grid;
-      gap: 12px;
-      margin-top: 18px;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid rgba(20, 33, 59, .12);
     }
-
-    button[mat-raised-button],
-    a[mat-stroked-button] {
-      min-height: 44px;
-      border-radius: 6px;
-      font-weight: 700;
-      letter-spacing: 0;
+    .public-brand { display: inline-flex; align-items: center; gap: 11px; color: #12213b; text-decoration: none; width: max-content; }
+    .public-brand__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #173b8f; color: #fff; box-shadow: 0 8px 20px rgba(23, 59, 143, .2); }
+    .public-brand__mark mat-icon { width: 20px; height: 20px; font-size: 20px; }
+    .public-brand > span:last-child { display: flex; flex-direction: column; }
+    .public-brand strong { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; font-size: 15px; }
+    .public-brand small { margin-top: 1px; color: #68758a; font-size: 10px; }
+    .public-header nav { display: flex; gap: 30px; }
+    .public-header nav a { position: relative; color: #526078; font-size: 12px; font-weight: 700; text-decoration: none; }
+    .public-header nav a::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -8px; height: 2px; background: #0f8e84; transition: right 160ms ease; }
+    .public-header nav a:hover::after { right: 0; }
+    .header-access { justify-self: end; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid #c9d1df; border-radius: 999px; color: #173b8f; font-size: 12px; font-weight: 800; text-decoration: none; background: rgba(255,255,255,.52); }
+    .header-access mat-icon { width: 16px; height: 16px; font-size: 16px; }
+    main { width: min(1420px, calc(100% - 48px)); margin: 0 auto; }
+    .hero-section { min-height: 690px; display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(340px, 430px); gap: clamp(48px, 8vw, 120px); align-items: center; padding: 72px 0 76px; }
+    .hero-story { max-width: 820px; animation: reveal-up 600ms ease both; }
+    .hero-kicker, .section-intro > span, .release-model__heading > span, .governance-copy > span { display: inline-flex; align-items: center; gap: 9px; color: #0b7a72; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .hero-kicker i { width: 22px; height: 2px; background: #0f9f96; }
+    h1, h2, h3 { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; }
+    h1 { max-width: 790px; margin: 22px 0 22px; color: #0b1731; font-size: clamp(48px, 5.4vw, 78px); line-height: .99; letter-spacing: -.045em; font-weight: 650; }
+    h1 span { color: #2854c5; }
+    .hero-copy { max-width: 700px; margin: 0; color: #526078; font-size: clamp(18px, 1.7vw, 23px); line-height: 1.5; }
+    .hero-actions { display: flex; align-items: center; gap: 14px; margin-top: 32px; }
+    .primary-action, .secondary-action { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 20px; border-radius: 12px; font-size: 13px; font-weight: 850; text-decoration: none; }
+    .primary-action { background: #173b8f; color: #fff; box-shadow: 0 14px 30px rgba(23, 59, 143, .22); }
+    .primary-action mat-icon { width: 18px; height: 18px; font-size: 18px; }
+    .secondary-action { border: 1px solid #cad2df; color: #173b8f; background: rgba(255,255,255,.54); }
+    .pilot-card { max-width: 690px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 13px; align-items: center; margin-top: 38px; padding: 14px 16px; border: 1px solid rgba(15, 142, 132, .22); border-radius: 16px; background: rgba(255,255,255,.64); box-shadow: 0 10px 34px rgba(20,33,59,.06); }
+    .pilot-card__icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #08776f; background: #ddf4f0; }
+    .pilot-card > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }
+    .pilot-card small { color: #778398; font-size: 9px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+    .pilot-card strong { color: #14213b; font-size: 14px; }
+    .pilot-card em { color: #647087; font-size: 11px; font-style: normal; }
+    .pilot-card__status { display: inline-flex; align-items: center; gap: 7px; color: #08776f; font-size: 10px; font-weight: 800; }
+    .pilot-card__status i { width: 7px; height: 7px; border-radius: 50%; background: #18b7a8; box-shadow: 0 0 0 5px rgba(24,183,168,.12); }
+    .access-panel { position: relative; overflow: hidden; padding: 32px; border: 1px solid rgba(20,33,59,.14); border-radius: 24px; background: #fff; box-shadow: 0 30px 80px rgba(25,39,72,.17); animation: reveal-up 600ms 120ms ease both; }
+    .access-panel::before { content: ''; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, #0f9f96, #3158c8); }
+    .access-panel__topline { display: inline-flex; align-items: center; gap: 9px; color: #0b7a72; font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+    .access-panel__topline > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: #e3f6f3; }
+    .access-panel__topline mat-icon { width: 17px; height: 17px; font-size: 17px; }
+    .access-panel h2 { margin: 22px 0 10px; color: #0b1731; font-size: 31px; line-height: 1.05; }
+    .access-panel > p { margin: 0; color: #657188; font-size: 14px; line-height: 1.55; }
+    form { display: grid; gap: 10px; margin-top: 24px; }
+    mat-form-field { width: 100%; }
+    form button { min-height: 48px; border-radius: 11px; background: #173b8f !important; color: #fff !important; font-weight: 850; }
+    form button mat-icon { margin-left: 8px; }
+    .form-message { margin: -2px 0 4px; font-size: 12px; }
+    .form-message--error { color: #b42318; }
+    .access-panel__footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #e5e8ef; }
+    .access-panel__footer > span { display: flex; flex-direction: column; gap: 2px; }
+    .access-panel__footer small { color: #7c8799; font-size: 10px; }
+    .access-panel__footer strong { color: #263550; font-size: 12px; }
+    .access-panel__footer a { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid #ccd4e0; border-radius: 11px; color: #2854c5; text-decoration: none; }
+    .release-model { margin-bottom: 118px; padding: 30px; border-radius: 26px; color: #fff; background: linear-gradient(120deg, #0c1935, #142650 72%, #123f59); box-shadow: 0 30px 70px rgba(11,23,49,.2); }
+    .release-model__heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 0 4px 24px; }
+    .release-model__heading > span { color: #68ded2; }
+    .release-model__heading h2 { max-width: 590px; margin: 0; font-size: 25px; text-align: right; }
+    .release-track { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(255,255,255,.11); border-radius: 18px; background: rgba(255,255,255,.045); }
+    .release-track article { position: relative; min-height: 140px; display: grid; grid-template-columns: 42px 1fr; align-content: center; gap: 11px; padding: 24px; border-right: 1px solid rgba(255,255,255,.1); }
+    .release-track article:last-child { border-right: 0; }
+    .release-track__index { position: absolute; top: 13px; right: 15px; color: rgba(255,255,255,.28); font-size: 10px; font-weight: 900; }
+    .release-track__icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #75e5d9; background: rgba(20,184,166,.13); }
+    .release-track article div { display: flex; flex-direction: column; gap: 5px; }
+    .release-track strong { font-size: 13px; }
+    .release-track small { color: #aab6cc; font-size: 10px; line-height: 1.4; }
+    .release-track__arrow { position: absolute; right: -12px; top: calc(50% - 12px); z-index: 2; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: #75e5d9; background: #142650; font-size: 17px; }
+    .business-case { padding: 0 0 118px; }
+    .section-intro { max-width: 820px; margin-bottom: 38px; }
+    .section-intro h2 { margin: 14px 0 14px; color: #0b1731; font-size: clamp(34px, 4vw, 54px); line-height: 1.07; letter-spacing: -.025em; }
+    .section-intro p { max-width: 720px; margin: 0; color: #647087; font-size: 16px; line-height: 1.6; }
+    .comparison-board { overflow: hidden; border: 1px solid #d8dde6; border-radius: 22px; background: #fff; box-shadow: 0 18px 55px rgba(20,33,59,.08); }
+    .comparison-board__headings, .comparison-row { display: grid; grid-template-columns: 1fr 1fr; }
+    .comparison-board__header { display: flex; align-items: center; gap: 13px; padding: 24px 28px; }
+    .comparison-board__header--today { color: #94421e; background: #fff3ea; }
+    .comparison-board__header--future { color: #08776f; background: #eaf8f5; }
+    .comparison-board__header mat-icon { width: 30px; height: 30px; font-size: 30px; }
+    .comparison-board__header span { display: flex; flex-direction: column; gap: 3px; }
+    .comparison-board__header small { font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .comparison-board__header strong { color: #14213b; font-size: 15px; }
+    .comparison-cell { min-height: 70px; display: flex; align-items: center; padding: 16px 28px; border-top: 1px solid #e5e8ee; color: #546176; font-size: 13px; line-height: 1.45; }
+    .comparison-cell--problem { background: #fffdfa; }
+    .comparison-cell--solution { gap: 12px; color: #22334e; background: #fbfffe; border-left: 1px solid #e5e8ee; font-weight: 700; }
+    .comparison-cell--solution mat-icon { color: #0f9f96; flex: 0 0 auto; }
+    .outcome-section { padding-bottom: 118px; }
+    .section-intro--compact { max-width: 680px; }
+    .outcome-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .outcome-grid article { min-height: 230px; padding: 24px; border: 1px solid #dce1e9; border-radius: 18px; background: rgba(255,255,255,.7); transition: transform 180ms ease, box-shadow 180ms ease; }
+    .outcome-grid article:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(20,33,59,.1); }
+    .outcome-icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; color: #2854c5; background: #e9efff; }
+    .outcome-grid h3 { margin: 30px 0 10px; color: #14213b; font-size: 19px; }
+    .outcome-grid p { margin: 0; color: #657188; font-size: 13px; line-height: 1.58; }
+    .audience-section { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-bottom: 118px; }
+    .audience-card { min-height: 390px; padding: 36px; border-radius: 24px; }
+    .audience-card--users { color: #102547; background: linear-gradient(145deg, #e8f7f4, #f4fbfa); border: 1px solid #cce8e4; }
+    .audience-card--leaders { color: #fff; background: linear-gradient(145deg, #173b8f, #24346d); box-shadow: 0 25px 60px rgba(23,59,143,.2); }
+    .audience-card__label { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+    .audience-card__label mat-icon { width: 18px; height: 18px; font-size: 18px; }
+    .audience-card h2 { max-width: 540px; margin: 34px 0 14px; font-size: 31px; line-height: 1.1; }
+    .audience-card p { margin: 0; font-size: 14px; line-height: 1.6; opacity: .8; }
+    .audience-card ul { display: grid; gap: 12px; margin: 28px 0 0; padding: 0; list-style: none; }
+    .audience-card li { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 700; }
+    .audience-card li mat-icon { width: 18px; height: 18px; font-size: 18px; color: #11a497; }
+    .audience-card--leaders li mat-icon { color: #6de2d6; }
+    .governance-section { display: grid; grid-template-columns: .85fr 1.15fr; gap: 90px; align-items: center; padding: 76px; margin-bottom: 88px; border-radius: 28px; background: #ece9df; }
+    .governance-copy h2 { margin: 16px 0; color: #0b1731; font-size: 43px; line-height: 1.06; }
+    .governance-copy p { margin: 0; color: #5f6b7e; font-size: 15px; line-height: 1.65; }
+    .governance-proof { display: grid; gap: 12px; }
+    .governance-proof article { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; padding: 17px; border: 1px solid rgba(20,33,59,.1); border-radius: 15px; background: rgba(255,255,255,.65); }
+    .governance-proof article > mat-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: #173b8f; background: #e2e8f7; font-size: 22px; }
+    .governance-proof article span { display: flex; flex-direction: column; gap: 3px; }
+    .governance-proof strong { color: #17253e; font-size: 13px; }
+    .governance-proof small { color: #6c7788; font-size: 11px; line-height: 1.4; }
+    .closing-section { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 20px; align-items: center; margin-bottom: 80px; padding: 32px; border-top: 1px solid #cdd3dd; border-bottom: 1px solid #cdd3dd; }
+    .closing-section__mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 17px; color: #fff; background: #0f8e84; }
+    .closing-section small { color: #0b7a72; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .closing-section h2 { max-width: 820px; margin: 5px 0 0; color: #14213b; font-size: 23px; line-height: 1.25; }
+    .closing-section a { min-height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 11px; color: #fff; background: #173b8f; font-size: 11px; font-weight: 850; text-decoration: none; }
+    .public-footer { min-height: 72px; width: min(1420px, calc(100% - 48px)); margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; border-top: 1px solid rgba(20,33,59,.12); color: #7a8596; font-size: 10px; }
+    .public-footer span:first-child { color: #173b8f; font-weight: 900; }
+    .public-footer span:last-child { justify-self: end; }
+    .mobile-access-bar { display: none; }
+    @keyframes reveal-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 1050px) {
+      .public-header { grid-template-columns: 1fr auto; }
+      .public-header nav { display: none; }
+      .hero-section { grid-template-columns: 1fr; min-height: 0; gap: 48px; padding-top: 54px; }
+      .access-panel { max-width: 560px; }
+      .release-track { grid-template-columns: 1fr 1fr; }
+      .release-track article:nth-child(2) { border-right: 0; }
+      .release-track article:nth-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.1); }
+      .release-track__arrow { display: none; }
+      .outcome-grid { grid-template-columns: 1fr 1fr; }
+      .governance-section { grid-template-columns: 1fr; gap: 42px; padding: 48px; }
     }
-
-    button[mat-raised-button] mat-icon,
-    a[mat-stroked-button] mat-icon {
-      margin-right: 8px;
+    @media (max-width: 720px) {
+      .public-header, main, .public-footer { width: min(100% - 28px, 1420px); }
+      .public-header { min-height: 64px; }
+      .public-brand small, .header-access { display: none; }
+      .hero-section { padding: 44px 0 56px; }
+      h1 { font-size: clamp(43px, 13vw, 60px); }
+      .hero-copy { font-size: 17px; }
+      .hero-actions { align-items: stretch; flex-direction: column; }
+      .pilot-card { grid-template-columns: 40px 1fr; }
+      .pilot-card__status { grid-column: 2; }
+      .access-panel { padding: 25px 20px; border-radius: 20px; }
+      .release-model { margin-bottom: 82px; padding: 18px; }
+      .release-model__heading { align-items: flex-start; flex-direction: column; }
+      .release-model__heading h2 { text-align: left; }
+      .release-track { grid-template-columns: 1fr; }
+      .release-track article { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+      .release-track article:last-child { border-bottom: 0; }
+      .business-case, .outcome-section, .audience-section { padding-bottom: 82px; }
+      .comparison-board__headings { grid-template-columns: 1fr; }
+      .comparison-row { grid-template-columns: 1fr; border-top: 1px solid #e5e8ee; }
+      .comparison-row + .comparison-row { margin-top: 8px; }
+      .comparison-cell { border-top: 0; }
+      .comparison-cell--solution { border-left: 0; }
+      .comparison-cell--problem { background: #fff8f2; }
+      .outcome-grid, .audience-section { grid-template-columns: 1fr; }
+      .outcome-grid article { min-height: 190px; }
+      .audience-card { min-height: 0; padding: 28px 23px; }
+      .governance-section { padding: 30px 22px; margin-bottom: 64px; }
+      .governance-copy h2 { font-size: 35px; }
+      .closing-section { grid-template-columns: 48px 1fr; padding: 24px 6px; margin-bottom: 66px; }
+      .closing-section__mark { width: 48px; height: 48px; }
+      .closing-section a { grid-column: 1 / -1; width: 100%; justify-content: center; }
+      .public-footer { grid-template-columns: 1fr; gap: 6px; padding: 22px 0 84px; }
+      .public-footer span:nth-child(2) { display: none; }
+      .public-footer span:last-child { justify-self: start; }
+      .mobile-access-bar { position: fixed; z-index: 20; inset: auto 10px 10px; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px; border: 1px solid #cfd6e1; border-radius: 14px; background: rgba(255,255,255,.94); box-shadow: 0 18px 45px rgba(20,33,59,.22); backdrop-filter: blur(14px); }
+      .mobile-access-bar a { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border-radius: 9px; color: #173b8f; font-size: 11px; font-weight: 850; text-decoration: none; }
+      .mobile-access-bar a:first-child { color: #fff; background: #173b8f; }
+      .mobile-access-bar mat-icon { width: 17px; height: 17px; font-size: 17px; }
     }
-
-    .muted {
-      margin: 12px 0 0;
-      color: #5d6d80;
-      line-height: 1.5;
-    }
-
-    .error { color: #b91c1c; margin: 0; }
-
-    .account-panel {
-      display: grid;
-      gap: 12px;
-      margin-top: 22px;
-      padding-top: 20px;
-      border-top: 1px solid #e3eaf2;
-    }
-
-    .account-panel p {
-      margin: 0;
-      color: #5d6d80;
-      font-size: 14px;
-    }
-
-    .mobile-access-bar {
-      display: none;
-    }
-
-    @media (min-width: 1101px) {
-      .landing-grid {
-        grid-template-columns: minmax(0, 760px) 420px;
-        gap: 76px;
-      }
-
-      .business-column {
-        max-width: 760px;
-      }
-
-      .auth-column {
-        position: fixed;
-        top: 60px;
-        right: max(32px, calc((100vw - 1280px) / 2 + 32px));
-        width: 420px;
-      }
-
-      .workflow-track {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 1100px) {
-      .landing-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .auth-column {
-        position: static;
-        max-width: 520px;
-        padding-top: 0;
-      }
-    }
-
-    @media (max-width: 760px) {
-      :host {
-        margin-top: 0;
-      }
-
-      .landing-shell {
-        min-height: auto;
-        padding: 28px 16px 112px;
-      }
-
-      .landing-grid,
-      .business-column {
-        gap: 28px;
-      }
-
-      .business-column {
-        display: contents;
-      }
-
-      .brand-line { order: 1; }
-      h1 { order: 2; }
-      .hero-copy { order: 3; }
-      .trust-row { order: 4; }
-      .auth-column {
-        order: 5;
-        width: 100%;
-        max-width: none;
-        scroll-margin-top: 18px;
-      }
-      .mission-panel { order: 6; }
-      .value-section { order: 7; }
-      .workflow-section { order: 8; }
-
-      .brand-line {
-        align-items: flex-start;
-      }
-
-      h1 {
-        font-size: 38px;
-      }
-
-      .hero-copy {
-        font-size: 17px;
-      }
-
-      .mission-panel {
-        padding: 18px;
-      }
-
-      .value-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .workflow-track {
-        grid-template-columns: 1fr;
-      }
-
-      .workflow-step {
-        min-height: auto;
-      }
-
-      .auth-card {
-        position: relative;
-        top: auto;
-        padding: 22px;
-      }
-
-      .mobile-access-bar {
-        position: fixed;
-        right: 12px;
-        bottom: 12px;
-        left: 12px;
-        z-index: 120;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        padding: 10px;
-        border: 1px solid rgba(148, 163, 184, 0.45);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 18px 42px rgba(15, 31, 53, 0.2);
-      }
-
-      .mobile-access-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-height: 44px;
-        padding: 10px 12px;
-        border: 1px solid #cbd8e6;
-        border-radius: 6px;
-        background: #ffffff;
-        color: #1261a6;
-        font-size: 14px;
-        font-weight: 700;
-        text-decoration: none;
-        letter-spacing: 0;
-      }
-
-      .mobile-access-button--primary {
-        border-color: #1261a6;
-        background: #1261a6;
-        color: #ffffff;
-      }
-    }
+    @media (prefers-reduced-motion: reduce) { .hero-story, .access-panel { animation: none; } * { scroll-behavior: auto !important; } }
   `]
 })
 export class LoginComponent {
@@ -663,64 +428,31 @@ export class LoginComponent {
   submitting = false;
   error = '';
 
-  readonly businessValues = [
-    {
-      icon: 'speed',
-      title: 'Faster Updates',
-      description: 'Detect structural issues immediately instead of waiting for manual reviews.'
-    },
-    {
-      icon: 'rule',
-      title: 'Better Data Quality',
-      description: 'Automated validation improves consistency before integration.'
-    },
-    {
-      icon: 'visibility',
-      title: 'Full Transparency',
-      description: 'Track every submission from upload to approval.'
-    },
-    {
-      icon: 'groups',
-      title: 'Shared Collaboration',
-      description: 'Business users, approvers and administrators collaborate through one standardized workflow.'
-    }
+  readonly operatingSteps = [
+    { icon: 'lock_person', title: 'Prepare privately', description: 'Work freely before entering formal review.' },
+    { icon: 'fact_check', title: 'Validate portfolio', description: 'Check quality and connected datasets together.' },
+    { icon: 'approval', title: 'Approve with context', description: 'Understand additions, changes and removals.' },
+    { icon: 'verified', title: 'Publish with proof', description: 'Release approved data and retain evidence.' }
   ];
 
-  readonly workflowSteps = [
-    {
-      icon: 'description',
-      title: 'Prepare Data',
-      description: 'Use a common structure before submitting site updates.'
-    },
-    {
-      icon: 'upload_file',
-      title: 'Upload',
-      description: 'Submit the file through one secure portal.'
-    },
-    {
-      icon: 'fact_check',
-      title: 'Automatic Validation',
-      description: 'Check formatting, required values and consistency rules.'
-    },
-    {
-      icon: 'preview',
-      title: 'Review',
-      description: 'Inspect valid rows, warnings and blocking errors.'
-    },
-    {
-      icon: 'approval',
-      title: 'Approval',
-      description: 'Route ready submissions to the responsible approvers.'
-    },
-    {
-      icon: 'hub',
-      title: 'Integration',
-      description: 'Commit approved data into the CPQ update process.'
-    }
+  readonly problemSolutions = [
+    { problem: 'Corrections create repeated spreadsheet versions and unclear ownership.', solution: 'A private workspace keeps preparation and corrections in one controlled place.' },
+    { problem: 'Article and price updates can move independently and become inconsistent.', solution: 'Connected datasets are validated and released as one portfolio when required.' },
+    { problem: 'Teams see unfinished work before contributors are ready for review.', solution: 'Drafts remain private until their owner deliberately submits them.' },
+    { problem: 'Approvals lose the exact context that supported the decision.', solution: 'The approved situation is preserved as permanent, governed evidence.' },
+    { problem: 'Publication responsibility is difficult to separate and explain.', solution: 'Configurable capabilities define who prepares, approves, publishes and administers.' }
   ];
 
-  formatStep(index: number): string {
-    return String(index + 1).padStart(2, '0');
+  readonly businessOutcomes = [
+    { icon: 'shield', title: 'Safer publication', description: 'Prevent incomplete or inconsistent dataset combinations from reaching CPQ.' },
+    { icon: 'edit_note', title: 'Less rework', description: 'Correct, add, remove and restore rows without repeatedly exchanging files.' },
+    { icon: 'account_tree', title: 'Clear accountability', description: 'Separate preparation, approval and publication responsibilities.' },
+    { icon: 'history_edu', title: 'Defensible decisions', description: 'Retain what changed, what was accepted and what was ultimately published.' }
+  ];
+
+  scrollToSection(event: Event, sectionId: string): void {
+    event.preventDefault();
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   submit(): void {
