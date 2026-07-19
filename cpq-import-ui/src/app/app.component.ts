@@ -33,11 +33,21 @@ import { ThemeService } from './core/services/theme.service';
         </button>
 
         <span class="brand">
-          <mat-icon>cloud_upload</mat-icon>
-          CPQ Dataset Platform
+          <span class="brand__mark"><mat-icon>cloud_upload</mat-icon></span>
+          <span class="brand__name">CPQ Platform</span>
+        </span>
+
+        <span class="toolbar-context" *ngIf="auth.isAuthenticated">
+          <span class="toolbar-context__divider"></span>
+          <span class="toolbar-context__page">{{ currentPageTitle }}</span>
         </span>
 
         <span class="spacer"></span>
+
+        <span class="scope-chip" *ngIf="auth.isAuthenticated">
+          <i></i>
+          Saint-Marcellin · PDU
+        </span>
 
         <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
 
@@ -83,7 +93,8 @@ import { ThemeService } from './core/services/theme.service';
 
       <div class="shell-body" [class.shell-body--collapsed]="!isSidebarOpen" [class.shell-body--mobile-open]="isMobileSidebarOpen">
         <aside class="side-nav" *ngIf="auth.isAuthenticated" aria-label="Primary navigation">
-          <div class="nav-group-label" *ngIf="isSidebarOpen">Navigation</div>
+          <div class="side-nav__content">
+          <div class="nav-group-label" *ngIf="isSidebarOpen">Work</div>
 
           <a
             mat-button
@@ -102,7 +113,7 @@ import { ThemeService } from './core/services/theme.service';
           </a>
 
           <ng-container *ngIf="auth.isInternalTools">
-            <div class="nav-group-label" *ngIf="isSidebarOpen">Internal Tools</div>
+            <div class="nav-group-label" *ngIf="isSidebarOpen">Tools</div>
 
             <a
               mat-button
@@ -121,7 +132,7 @@ import { ThemeService } from './core/services/theme.service';
           </ng-container>
 
           <ng-container *ngIf="visibleAdminNavItems.length">
-            <div class="nav-group-label" *ngIf="isSidebarOpen">Admin</div>
+            <div class="nav-group-label" *ngIf="isSidebarOpen">Administration</div>
 
             <a
               mat-button
@@ -138,10 +149,10 @@ import { ThemeService } from './core/services/theme.service';
               <span *ngIf="isSidebarOpen">{{ item.label }}</span>
             </a>
           </ng-container>
+          </div>
 
-          <div class="nav-group-label" *ngIf="isSidebarOpen">Settings</div>
-
-          <div class="side-link side-link--settings theme-toggle-row" [class.side-link--compact]="!isSidebarOpen">
+          <div class="side-nav__footer">
+          <div class="theme-toggle-row" [class.theme-toggle-row--compact]="!isSidebarOpen">
             <mat-icon *ngIf="isSidebarOpen">{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon>
             <span *ngIf="isSidebarOpen" class="theme-toggle-row__label">{{ themeLabel }}</span>
 
@@ -160,41 +171,14 @@ import { ThemeService } from './core/services/theme.service';
             </button>
           </div>
 
-          <div class="side-nav-footer" *ngIf="auth.isAuthenticated">
-            <div
-              class="signature-card"
-              [class.signature-card--collapsed]="!isSidebarOpen"
-              [matTooltip]="!isSidebarOpen ? 'Designed and built by Walid Benhamed' : ''"
-            >
-              <a
-                class="signature-mark"
-                href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open Walid Benhamed's LinkedIn profile"
-              >WB</a>
-
-              <div class="signature-copy" *ngIf="isSidebarOpen">
-                <span class="signature-label">Designed &amp; built by</span>
-                <span class="signature-name">Walid Benhamed</span>
-                <span class="signature-role">CPQ Application Specialist</span>
-              </div>
-
-              <a
-                class="signature-profile-link"
-                href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open Walid Benhamed's LinkedIn profile"
-                matTooltip="View LinkedIn profile"
-              >
-                <svg class="linkedin-logo" viewBox="0 0 24 24" role="img" aria-hidden="true">
-                  <path
-                    d="M19 3A2 2 0 0 1 21 5V19A2 2 0 0 1 19 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H19ZM8.6 10.4H6.2V17H8.6V10.4ZM8.8 7.95C8.8 7.17 8.19 6.6 7.4 6.6C6.6 6.6 6 7.17 6 7.95C6 8.72 6.6 9.3 7.4 9.3C8.19 9.3 8.8 8.72 8.8 7.95ZM18 13.35C18 11.35 16.9 10.2 15.2 10.2C14.23 10.2 13.64 10.73 13.35 11.1V10.4H11V17H13.4V13.75C13.4 12.9 13.56 12.08 14.62 12.08C15.66 12.08 15.67 13.05 15.67 13.8V17H18V13.35Z"
-                  />
-                </svg>
-              </a>
-            </div>
+          <a
+            class="sidebar-credit"
+            [class.sidebar-credit--compact]="!isSidebarOpen"
+            href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
+            target="_blank"
+            rel="noopener noreferrer"
+            [matTooltip]="!isSidebarOpen ? 'Designed and built by Walid Benhamed' : ''"
+          >Designed by Walid Benhamed</a>
           </div>
         </aside>
 
@@ -227,13 +211,52 @@ import { ThemeService } from './core/services/theme.service';
       position: sticky;
       top: 0;
       z-index: 120;
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
-      background: var(--app-toolbar-bg);
+      height: 58px;
+      min-height: 58px;
+      padding: 0 18px;
+      box-shadow: 0 5px 18px rgba(15, 23, 42, 0.14);
+      background: linear-gradient(110deg, #243c9b 0%, #3b59c5 58%, #2948aa 100%);
       color: var(--app-toolbar-text);
-      border-bottom: 1px solid var(--app-border);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.16);
     }
-    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 18px; letter-spacing: 0.01em; }
+    .brand { display: flex; align-items: center; gap: 9px; font-weight: 750; font-size: 16px; letter-spacing: -0.01em; }
+    .brand__mark {
+      width: 31px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .brand__mark mat-icon { width: 18px; height: 18px; font-size: 18px; }
+    .brand__name { white-space: nowrap; }
+    .toolbar-context { display: flex; align-items: center; gap: 14px; margin-left: 16px; }
+    .toolbar-context__divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.25); }
+    .toolbar-context__page { color: rgba(255, 255, 255, 0.82); font-size: 13px; font-weight: 650; }
     .spacer { flex: 1; }
+    .scope-chip {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 12px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      background: rgba(11, 25, 79, 0.2);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .scope-chip i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #5eead4;
+      box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.12);
+    }
     .sign-in-link { border-radius: 999px; }
     .profile-trigger {
       width: 40px;
@@ -259,56 +282,75 @@ import { ThemeService } from './core/services/theme.service';
 
     .shell-body {
       display: grid;
-      grid-template-columns: 240px minmax(0, 1fr);
+      grid-template-columns: 260px minmax(0, 1fr);
       align-items: start;
-      min-height: calc(100vh - 64px);
+      min-height: calc(100vh - 58px);
+      transition: grid-template-columns 180ms ease;
     }
     .shell-body--collapsed {
-      grid-template-columns: 84px minmax(0, 1fr);
+      grid-template-columns: 76px minmax(0, 1fr);
     }
 
     .side-nav {
       position: sticky;
-      top: 64px;
-      min-height: calc(100vh - 64px);
+      top: 58px;
+      height: calc(100vh - 58px);
       border-right: 1px solid var(--app-border);
       background: var(--app-sidebar-bg);
-      padding: 12px;
+      padding: 14px 12px 10px;
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: 8px;
       overflow: hidden;
       z-index: 110;
     }
 
+    .side-nav__content {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      padding: 0 2px 12px;
+    }
+
     .nav-group-label {
       font-size: 10px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.11em;
       text-transform: uppercase;
       color: var(--app-text-muted);
       font-weight: 800;
-      margin: 6px 8px 4px;
+      margin: 13px 10px 5px;
     }
 
+    .nav-group-label:first-child { margin-top: 2px; }
+
     .side-link {
+      position: relative;
       min-height: 42px;
       justify-content: flex-start;
       align-items: center;
-      border-radius: 12px;
+      border-radius: 10px;
       color: var(--app-text);
       display: inline-flex;
-      gap: 10px;
-      padding: 0 12px;
-      font-weight: 600;
+      gap: 12px;
+      padding: 0 13px;
+      margin: 2px 0;
+      font-weight: 650;
+      font-size: 14px;
       width: 100%;
-      transition: background-color 0.2s ease, color 0.2s ease;
+      transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
     }
+
+    .side-link:hover { background: color-mix(in srgb, var(--app-accent) 7%, transparent); }
 
     .side-link mat-icon {
       margin: 0;
       color: var(--app-text-muted);
       flex: 0 0 auto;
+      width: 21px;
+      height: 21px;
+      font-size: 21px;
     }
 
     .side-link--compact {
@@ -320,20 +362,19 @@ import { ThemeService } from './core/services/theme.service';
       margin: 0;
     }
 
-    .side-link--settings {
-      margin-top: 4px;
-      justify-content: flex-start;
-      gap: 10px;
-    }
-
     .theme-toggle-row {
+      display: flex;
+      align-items: center;
       justify-content: flex-start;
       gap: 10px;
-      margin-top: 4px;
-      min-height: 42px;
+      min-height: 40px;
+      padding: 0 10px;
+      color: var(--app-text);
+      font-size: 13px;
+      font-weight: 700;
     }
 
-    .side-link--compact.theme-toggle-row {
+    .theme-toggle-row--compact {
       justify-content: center;
       gap: 0;
       padding: 0;
@@ -407,34 +448,46 @@ import { ThemeService } from './core/services/theme.service';
       color: #0f172a;
     }
 
-    .side-link--compact .theme-toggle-row__switch {
+    .theme-toggle-row--compact .theme-toggle-row__switch {
       margin-left: 0;
       width: 100%;
     }
 
-    .side-link--compact .theme-toggle-row__track {
+    .theme-toggle-row--compact .theme-toggle-row__track {
       width: 38px;
     }
 
-    .side-link--compact .theme-toggle-row__thumb-icon {
+    .theme-toggle-row--compact .theme-toggle-row__thumb-icon {
       left: 4px;
     }
 
-    .side-link--compact .theme-toggle-row__thumb--dark {
+    .theme-toggle-row--compact .theme-toggle-row__thumb--dark {
       transform: translateX(16px);
     }
 
-    .side-link--compact .theme-toggle-row__track--dark .theme-toggle-row__thumb-icon {
+    .theme-toggle-row--compact .theme-toggle-row__track--dark .theme-toggle-row__thumb-icon {
       left: 22px;
     }
 
     .side-link--active {
-      background: linear-gradient(180deg, rgba(37, 99, 235, 0.16), rgba(37, 99, 235, 0.24));
-      color: var(--app-accent);
+      background: color-mix(in srgb, #0f9f96 12%, var(--app-surface));
+      color: color-mix(in srgb, #087e78 88%, var(--app-text));
     }
 
     .side-link--active mat-icon {
-      color: var(--app-accent);
+      color: #0f9f96;
+    }
+
+    .side-link--active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      bottom: 10px;
+      width: 3px;
+      border-radius: 0 4px 4px 0;
+      background: #0f9f96;
+      box-shadow: 0 0 12px rgba(15, 159, 150, 0.3);
     }
 
     .side-nav-footer {
@@ -597,6 +650,140 @@ import { ThemeService } from './core/services/theme.service';
       color: #bfdbfe;
     }
 
+    .side-nav__footer {
+      flex: 0 0 auto;
+      display: grid;
+      gap: 5px;
+      margin-top: auto;
+      padding: 8px 2px 0;
+      border-top: 1px solid var(--app-border);
+      background: var(--app-sidebar-bg);
+    }
+
+    .sidebar-account {
+      width: 100%;
+      min-height: 52px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) 20px;
+      align-items: center;
+      gap: 10px;
+      padding: 9px;
+      border: 1px solid var(--app-border);
+      border-radius: 13px;
+      background: var(--app-surface-elevated);
+      color: var(--app-text);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+    }
+
+    .sidebar-account:hover {
+      border-color: color-mix(in srgb, #0f9f96 42%, var(--app-border));
+      background: color-mix(in srgb, #0f9f96 6%, var(--app-surface-elevated));
+      transform: translateY(-1px);
+    }
+
+    .sidebar-account__avatar {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      background: linear-gradient(145deg, #1467df, #2345c7);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      box-shadow: 0 5px 13px rgba(37, 99, 235, 0.22);
+    }
+
+    .sidebar-account__identity {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .sidebar-account__identity strong,
+    .sidebar-account__identity small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-account__identity strong { font-size: 13px; line-height: 1.2; }
+    .sidebar-account__identity small { color: var(--app-text-muted); font-size: 10px; line-height: 1.3; }
+    .sidebar-account > mat-icon { color: var(--app-text-muted); font-size: 19px; width: 19px; height: 19px; }
+
+    .sidebar-account--compact {
+      display: flex;
+      justify-content: center;
+      min-height: 50px;
+      padding: 6px 0;
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .sidebar-credit {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--app-text-muted);
+      font-size: 10px;
+      line-height: 1;
+      text-align: center;
+      text-decoration: none;
+      letter-spacing: 0.03em;
+    }
+
+    .sidebar-credit:hover { color: #0f9f96; }
+
+    .sidebar-credit--compact {
+      width: 32px;
+      min-height: 32px;
+      margin: 0 auto;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--app-accent) 9%, transparent);
+      color: var(--app-accent);
+      font-size: 0;
+    }
+
+    .sidebar-credit--compact::after {
+      content: 'WB';
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+    }
+
+    html.theme-dark .side-link--active {
+      background: rgba(20, 184, 166, 0.12);
+      color: #99f6e4;
+    }
+
+    html.theme-dark .sidebar-account {
+      background: rgba(17, 26, 47, 0.88);
+      border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    :host-context(.theme-dark) .side-link { color: #e2e8f0; }
+    :host-context(.theme-dark) .side-link mat-icon { color: #94a3b8; }
+    :host-context(.theme-dark) .nav-group-label { color: #8fa2bd; }
+    :host-context(.theme-dark) .theme-toggle-row { color: #e2e8f0; }
+    :host-context(.theme-dark) .side-link--active {
+      background: rgba(20, 184, 166, 0.16);
+      color: #ccfbf1;
+    }
+    :host-context(.theme-dark) .side-link--active mat-icon { color: #2dd4bf; }
+    :host-context(.theme-dark) .sidebar-account {
+      background: rgba(17, 26, 47, 0.94);
+      border-color: rgba(148, 163, 184, 0.22);
+      color: #e2e8f0;
+    }
+    :host-context(.theme-dark) .sidebar-account__identity small,
+    :host-context(.theme-dark) .sidebar-account > mat-icon,
+    :host-context(.theme-dark) .sidebar-credit { color: #94a3b8; }
+
     .page-content {
       max-width: 1240px;
       margin: 22px auto;
@@ -621,8 +808,11 @@ import { ThemeService } from './core/services/theme.service';
 
     .active-link { background: rgba(255,255,255,0.15); border-radius: 6px; }
     @media (max-width: 768px) {
-      .top-toolbar { padding: 0 8px; }
-      .brand { font-size: 15px; gap: 6px; }
+      .top-toolbar { height: 56px; min-height: 56px; padding: 0 8px; }
+      .brand { font-size: 14px; gap: 6px; }
+      .brand__mark { width: 28px; height: 28px; border-radius: 9px; }
+      .toolbar-context,
+      .scope-chip { display: none; }
 
       .shell-body,
       .shell-body--collapsed {
@@ -635,7 +825,8 @@ import { ThemeService } from './core/services/theme.service';
         top: 56px;
         left: 0;
         height: calc(100vh - 56px);
-        width: 260px;
+        width: min(88vw, 300px);
+        padding: 14px 12px 10px;
         transform: translateX(-110%);
         transition: transform 0.24s ease;
         box-shadow: 0 8px 26px rgba(15, 23, 42, 0.2);
@@ -657,14 +848,8 @@ import { ThemeService } from './core/services/theme.service';
 
       .page-content { margin: 14px auto 78px; padding: 0 10px; }
 
-      .side-nav-footer {
-        margin-top: auto;
-        padding-top: 12px;
-      }
-
-      .signature-card {
-        padding: 10px 12px;
-      }
+      .side-nav__footer { padding-top: 10px; }
+      .sidebar-account { min-height: 54px; }
     }
   `]
 })
@@ -677,9 +862,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
   readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> = [
     { route: '/admin/users', label: 'People', icon: 'group', capabilities: ['users.manage', 'users.assign_roles'] },
-    { route: '/admin/access-studio', label: 'Access Studio', icon: 'shield_person', capabilities: ['roles.manage'] },
+    { route: '/admin/access-studio', label: 'Roles & access', icon: 'shield_person', capabilities: ['roles.manage'] },
     { route: '/admin/activity', label: 'Activity', icon: 'monitoring', capabilities: ['audit.view'] },
-    { route: '/admin/maintenance', label: 'Maintenance', icon: 'build_circle', capabilities: ['system.maintenance'] }
+    { route: '/admin/maintenance', label: 'System', icon: 'settings_suggest', capabilities: ['system.maintenance'] }
   ];
 
   readonly internalToolsNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
@@ -737,6 +922,19 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get isEvolisRoute(): boolean {
     return this.router.url.startsWith('/internal-tools/evolis-decryptor');
+  }
+
+  get currentPageTitle(): string {
+    const path = this.router.url.split('?')[0];
+    if (path.startsWith('/import/')) return 'Upload details';
+    if (path.startsWith('/admin/access-studio')) return 'Roles & access';
+    if (path.startsWith('/admin/users')) return 'People';
+    if (path.startsWith('/admin/activity')) return 'Activity';
+    if (path.startsWith('/admin/maintenance')) return 'System';
+    if (path.startsWith('/internal-tools/evolis-decryptor')) return 'Evolis Decryptor';
+    if (path.startsWith('/datasets')) return 'Datasets';
+    if (path.startsWith('/uploads')) return 'Uploads';
+    return 'Dashboard';
   }
 
   ngOnInit(): void {
