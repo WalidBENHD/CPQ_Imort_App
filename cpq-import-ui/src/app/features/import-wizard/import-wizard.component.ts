@@ -1,26 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDividerModule } from '@angular/material/divider';
 import { DATASET_CATALOG, DatasetRequirement, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 
 @Component({
   selector: 'app-import-wizard',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule,
+  imports: [CommonModule, RouterLink,
     MatCardModule, MatButtonModule, MatIconModule, MatStepperModule,
-    MatFormFieldModule, MatSelectModule, MatProgressBarModule,
-    MatSnackBarModule, MatDividerModule],
+    MatProgressBarModule, MatSnackBarModule],
   template: `
     <div class="page-header">
       <div>
@@ -179,24 +174,15 @@ import { ImportService } from '../../core/services/import.service';
 
               <mat-progress-bar *ngIf="uploading" mode="indeterminate" class="upload-progress"></mat-progress-bar>
 
-              <!-- Data Responsibility Notice -->
-              <div class="responsibility-notice">
-                <mat-icon class="notice-icon">warning</mat-icon>
+              <div class="workspace-notice">
+                <span class="workspace-notice__icon"><mat-icon>lock</mat-icon></span>
                 <div class="notice-content">
-                  <h3>Your Data Responsibility</h3>
+                  <div class="eyebrow">Private workspace</div>
+                  <h3>Upload privately, review before sharing</h3>
                   <p>
-                    <strong>You are responsible for the correctness and completeness of this data.</strong>
-                    The quality of our CPQ system depends entirely on the quality of the data imported.
-                    Please verify all values are accurate before submission.
+                    This file creates a private draft visible only to you. Automatic validation and baseline comparison run first,
+                    so you can correct the data before deliberately submitting it to approvers.
                   </p>
-                  <p style="margin-bottom: 12px; font-size: 13px; color: rgba(0,0,0,0.65);">
-                    <em>Note: Administrators and approvers review the structural integrity of the data, not the correctness of individual values.
-                    Data validation and accuracy is your responsibility as the data source owner.</em>
-                  </p>
-                  <label class="responsibility-checkbox">
-                    <input type="checkbox" [(ngModel)]="acknowledgedResponsibility" />
-                    <span>I acknowledge that I have verified this data and take full responsibility for its accuracy</span>
-                  </label>
                 </div>
               </div>
 
@@ -205,7 +191,7 @@ import { ImportService } from '../../core/services/import.service';
                   <mat-icon>chevron_left</mat-icon> Back
                 </button>
                 <button mat-raised-button color="primary"
-                  [disabled]="!selectedFile || uploading || !acknowledgedResponsibility"
+                  [disabled]="!selectedFile || uploading"
                   (click)="upload()" class="ml-8">
                   <mat-icon>upload</mat-icon>
                   {{ uploading ? 'Uploading...' : 'Upload & Preview' }}
@@ -218,10 +204,10 @@ import { ImportService } from '../../core/services/import.service';
           <mat-step label="Preview">
             <div class="step-content center">
               <mat-icon class="success-icon" color="primary">check_circle</mat-icon>
-              <h2>Upload Successful!</h2>
-              <p>Your file has been uploaded and validated. Review the results before approving.</p>
+              <h2>Private draft created</h2>
+              <p>Your file has been validated in your workspace. Review and correct the results before submitting it to approvers.</p>
               <button mat-raised-button color="primary" (click)="goToPreview()">
-                View Preview &amp; Approve <mat-icon>arrow_forward</mat-icon>
+                Open private draft <mat-icon>arrow_forward</mat-icon>
               </button>
             </div>
           </mat-step>
@@ -231,6 +217,7 @@ import { ImportService } from '../../core/services/import.service';
     </mat-card>
   `,
   styles: [`
+    :host { display: block; color: var(--app-text); }
     .page-header {
       display: flex;
       justify-content: space-between;
@@ -239,17 +226,17 @@ import { ImportService } from '../../core/services/import.service';
       margin-bottom: 24px;
     }
     .eyebrow {
-      color: #2563eb;
+      color: var(--app-accent);
       font-size: 12px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin-bottom: 6px;
     }
-    h1 { margin: 0; font-size: 28px; font-weight: 700; color: #0f172a; }
+    h1 { margin: 0; font-size: 28px; font-weight: 700; color: var(--app-text); }
     .page-intro {
       margin: 8px 0 0;
-      color: #475569;
+      color: var(--app-text-muted);
       line-height: 1.55;
       max-width: 760px;
     }
@@ -259,9 +246,9 @@ import { ImportService } from '../../core/services/import.service';
       justify-content: space-between;
       gap: 16px;
       align-items: flex-start;
-      border: 1px solid #dbe4f0;
+      border: 1px solid var(--app-border);
       border-radius: 16px;
-      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      background: linear-gradient(180deg, var(--app-surface-elevated), var(--app-surface));
       box-shadow: none;
       padding: 16px;
       margin-bottom: 16px;
@@ -270,11 +257,11 @@ import { ImportService } from '../../core/services/import.service';
       margin: 0 0 6px;
       font-size: 20px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--app-text);
     }
     .pilot-scope-copy p {
       margin: 0;
-      color: #475569;
+      color: var(--app-text-muted);
       line-height: 1.5;
       max-width: 740px;
     }
@@ -289,9 +276,9 @@ import { ImportService } from '../../core/services/import.service';
       justify-content: space-between;
       gap: 16px;
       align-items: flex-start;
-      border: 1px solid #dbe4f0;
+      border: 1px solid var(--app-border);
       border-radius: 16px;
-      background: linear-gradient(180deg, #f8fbff, #ffffff);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--app-accent) 6%, var(--app-surface-elevated)), var(--app-surface));
       box-shadow: none;
       padding: 16px;
       margin-bottom: 16px;
@@ -300,11 +287,11 @@ import { ImportService } from '../../core/services/import.service';
       margin: 0 0 6px;
       font-size: 18px;
       font-weight: 800;
-      color: #0f172a;
+      color: var(--app-text);
     }
     .annual-flow-copy p {
       margin: 0;
-      color: #475569;
+      color: var(--app-text-muted);
       line-height: 1.5;
       max-width: 760px;
     }
@@ -317,9 +304,9 @@ import { ImportService } from '../../core/services/import.service';
     .flow-chip {
       display: inline-flex;
       align-items: center;
-      border: 1px solid #dbe4f0;
-      background: #eff6ff;
-      color: #1d4ed8;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
+      background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface));
+      color: var(--app-accent);
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 12px;
@@ -329,9 +316,9 @@ import { ImportService } from '../../core/services/import.service';
     .scope-chip {
       display: inline-flex;
       align-items: center;
-      border: 1px solid #dbe4f0;
-      background: #eff6ff;
-      color: #1d4ed8;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
+      background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface));
+      color: var(--app-accent);
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 12px;
@@ -339,36 +326,36 @@ import { ImportService } from '../../core/services/import.service';
       white-space: nowrap;
     }
 
-    .wizard-shell { border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: none; }
+    .wizard-shell { border: 1px solid var(--app-border); border-radius: 16px; background: var(--app-surface); box-shadow: none; }
     .step-content { padding: 24px 0; }
-    .step-subtitle { color: #64748b; margin-bottom: 20px; }
+    .step-subtitle { color: var(--app-text-muted); margin-bottom: 20px; }
     .entity-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; max-width: 760px; }
     .entity-card {
-      border: 1px solid #dbe3ee; border-radius: 14px; padding: 16px; cursor: pointer;
+      border: 1px solid var(--app-border); border-radius: 14px; padding: 16px; cursor: pointer;
       transition: all 0.2s; display: flex; flex-direction: column; gap: 4px;
-      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      background: linear-gradient(180deg, var(--app-surface-elevated), var(--app-surface));
     }
-    .entity-card:hover { border-color: #5b6bd4; background: #f8f9ff; transform: translateY(-1px); }
-    .entity-card.selected { border-color: #2563eb; background: #eff6ff; }
+    .entity-card:hover { border-color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface)); transform: translateY(-1px); }
+    .entity-card.selected { border-color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 12%, var(--app-surface)); }
     .entity-card mat-icon {
       font-size: 28px;
       height: 28px;
       width: 28px;
       min-width: 28px;
       line-height: 28px;
-      color: #2563eb;
+      color: var(--app-accent);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       overflow: visible;
       flex-shrink: 0;
     }
-    .entity-label { font-weight: 700; color: #0f172a; }
-    .entity-desc { font-size: 12px; color: rgba(0,0,0,0.54); line-height: 1.45; }
+    .entity-label { font-weight: 700; color: var(--app-text); }
+    .entity-desc { font-size: 12px; color: var(--app-text-muted); line-height: 1.45; }
     .upload-hint {
-      border: 1px solid #dbeafe;
-      background: #eff6ff;
-      color: #1e3a8a;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
+      background: color-mix(in srgb, var(--app-accent) 9%, var(--app-surface));
+      color: var(--app-text);
       border-radius: 10px;
       padding: 10px 12px;
       margin-bottom: 14px;
@@ -377,8 +364,8 @@ import { ImportService } from '../../core/services/import.service';
     }
 
     .requirements-panel {
-      border: 1px solid #dbe4f0;
-      background: #f8fafc;
+      border: 1px solid var(--app-border);
+      background: var(--app-soft-surface);
       border-radius: 14px;
       padding: 14px;
       margin-bottom: 20px;
@@ -395,20 +382,20 @@ import { ImportService } from '../../core/services/import.service';
     .requirements-header h3 {
       margin: 0 0 4px;
       font-size: 16px;
-      color: #0f172a;
+      color: var(--app-text);
     }
 
     .requirements-header p {
       margin: 0;
-      color: #475569;
+      color: var(--app-text-muted);
       font-size: 13px;
     }
 
     .requirements-table {
-      border: 1px solid #dbe4f0;
+      border: 1px solid var(--app-border);
       border-radius: 14px;
       overflow: hidden;
-      background: #ffffff;
+      background: var(--app-surface);
     }
 
     .requirements-table-head,
@@ -421,18 +408,18 @@ import { ImportService } from '../../core/services/import.service';
 
     .requirements-table-head {
       padding: 12px 16px;
-      background: #f8fafc;
-      border-bottom: 1px solid #dbe4f0;
+      background: var(--app-soft-surface);
+      border-bottom: 1px solid var(--app-border);
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: #64748b;
+      color: var(--app-text-muted);
     }
 
     .requirements-table-row {
       padding: 14px 16px;
-      border-bottom: 1px solid #edf2f7;
+      border-bottom: 1px solid var(--app-border);
     }
 
     .requirements-table-row:last-child {
@@ -451,7 +438,7 @@ import { ImportService } from '../../core/services/import.service';
       display: flex;
       align-items: center;
       gap: 6px;
-      color: #0f172a;
+      color: var(--app-text);
       font-size: 13px;
       font-weight: 700;
       flex-wrap: wrap;
@@ -462,9 +449,9 @@ import { ImportService } from '../../core/services/import.service';
       width: fit-content;
       padding: 4px 8px;
       border-radius: 999px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      color: #1d4ed8;
+      background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface));
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
+      color: var(--app-accent);
       font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
@@ -474,7 +461,7 @@ import { ImportService } from '../../core/services/import.service';
     .requirements-meta,
     .requirements-example {
       font-size: 12px;
-      color: #475569;
+      color: var(--app-text-muted);
       line-height: 1.45;
     }
 
@@ -485,38 +472,38 @@ import { ImportService } from '../../core/services/import.service';
       font-weight: 800;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      border: 1px solid #dbeafe;
-      background: #eff6ff;
-      color: #1d4ed8;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
+      background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface));
+      color: var(--app-accent);
     }
 
     .badge-optional {
-      border-color: #e2e8f0;
-      background: #f8fafc;
-      color: #475569;
+      border-color: var(--app-border);
+      background: var(--app-soft-surface);
+      color: var(--app-text-muted);
     }
 
     .badge-warning {
       border-color: #fde68a;
-      background: #fffbeb;
-      color: #92400e;
+      background: color-mix(in srgb, #f59e0b 12%, var(--app-surface));
+      color: color-mix(in srgb, #f59e0b 76%, var(--app-text));
     }
 
     .requirements-validation .requirements-meta {
-      color: #334155;
+      color: var(--app-text);
     }
 
     .drop-zone {
-      border: 2px dashed #bfcae6; border-radius: 14px; padding: 40px; text-align: center;
+      border: 2px dashed color-mix(in srgb, var(--app-text-muted) 52%, var(--app-border)); border-radius: 14px; padding: 40px; text-align: center;
       cursor: pointer; transition: all 0.2s; min-height: 160px;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     }
-    .drop-zone:hover, .drop-zone.drag-over { border-color: #2563eb; background: #f8f9ff; }
-    .drop-icon { font-size: 48px; height: 48px; width: 48px; color: #bdbdbd; }
-    .hint { font-size: 12px; color: rgba(0,0,0,0.38); margin: 0; }
-    .file-preview { display: flex; align-items: center; gap: 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; padding: 8px 12px; width: 100%; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface)); }
+    .drop-icon { font-size: 48px; height: 48px; width: 48px; color: var(--app-accent); }
+    .hint { font-size: 12px; color: var(--app-text-muted); margin: 0; }
+    .file-preview { display: flex; align-items: center; gap: 12px; background: var(--app-soft-surface); border-radius: 10px; border: 1px solid var(--app-border); padding: 8px 12px; width: 100%; }
     .file-name { font-weight: 600; }
-    .file-size { font-size: 12px; color: rgba(0,0,0,0.54); }
+    .file-size { font-size: 12px; color: var(--app-text-muted); }
     .upload-progress { margin-top: 16px; }
     .step-actions { display: flex; align-items: center; margin-top: 24px; }
     .step-actions button[mat-raised-button],
@@ -524,13 +511,13 @@ import { ImportService } from '../../core/services/import.service';
     .ml-8 { margin-left: 8px; }
     .center { text-align: center; padding: 40px; }
     .success-icon { font-size: 64px; height: 64px; width: 64px; }
-    .responsibility-notice { display: flex; gap: 12px; padding: 12px; background: #fff7ed; border-radius: 12px; border-left: 4px solid #f59e0b; margin: 24px 0; }
-    .notice-icon { color: #f57f17; flex-shrink: 0; }
+    .workspace-notice { display: flex; align-items: flex-start; gap: 12px; padding: 14px; margin: 24px 0; border: 1px solid color-mix(in srgb, #0d9488 28%, var(--app-border)); border-radius: 14px; background: color-mix(in srgb, #0d9488 9%, var(--app-surface)); }
+    .workspace-notice__icon { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border-radius: 11px; color: #fff; background: #0d9488; }
+    .workspace-notice__icon mat-icon { width: 20px; height: 20px; font-size: 20px; }
     .notice-content { flex: 1; }
-    .notice-content h3 { margin: 0 0 8px 0; font-size: 14px; color: #e65100; font-weight: 700; }
-    .notice-content p { margin: 0 0 8px 0; font-size: 13px; color: rgba(0,0,0,0.75); line-height: 1.5; }
-    .responsibility-checkbox { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 13px; color: rgba(0,0,0,0.75); }
-    .responsibility-checkbox input[type="checkbox"] { margin-top: 2px; cursor: pointer; }
+    .notice-content .eyebrow { margin-bottom: 3px; color: #0d9488; font-size: 10px; }
+    .notice-content h3 { margin: 0 0 5px; color: var(--app-text); font-size: 14px; font-weight: 800; }
+    .notice-content p { margin: 0; color: var(--app-text-muted); font-size: 13px; line-height: 1.5; }
 
     @media (max-width: 768px) {
       .page-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
@@ -565,7 +552,7 @@ import { ImportService } from '../../core/services/import.service';
         gap: 8px;
       }
       .requirements-table-row:not(:last-child) {
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--app-border);
       }
       .requirements-field,
       .requirements-definition,
@@ -586,7 +573,7 @@ import { ImportService } from '../../core/services/import.service';
       .step-actions button { width: 100%; justify-content: center; }
       .file-preview { width: 100%; justify-content: space-between; }
       .center { padding: 20px 8px; }
-      .responsibility-notice { flex-direction: column; gap: 8px; }
+      .workspace-notice { padding: 12px; }
     }
   `]
 })
@@ -602,7 +589,6 @@ export class ImportWizardComponent {
   isDragOver = false;
   uploading = false;
   uploadedJobId: string | null = null;
-  acknowledgedResponsibility = false;
   requirementsByType: Partial<Record<EntityType, DatasetRequirement>> = {};
   readonly pilotScope = PILOT_SCOPE;
 
@@ -663,7 +649,6 @@ export class ImportWizardComponent {
   setSelectedType(type: EntityType) {
     this.selectedType = type;
     this.selectedFile = null;
-    this.acknowledgedResponsibility = false;
   }
 
   requiredColumnsHint(requirement: DatasetRequirement): string {
@@ -723,7 +708,6 @@ export class ImportWizardComponent {
   clearFile(e: Event) {
     e.stopPropagation();
     this.selectedFile = null;
-    this.acknowledgedResponsibility = false;
   }
 
   private validateAndSetFile(f: File) {

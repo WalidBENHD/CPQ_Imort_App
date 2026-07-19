@@ -30,12 +30,46 @@ public sealed record ArticleMasterCandidateSummary(
     int ValidReferences,
     int MissingReferences);
 
+public sealed record PriceListCandidateSummary(
+    Guid JobId,
+    string FileName,
+    string VersionLabel,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    int PriceCount,
+    bool IsActive,
+    string Source,
+    string OwnerDisplayName,
+    ImportStatus Status,
+    ImportWorkflowStage WorkflowStage,
+    int ErrorRows,
+    bool IsEligible,
+    bool RequiresWorkingCopy,
+    string? IneligibleReason,
+    int MatchedArticles,
+    int ArticlesWithoutPrices,
+    int PricesWithoutArticles);
+
 public sealed record DependencyImpact(
     int TotalRows,
     int ValidReferences,
     int MissingReferences,
     int ArticlesWithoutDependentData,
     IReadOnlyList<string> MissingArticleNumbers);
+
+public sealed record PortfolioReadiness(
+    Guid JobId,
+    EntityType CandidateType,
+    Guid? ProjectedMasterJobId,
+    Guid? ProjectedPriceJobId,
+    int MasterArticleCount,
+    int PricedArticleCount,
+    IReadOnlyList<string> ArticlesWithoutPrices,
+    IReadOnlyList<string> PricesWithoutArticles)
+{
+    public bool IsConsistent => ArticlesWithoutPrices.Count == 0 && PricesWithoutArticles.Count == 0;
+    public bool RequiresCoordinatedRelease => !IsConsistent;
+}
 
 public sealed record DependencyContext(
     Guid JobId,
@@ -48,6 +82,7 @@ public sealed record DependencyContext(
     DependencyImpact CurrentImpact,
     DependencyImpact? LatestImpact,
     ReleasePackageSummary? ReleasePackage,
+    PortfolioReadiness? ProjectedReadiness,
     IReadOnlyList<ArticleMasterCandidateSummary> CandidateMasters);
 
 public sealed record ReleasePackageSummary(

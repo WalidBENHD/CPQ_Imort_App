@@ -3,6 +3,7 @@ using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Metadata;
+using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Services;
 using CPQ_Import_App.API.Security;
 using CPQ_Import_App.Core.Security;
@@ -355,6 +356,18 @@ public class ImportsController(
         catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
     }
 
+    [HttpGet("{id:guid}/portfolio-readiness")]
+    public async Task<ActionResult<PortfolioReadinessDto>> GetPortfolioReadiness(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            return Ok((await importService.GetPortfolioReadinessAsync(id, UserId, ct)).ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     [HttpPost("{id:guid}/dependency-context/preview")]
     [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
     public async Task<ActionResult<DependencyImpactDto>> PreviewDependencyAnchor(
@@ -392,12 +405,39 @@ public class ImportsController(
     {
         try
         {
-            var package = await importService.CreateReleasePackageAsync(
-                id, request.ArticleMasterJobId, request.Name, UserId, UserDisplayName, ct);
+            ReleasePackageSummary package;
+            if (request.PriceListJobId.HasValue)
+            {
+                package = await importService.CreateReleasePackageFromArticleAsync(
+                    id, request.PriceListJobId.Value, request.Name, UserId, UserDisplayName, ct);
+            }
+            else if (request.ArticleMasterJobId.HasValue)
+            {
+                package = await importService.CreateReleasePackageAsync(
+                    id, request.ArticleMasterJobId.Value, request.Name, UserId, UserDisplayName, ct);
+            }
+            else
+            {
+                return BadRequest(new { error = "Select the related Article Master or Price List candidate." });
+            }
             return CreatedAtAction(nameof(GetReleasePackage), new { packageId = package.Id }, package.ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    [HttpGet("{id:guid}/price-list-candidates")]
+    public async Task<ActionResult<IReadOnlyList<PriceListCandidateSummaryDto>>> GetPriceListCandidates(
+        Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var candidates = await importService.GetPriceListCandidatesAsync(id, UserId, ct);
+            return Ok(candidates.Select(candidate => candidate.ToDto()).ToList());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }

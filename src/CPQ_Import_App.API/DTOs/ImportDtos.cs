@@ -74,7 +74,7 @@ public record UpdateRowRequest(Dictionary<string, string?> Fields);
 public record AddRowRequest(Dictionary<string, string?> Fields);
 public record BulkRowRequest(IReadOnlyList<Guid> RowIds);
 public record ApplyValidationAnchorRequest(Guid ArticleMasterJobId);
-public record CreateReleasePackageRequest(Guid ArticleMasterJobId, string Name);
+public record CreateReleasePackageRequest(Guid? ArticleMasterJobId, Guid? PriceListJobId, string Name);
 
 public record PublicationResultDto(Guid JobId, int PublishedRows, string Message);
 
@@ -106,12 +106,46 @@ public record ArticleMasterCandidateSummaryDto(
     int ValidReferences,
     int MissingReferences);
 
+public record PriceListCandidateSummaryDto(
+    Guid JobId,
+    string FileName,
+    string VersionLabel,
+    DateTime CreatedAt,
+    DateTime? PublishedAt,
+    int PriceCount,
+    bool IsActive,
+    string Source,
+    string OwnerDisplayName,
+    ImportStatus Status,
+    ImportWorkflowStage WorkflowStage,
+    int ErrorRows,
+    bool IsEligible,
+    bool RequiresWorkingCopy,
+    string? IneligibleReason,
+    int MatchedArticles,
+    int ArticlesWithoutPrices,
+    int PricesWithoutArticles);
+
 public record DependencyImpactDto(
     int TotalRows,
     int ValidReferences,
     int MissingReferences,
     int ArticlesWithoutDependentData,
     IReadOnlyList<string> MissingArticleNumbers);
+
+public record PortfolioReadinessDto(
+    Guid JobId,
+    EntityType CandidateType,
+    Guid? ProjectedMasterJobId,
+    Guid? ProjectedPriceJobId,
+    int MasterArticleCount,
+    int PricedArticleCount,
+    bool IsConsistent,
+    bool RequiresCoordinatedRelease,
+    int ArticlesWithoutPricesCount,
+    int PricesWithoutArticlesCount,
+    IReadOnlyList<string> ArticlesWithoutPrices,
+    IReadOnlyList<string> PricesWithoutArticles);
 
 public record DependencyContextDto(
     Guid JobId,
@@ -124,6 +158,7 @@ public record DependencyContextDto(
     DependencyImpactDto CurrentImpact,
     DependencyImpactDto? LatestImpact,
     ReleasePackageDto? ReleasePackage,
+    PortfolioReadinessDto? ProjectedReadiness,
     IReadOnlyList<ArticleMasterCandidateSummaryDto> CandidateMasters);
 
 public record ReleasePackageItemDto(

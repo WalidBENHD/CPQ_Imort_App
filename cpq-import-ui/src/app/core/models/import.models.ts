@@ -133,6 +133,42 @@ export interface DependencyImpact {
   missingArticleNumbers: string[];
 }
 
+export interface PortfolioReadiness {
+  jobId: string;
+  candidateType: number;
+  projectedMasterJobId: string | null;
+  projectedPriceJobId: string | null;
+  masterArticleCount: number;
+  pricedArticleCount: number;
+  isConsistent: boolean;
+  requiresCoordinatedRelease: boolean;
+  articlesWithoutPricesCount: number;
+  pricesWithoutArticlesCount: number;
+  articlesWithoutPrices: string[];
+  pricesWithoutArticles: string[];
+}
+
+export interface PriceListCandidateSummary {
+  jobId: string;
+  fileName: string;
+  versionLabel: string;
+  createdAt: string;
+  publishedAt: string | null;
+  priceCount: number;
+  isActive: boolean;
+  source: 'Workspace' | 'Review' | 'Published';
+  ownerDisplayName: string;
+  status: number;
+  workflowStage: number;
+  errorRows: number;
+  isEligible: boolean;
+  requiresWorkingCopy: boolean;
+  ineligibleReason: string | null;
+  matchedArticles: number;
+  articlesWithoutPrices: number;
+  pricesWithoutArticles: number;
+}
+
 export interface ReleasePackageItem {
   jobId: string;
   entityType: EntityType;
@@ -175,6 +211,7 @@ export interface DependencyContext {
   currentImpact: DependencyImpact;
   latestImpact: DependencyImpact | null;
   releasePackage: ReleasePackage | null;
+  projectedReadiness: PortfolioReadiness | null;
   candidateMasters: ArticleMasterCandidateSummary[];
 }
 

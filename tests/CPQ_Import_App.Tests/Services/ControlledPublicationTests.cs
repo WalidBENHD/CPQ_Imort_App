@@ -140,7 +140,7 @@ public class ControlledPublicationTests
             PriceRow(priceJob.Id, 2, "A-1"),
             PriceRow(priceJob.Id, 3, "A-2")
         ]);
-        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
 
         var result = await service.ApplyDependencyAnchorAsync(priceJob.Id, master.Id, "contributor-id", "Cara Contributor");
 
@@ -161,7 +161,7 @@ public class ControlledPublicationTests
         repository.AdditionalJobs.Add(master);
         repository.ArticleNumbers[master.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
         repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
-        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
 
         var package = await service.CreateReleasePackageAsync(
             priceJob.Id, master.Id, "Annual 2027", "contributor-id", "Cara Contributor");
@@ -171,6 +171,112 @@ public class ControlledPublicationTests
         Assert.Equal(ValidationAnchorKind.ReleaseCandidate, priceJob.ValidationAnchorKind);
         Assert.Equal(priceJob.ReleasePackageId, master.ReleasePackageId);
         Assert.Equal(2, package.Items.Count);
+    }
+
+    [Fact]
+    public async Task CreateReleasePackageFromArticleAsync_PairsPrivatePriceCandidateAndClearsDependencyErrors()
+    {
+        var articleJob = CreateJob(ImportStatus.NeedsCorrection);
+        articleJob.ErrorRows = 1;
+        var priceJob = CreatePriceJob();
+        priceJob.Status = ImportStatus.NeedsCorrection;
+        priceJob.ErrorRows = 1;
+        var repository = new FakeImportRepository(articleJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(priceJob);
+        repository.ArticleNumbers[articleJob.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.Add(new StagingRow
+        {
+            ImportJobId = articleJob.Id,
+            RowNumber = 2,
+            Status = RowStatus.Error,
+            RawData = ArticleRow("A-1"),
+            ValidationMessages = "[{\"field\":\"ArticleNumber\",\"message\":\"Article 'A-1' has no matching price in the active Price List.\",\"severity\":2}]"
+        });
+        var priceRow = PriceRow(priceJob.Id, 2, "A-1");
+        priceRow.Status = RowStatus.Error;
+        priceRow.ValidationMessages = "[{\"field\":\"ArticleNumber\",\"message\":\"No Article Master was available when this row was checked.\",\"severity\":2}]";
+        repository.Rows.Add(priceRow);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var package = await service.CreateReleasePackageFromArticleAsync(
+            articleJob.Id, priceJob.Id, "Annual 2027", "contributor-id", "Cara Contributor");
+
+        Assert.Equal("Annual 2027", package.Name);
+        Assert.Equal(articleJob.ReleasePackageId, priceJob.ReleasePackageId);
+        Assert.Equal(articleJob.Id, priceJob.ValidationAnchorJobId);
+        Assert.Equal(ValidationAnchorKind.ReleaseCandidate, priceJob.ValidationAnchorKind);
+        Assert.Equal(0, articleJob.ErrorRows);
+        Assert.Equal(0, priceJob.ErrorRows);
+        Assert.Equal(2, package.Items.Count);
+    }
+
+    [Fact]
+    public async Task GetPriceListCandidatesAsync_AllowsErrorsResolvedBySelectedArticleMaster()
+    {
+        var articleJob = CreateJob(ImportStatus.NeedsCorrection);
+        var priceJob = CreatePriceJob();
+        priceJob.Status = ImportStatus.NeedsCorrection;
+        priceJob.ErrorRows = 1;
+        var repository = new FakeImportRepository(articleJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(priceJob);
+        repository.ArticleNumbers[articleJob.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        var priceRow = PriceRow(priceJob.Id, 2, "A-1");
+        priceRow.RawData = priceRow.RawData.Replace("10.00", string.Empty, StringComparison.Ordinal);
+        priceRow.Status = RowStatus.Error;
+        priceRow.ValidationMessages = "[{\"field\":\"UnitPrice\",\"message\":\"'UnitPrice' is required.\",\"severity\":2}]";
+        repository.Rows.Add(priceRow);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var candidates = await service.GetPriceListCandidatesAsync(articleJob.Id, "contributor-id");
+
+        var candidate = Assert.Single(candidates);
+        Assert.True(candidate.IsEligible);
+        Assert.Equal(1, candidate.MatchedArticles);
+        Assert.Equal(0, candidate.ArticlesWithoutPrices);
+        Assert.Equal(0, candidate.PricesWithoutArticles);
+        Assert.Null(candidate.IneligibleReason);
+    }
+
+    [Fact]
+    public async Task GetStagingRowsAsync_ArticleInReleaseKeepsPackagePriceContextAfterReload()
+    {
+        var packageId = Guid.NewGuid();
+        var articleJob = CreateJob(ImportStatus.AwaitingApproval);
+        articleJob.ReleasePackageId = packageId;
+        var releasePrice = CreatePriceJob();
+        releasePrice.ReleasePackageId = packageId;
+        var activePrice = CreatePriceJob();
+        activePrice.Status = ImportStatus.Committed;
+        activePrice.WorkflowStage = ImportWorkflowStage.Published;
+        activePrice.CommittedAt = DateTime.UtcNow;
+        var articleRow = new StagingRow
+        {
+            ImportJobId = articleJob.Id,
+            RowNumber = 2,
+            Status = RowStatus.Valid,
+            RawData = ArticleRow("A-1")
+        };
+        var repository = new FakeImportRepository(articleJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.AddRange([releasePrice, activePrice]);
+        repository.Rows.AddRange([
+            articleRow,
+            PriceRow(releasePrice.Id, 2, "A-1"),
+            PriceRow(activePrice.Id, 2, "OTHER")
+        ]);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Annual 2027",
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        await service.GetStagingRowsAsync(articleJob.Id, 1, 50);
+
+        Assert.Equal(RowStatus.Valid, articleRow.Status);
+        Assert.Null(articleRow.ValidationMessages);
+        Assert.Equal(0, articleJob.ErrorRows);
     }
 
     [Fact]
@@ -192,7 +298,7 @@ public class ControlledPublicationTests
             RawData = "{\"ArticleNumber\":\"A-1\",\"Name\":\"Article\",\"Category\":\"Standard\",\"Unit\":\"PC\"}"
         });
         repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
-        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
 
         var package = await service.CreateReleasePackageAsync(
             priceJob.Id, publishedMaster.Id, "Annual 2027", "contributor-id", "Cara Contributor");
@@ -219,8 +325,12 @@ public class ControlledPublicationTests
         var activeMaster = CreateJob(ImportStatus.Committed);
         activeMaster.WorkflowStage = ImportWorkflowStage.Published;
         activeMaster.CommittedAt = DateTime.UtcNow;
+        var activePrice = CreatePriceJob();
+        activePrice.Status = ImportStatus.Committed;
+        activePrice.WorkflowStage = ImportWorkflowStage.Published;
+        activePrice.CommittedAt = DateTime.UtcNow;
         var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
-        repository.AdditionalJobs.AddRange([candidateMaster, activeMaster]);
+        repository.AdditionalJobs.AddRange([candidateMaster, activeMaster, activePrice]);
         repository.ReleasePackages.Add(new ReleasePackage
         {
             Id = packageId,
@@ -230,7 +340,16 @@ public class ControlledPublicationTests
         });
         repository.ArticleNumbers[activeMaster.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
         repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
-        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+        repository.Rows.Add(PriceRow(activePrice.Id, 2, "OTHER"));
+        var candidateArticleRow = new StagingRow
+        {
+            ImportJobId = candidateMaster.Id,
+            RowNumber = 2,
+            Status = RowStatus.Valid,
+            RawData = ArticleRow("A-1")
+        };
+        repository.Rows.Add(candidateArticleRow);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
 
         await service.DissolveReleasePackageAsync(
             packageId, "contributor-id", "Cara Contributor");
@@ -239,6 +358,9 @@ public class ControlledPublicationTests
         Assert.Null(candidateMaster.ReleasePackageId);
         Assert.Equal(activeMaster.Id, priceJob.ValidationAnchorJobId);
         Assert.Equal(ValidationAnchorKind.ActiveBaseline, priceJob.ValidationAnchorKind);
+        Assert.Equal(RowStatus.Error, candidateArticleRow.Status);
+        Assert.Equal(1, candidateMaster.ErrorRows);
+        Assert.Contains("no matching price in the active Price List", candidateArticleRow.ValidationMessages);
         Assert.Empty(repository.ReleasePackages);
         Assert.Contains(repository.AuditLogs, log => log.Action == "ReleasePackageDissolved");
     }
@@ -360,7 +482,7 @@ public class ControlledPublicationTests
             CreatedBy = "contributor-id",
             CreatedByDisplayName = "Cara Contributor"
         });
-        var service = new ImportService(repository, [new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
 
         await service.DeletePrivateDraftAsync(
             priceJob.Id, "contributor-id", "Cara Contributor");
@@ -394,6 +516,74 @@ public class ControlledPublicationTests
         Assert.Equal("contributor-id", result.SubmittedByUserId);
         Assert.NotNull(result.SubmittedComparisonJson);
         Assert.Contains(repository.AuditLogs, entry => entry.Action == "Submitted");
+    }
+
+    [Fact]
+    public async Task SubmitForReviewAsync_BlocksArticleMasterWhenItWouldLeaveOrphanPrices()
+    {
+        var articleJob = CreateJob(ImportStatus.AwaitingApproval);
+        articleJob.TotalRows = 1;
+        var activePrice = CreatePriceJob();
+        activePrice.Status = ImportStatus.Committed;
+        activePrice.WorkflowStage = ImportWorkflowStage.Published;
+        activePrice.CommittedAt = DateTime.UtcNow;
+        var repository = new FakeImportRepository(articleJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(activePrice);
+        repository.ArticleNumbers[articleJob.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.Add(PriceRow(activePrice.Id, 1, "A-1"));
+        repository.Rows.Add(PriceRow(activePrice.Id, 2, "A-2"));
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SubmitForReviewAsync(articleJob.Id, articleJob.CreatedBy, articleJob.CreatedByDisplayName));
+
+        Assert.Contains("price reference(s) would point to missing articles", error.Message);
+        Assert.Equal(ImportWorkflowStage.Private, articleJob.WorkflowStage);
+    }
+
+    [Fact]
+    public async Task SubmitForReviewAsync_BlocksPriceListWhenAnActiveArticleHasNoPrice()
+    {
+        var priceJob = CreatePriceJob();
+        var activeMaster = CreateJob(ImportStatus.Committed);
+        activeMaster.WorkflowStage = ImportWorkflowStage.Published;
+        activeMaster.CommittedAt = DateTime.UtcNow;
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(activeMaster);
+        repository.ArticleNumbers[activeMaster.Id] = new HashSet<string>(["A-1", "A-2"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.Add(PriceRow(priceJob.Id, 1, "A-1"));
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SubmitForReviewAsync(priceJob.Id, priceJob.CreatedBy, priceJob.CreatedByDisplayName));
+
+        Assert.Contains("article(s) would have no price", error.Message);
+        Assert.Equal(ImportWorkflowStage.Private, priceJob.WorkflowStage);
+    }
+
+    [Fact]
+    public async Task RefreshValidationAsync_MarksArticleRowsWithoutActivePricesAsErrors()
+    {
+        var articleJob = CreateJob(ImportStatus.AwaitingApproval);
+        var activePrice = CreatePriceJob();
+        activePrice.Status = ImportStatus.Committed;
+        activePrice.WorkflowStage = ImportWorkflowStage.Published;
+        activePrice.CommittedAt = DateTime.UtcNow;
+        var repository = new FakeImportRepository(articleJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(activePrice);
+        repository.Rows.AddRange([
+            new StagingRow { ImportJobId = articleJob.Id, RowNumber = 2, Status = RowStatus.Valid, RawData = ArticleRow("A-1") },
+            new StagingRow { ImportJobId = articleJob.Id, RowNumber = 3, Status = RowStatus.Valid, RawData = ArticleRow("A-2") },
+            PriceRow(activePrice.Id, 1, "A-1")
+        ]);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await service.RefreshValidationAsync(articleJob.Id, articleJob.CreatedBy, articleJob.CreatedByDisplayName);
+
+        var missingPriceRow = Assert.Single(repository.Rows, row => row.ImportJobId == articleJob.Id && row.RowNumber == 3);
+        Assert.Equal(RowStatus.Error, missingPriceRow.Status);
+        Assert.Contains("no matching price in the active Price List", missingPriceRow.ValidationMessages);
+        Assert.Equal(1, articleJob.ErrorRows);
     }
 
     [Fact]
@@ -515,7 +705,7 @@ public class ControlledPublicationTests
     }
 
     [Fact]
-    public async Task AddStagingRowAsync_CreatesValidatedUserRowInPrivateDraft()
+    public async Task AddStagingRowAsync_FlagsArticleWhenNoActivePriceListExists()
     {
         var job = CreateJob(ImportStatus.AwaitingApproval);
         var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
@@ -532,8 +722,10 @@ public class ControlledPublicationTests
         var row = Assert.Single(repository.Rows);
         Assert.True(row.IsUserAdded);
         Assert.False(row.IsDeleted);
-        Assert.Equal(RowStatus.Valid, row.Status);
+        Assert.Equal(RowStatus.Error, row.Status);
+        Assert.Contains("no matching price in the active Price List", row.ValidationMessages);
         Assert.Equal(1, job.TotalRows);
+        Assert.Equal(1, job.ErrorRows);
         Assert.Contains(repository.AuditLogs, entry => entry.Action == "DraftRowAdded");
     }
 
@@ -668,6 +860,15 @@ public class ControlledPublicationTests
         })
     };
 
+    private static string ArticleRow(string articleNumber)
+        => JsonSerializer.Serialize(new Dictionary<string, string?>
+        {
+            ["ArticleNumber"] = articleNumber,
+            ["Name"] = "Article",
+            ["Category"] = "Standard",
+            ["Unit"] = "PC"
+        });
+
     private static ImportComparisonResult CreateComparison(Guid baselineId, bool hasBaseline) => new(
         JobId: Guid.NewGuid(),
         BaselineJobId: baselineId,
@@ -714,6 +915,8 @@ public class ControlledPublicationTests
 
         public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<ImportJob?>(id == job.Id ? job : AdditionalJobs.FirstOrDefault(item => item.Id == id));
+        public Task<ImportJob?> GetJobSummaryAsync(Guid id, CancellationToken ct = default)
+            => GetJobAsync(id, ct);
 
         public Task<bool> IsUploadNameInUseAsync(string fileName, Guid? excludingJobId = null, CancellationToken ct = default)
         {
@@ -800,6 +1003,14 @@ public class ControlledPublicationTests
                             or ImportWorkflowStage.Approved
                             or ImportWorkflowStage.Published))
                 .ToList());
+        public Task<IReadOnlyList<ImportJob>> GetPriceListCandidatesAsync(string userId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ImportJob>>(new[] { job }.Concat(AdditionalJobs)
+                .Where(item => item.EntityType == EntityType.PriceList
+                    && ((item.WorkflowStage == ImportWorkflowStage.Private && item.CreatedBy == userId)
+                        || item.WorkflowStage is ImportWorkflowStage.Submitted
+                            or ImportWorkflowStage.Approved
+                            or ImportWorkflowStage.Published))
+                .ToList());
         public Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default)
         {
             var package = ReleasePackages.FirstOrDefault(item => item.Id == packageId);
@@ -809,6 +1020,8 @@ public class ControlledPublicationTests
             }
             return Task.FromResult(package);
         }
+        public Task<ReleasePackage?> GetReleasePackageSummaryAsync(Guid packageId, CancellationToken ct = default)
+            => GetReleasePackageAsync(packageId, ct);
         public Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
         {
             ReleasePackages.Add(package);

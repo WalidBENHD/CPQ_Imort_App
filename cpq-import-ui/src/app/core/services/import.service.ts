@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  ApprovedComparisonSnapshot, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, PagedResult, PublicationResult, ReleasePackage, RowStatus, StagingRow
+  ApprovedComparisonSnapshot, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -80,6 +80,10 @@ export class ImportService {
     return this.http.get<DependencyContext>(`${this.base}/${jobId}/dependency-context`);
   }
 
+  getPortfolioReadiness(jobId: string): Observable<PortfolioReadiness> {
+    return this.http.get<PortfolioReadiness>(`${this.base}/${jobId}/portfolio-readiness`);
+  }
+
   previewDependencyAnchor(jobId: string, articleMasterJobId: string): Observable<DependencyImpact> {
     return this.http.post<DependencyImpact>(`${this.base}/${jobId}/dependency-context/preview`, { articleMasterJobId });
   }
@@ -90,6 +94,14 @@ export class ImportService {
 
   createReleasePackage(jobId: string, articleMasterJobId: string, name: string): Observable<ReleasePackage> {
     return this.http.post<ReleasePackage>(`${this.base}/${jobId}/release-package`, { articleMasterJobId, name });
+  }
+
+  getPriceListCandidates(articleJobId: string): Observable<PriceListCandidateSummary[]> {
+    return this.http.get<PriceListCandidateSummary[]>(`${this.base}/${articleJobId}/price-list-candidates`);
+  }
+
+  createReleasePackageFromArticle(articleJobId: string, priceListJobId: string, name: string): Observable<ReleasePackage> {
+    return this.http.post<ReleasePackage>(`${this.base}/${articleJobId}/release-package`, { priceListJobId, name });
   }
 
   submitReleasePackage(packageId: string): Observable<ReleasePackage> {
@@ -214,7 +226,7 @@ export class ImportService {
     return this.http.get<DatasetRequirement[]>(`${environment.apiUrl}/templates/requirements`);
   }
 
-  getDatasetRequirement(entityType: EntityType | string): Observable<DatasetRequirement> {
+  getDatasetRequirement(entityType: EntityType | string | number): Observable<DatasetRequirement> {
     return this.http.get<DatasetRequirement>(`${environment.apiUrl}/templates/requirements/${entityType}`);
   }
 }

@@ -84,9 +84,30 @@ public static class DtoMapper
         candidate.IsEligible, candidate.RequiresWorkingCopy, candidate.IneligibleReason,
         candidate.ValidReferences, candidate.MissingReferences);
 
+    public static PriceListCandidateSummaryDto ToDto(this PriceListCandidateSummary candidate) => new(
+        candidate.JobId, DisplayName(candidate.FileName), candidate.VersionLabel, candidate.CreatedAt,
+        candidate.PublishedAt, candidate.PriceCount, candidate.IsActive, candidate.Source,
+        candidate.OwnerDisplayName, candidate.Status, candidate.WorkflowStage, candidate.ErrorRows,
+        candidate.IsEligible, candidate.RequiresWorkingCopy, candidate.IneligibleReason,
+        candidate.MatchedArticles, candidate.ArticlesWithoutPrices, candidate.PricesWithoutArticles);
+
     public static DependencyImpactDto ToDto(this DependencyImpact impact) => new(
         impact.TotalRows, impact.ValidReferences, impact.MissingReferences,
         impact.ArticlesWithoutDependentData, impact.MissingArticleNumbers);
+
+    public static PortfolioReadinessDto ToDto(this PortfolioReadiness readiness) => new(
+        readiness.JobId,
+        readiness.CandidateType,
+        readiness.ProjectedMasterJobId,
+        readiness.ProjectedPriceJobId,
+        readiness.MasterArticleCount,
+        readiness.PricedArticleCount,
+        readiness.IsConsistent,
+        readiness.RequiresCoordinatedRelease,
+        readiness.ArticlesWithoutPrices.Count,
+        readiness.PricesWithoutArticles.Count,
+        readiness.ArticlesWithoutPrices.Take(100).ToList(),
+        readiness.PricesWithoutArticles.Take(100).ToList());
 
     public static ReleasePackageItemDto ToDto(this ReleasePackageItemSummary item) => new(
         item.JobId, item.EntityType, item.DatasetName, DisplayName(item.FileName), item.Status,
@@ -103,6 +124,7 @@ public static class DtoMapper
         context.JobId, context.IsDependentDataset, context.AnchorKind, context.PinnedAt,
         context.CurrentAnchor?.ToDto(), context.LatestActiveMaster?.ToDto(), context.HasNewerMaster,
         context.CurrentImpact.ToDto(), context.LatestImpact?.ToDto(), context.ReleasePackage?.ToDto(),
+        context.ProjectedReadiness?.ToDto(),
         context.CandidateMasters.Select(ToDto).ToList());
 
     public static StagingRowDto ToDto(this StagingRow row) => new(

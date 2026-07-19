@@ -19,7 +19,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { ImportService } from '../../core/services/import.service';
-import { ApprovedComparisonSnapshot, ComparisonFieldChange, ComparisonMissingItem, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, RowStatus, StagingRow } from '../../core/models/import.models';
+import { ApprovedComparisonSnapshot, ComparisonFieldChange, ComparisonMissingItem, ComparisonRow, ComparisonStatus, DatasetRequirement, ImportComparison, ImportJob, PagedResult, PortfolioReadiness, RowStatus, StagingRow } from '../../core/models/import.models';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { AnnualCommitConfirmDialogComponent } from './annual-commit-confirm-dialog.component';
@@ -31,6 +31,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.component';
 import { DependencyContextPrototypeComponent } from './dependency-context-prototype.component';
 import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
+import { PortfolioReadinessComponent } from './portfolio-readiness.component';
+import { ArticleReleaseBuilderComponent } from './article-release-builder.component';
 
 @Component({
   selector: 'app-import-preview',
@@ -42,7 +44,7 @@ import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/r
     MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule, MatCheckboxModule,
     StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent,
     PublicationReadinessComponent, PublicationConfirmDialogComponent, DraftRowEditorComponent,
-    DependencyContextPrototypeComponent],
+    DependencyContextPrototypeComponent, PortfolioReadinessComponent, ArticleReleaseBuilderComponent],
   template: `
     <div class="page-header">
       <div>
@@ -188,7 +190,22 @@ import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/r
         </mat-card-content>
       </mat-card>
 
+      <app-portfolio-readiness
+        *ngIf="isPrivateWorkspace && isPortfolioDataset && !job.releasePackageId"
+        [jobId]="job.id"
+        [refreshKey]="portfolioRefreshKey"
+        [isArticleMaster]="job.entityType === 1"
+        (readinessChanged)="portfolioReadiness = $event"
+        (createReleaseRequested)="focusReleaseWorkflow()" />
+
+      <app-article-release-builder
+        *ngIf="isPrivateWorkspace && job.entityType === 1 && !job.releasePackageId && portfolioReadiness?.requiresCoordinatedRelease"
+        [jobId]="job.id"
+        [articleCount]="job.totalRows"
+        (releaseCreated)="handleArticleReleaseCreated()" />
+
       <app-dependency-context-prototype
+        id="dependency-workflow"
         *ngIf="(isDependentDataset && isPrivateWorkspace) || !!job.releasePackageId"
         [datasetName]="job.entityTypeLabel"
         [fileName]="job.originalFileName"
@@ -384,7 +401,7 @@ import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/r
 
           <div class="workspace-gate__actions">
             <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="showErrorRows()"><mat-icon>build</mat-icon> Review and fix errors</button>
-            <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0" mat-raised-button color="primary" class="submit-review-btn" [disabled]="workflowActionRunning" (click)="submitForReview()"><mat-icon>send</mat-icon> {{ workflowActionRunning ? 'Submitting...' : 'Submit for review' }}</button>
+            <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0" mat-raised-button color="primary" class="submit-review-btn" [disabled]="workflowActionRunning || !canSubmitProjectedState" (click)="submitForReview()"><mat-icon>send</mat-icon> {{ workflowActionRunning ? 'Submitting...' : (canSubmitProjectedState ? 'Submit for review' : 'Release required') }}</button>
             <button *ngIf="canDownloadComparisonReport()" mat-stroked-button (click)="downloadComparisonReport()"><mat-icon>download</mat-icon> Comparison report</button>
             <button *ngIf="canCancelJob()" mat-button class="discard-draft-btn" (click)="cancelImport()"><mat-icon>delete_outline</mat-icon> Discard private draft</button>
           </div>
@@ -448,8 +465,9 @@ import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/r
 
             <div class="action-bar">
               <div class="action-info">
-                <mat-icon color="primary">info</mat-icon>
+                <mat-icon color="primary">fact_check</mat-icon>
                 <span>
+                  <strong>Decision responsibility:</strong> Review the comparison, exceptions, and supporting evidence before deciding.
                   <ng-container *ngIf="comparison; else actionFallback">
                     {{ comparison.newRows + comparison.modifiedRows + comparison.unchangedRows }} rows are compared with the baseline.
                     {{ comparison.newRows }} new, {{ comparison.modifiedRows }} modified, and {{ comparison.missingBaselineRows }} missing rows need attention.
@@ -1535,6 +1553,7 @@ export class ImportPreviewComponent implements OnInit {
   datasetRequirement: DatasetRequirement | null = null;
   comparison: ImportComparison | null = null;
   approvalSnapshot: ApprovedComparisonSnapshot | null = null;
+  portfolioReadiness: PortfolioReadiness | null = null;
   rows: PagedResult<StagingRow> | null = null;
   loading = false;
   comparisonLoading = false;
@@ -1889,9 +1908,47 @@ export class ImportPreviewComponent implements OnInit {
     return !!this.job && (this.job.entityType === 2 || this.job.entityType === 3);
   }
 
+  get isPortfolioDataset(): boolean {
+    return !!this.job && (this.job.entityType === 1 || this.job.entityType === 2);
+  }
+
+  get canSubmitProjectedState(): boolean {
+    return !this.isPortfolioDataset || this.portfolioReadiness?.isConsistent === true;
+  }
+
+  get portfolioRefreshKey(): string {
+    if (!this.job) return '';
+    return [this.job.id, this.job.processedAt, this.job.totalRows, this.job.draftAddedRows,
+      this.job.draftModifiedRows, this.job.draftRemovedRows].join(':');
+  }
+
+  focusReleaseWorkflow(): void {
+    if (this.job?.entityType === 1) {
+      setTimeout(() => document.getElementById('article-release-workflow')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      return;
+    }
+    document.getElementById('dependency-workflow')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   handleDependencyJobChanged(updated: ImportJob): void {
     this.job = updated;
     this.loadRows();
+  }
+
+  handleArticleReleaseCreated(): void {
+    if (!this.job) return;
+    this.importService.getJob(this.job.id).subscribe({
+      next: updated => {
+        this.job = updated;
+        this.portfolioReadiness = null;
+        this.loadRows();
+        this.loadComparison();
+        setTimeout(() => document.getElementById('dependency-workflow')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      },
+      error: () => this.snackBar.open('The release was created. Refresh the page to open it.', 'Close', { duration: 6000 })
+    });
   }
 
   get isSubmittedOwner(): boolean {
@@ -1952,7 +2009,8 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   submitForReview(): void {
-    if (!this.job || !this.isPrivateWorkspace || this.job.statusLabel !== 'AwaitingApproval' || this.job.errorRows > 0) {
+    if (!this.job || !this.isPrivateWorkspace || this.job.statusLabel !== 'AwaitingApproval'
+      || this.job.errorRows > 0 || !this.canSubmitProjectedState) {
       return;
     }
 
@@ -2017,7 +2075,7 @@ export class ImportPreviewComponent implements OnInit {
           this.hydratePublicationApproval(j);
           this.loadRemovedRows();
           this.loading = false;
-          this.loadDatasetRequirement(j.entityTypeLabel);
+          this.loadDatasetRequirement(j.entityType);
           if (j.statusLabel === 'Approved' || j.statusLabel === 'Committed') {
             this.loadApprovalSnapshot();
           }
@@ -2038,6 +2096,7 @@ export class ImportPreviewComponent implements OnInit {
     this.datasetRequirement = null;
     this.comparison = null;
     this.approvalSnapshot = null;
+    this.portfolioReadiness = null;
     this.approvalSnapshotLoading = false;
     this.publicationApproval = null;
     this.rows = null;
@@ -2079,8 +2138,8 @@ export class ImportPreviewComponent implements OnInit {
     });
   }
 
-  private loadDatasetRequirement(entityTypeLabel: string): void {
-    this.importService.getDatasetRequirement(entityTypeLabel).subscribe({
+  private loadDatasetRequirement(entityType: number): void {
+    this.importService.getDatasetRequirement(entityType).subscribe({
       next: req => {
         this.datasetRequirement = req;
       },

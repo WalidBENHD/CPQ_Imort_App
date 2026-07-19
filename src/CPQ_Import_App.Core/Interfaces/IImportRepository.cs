@@ -14,6 +14,7 @@ public interface IImportRepository
         AuditLog auditLog,
         CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default);
+    Task<ImportJob?> GetJobSummaryAsync(Guid id, CancellationToken ct = default);
     Task<bool> IsUploadNameInUseAsync(string fileName, Guid? excludingJobId = null, CancellationToken ct = default);
     Task<bool> IsReleaseNameInUseAsync(string name, Guid? excludingPackageId = null, CancellationToken ct = default);
     Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(
@@ -35,7 +36,9 @@ public interface IImportRepository
     Task<ImportJob?> GetLatestCommittedJobAsync(EntityType entityType, CancellationToken ct = default);
     Task<IReadOnlyList<ImportJob>> GetOwnedPrivateJobsAsync(string userId, EntityType? entityType = null, CancellationToken ct = default);
     Task<IReadOnlyList<ImportJob>> GetArticleMasterCandidatesAsync(string userId, CancellationToken ct = default);
+    Task<IReadOnlyList<ImportJob>> GetPriceListCandidatesAsync(string userId, CancellationToken ct = default);
     Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default);
+    Task<ReleasePackage?> GetReleasePackageSummaryAsync(Guid packageId, CancellationToken ct = default);
     Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default);
     Task DeleteReleasePackageAsync(ReleasePackage package, CancellationToken ct = default);
     Task<byte[]?> GetUploadedFileAsync(Guid jobId, CancellationToken ct = default);

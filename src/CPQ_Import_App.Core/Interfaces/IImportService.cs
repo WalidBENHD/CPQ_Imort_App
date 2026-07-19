@@ -18,9 +18,12 @@ public interface IImportService
         Guid jobId, int page, int pageSize, string? search = null, RowStatus? filterStatus = null, ComparisonStatus? comparisonStatus = null, CancellationToken ct = default);
     Task<ImportJob> RefreshValidationAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<DependencyContext> GetDependencyContextAsync(Guid jobId, string userId, CancellationToken ct = default);
+    Task<PortfolioReadiness> GetPortfolioReadinessAsync(Guid jobId, string userId, CancellationToken ct = default);
+    Task<IReadOnlyList<PriceListCandidateSummary>> GetPriceListCandidatesAsync(Guid articleJobId, string userId, CancellationToken ct = default);
     Task<DependencyImpact> PreviewDependencyAnchorAsync(Guid jobId, Guid articleMasterJobId, string userId, CancellationToken ct = default);
     Task<ImportJob> ApplyDependencyAnchorAsync(Guid jobId, Guid articleMasterJobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> CreateReleasePackageAsync(Guid jobId, Guid articleMasterJobId, string name, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ReleasePackageSummary> CreateReleasePackageFromArticleAsync(Guid articleJobId, Guid priceListJobId, string name, string userId, string userDisplayName, CancellationToken ct = default);
     Task DissolveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> GetReleasePackageAsync(Guid packageId, string userId, bool canReview, CancellationToken ct = default);
     Task<ReleasePackageSummary> SubmitReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);

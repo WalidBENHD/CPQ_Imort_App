@@ -5,11 +5,125 @@ using CPQ_Import_App.Infrastructure.Data;
 using CPQ_Import_App.Core.Metadata;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using System.Linq.Expressions;
 
 namespace CPQ_Import_App.Infrastructure.Repositories;
 
 public class ImportRepository(AppDbContext db) : IImportRepository
 {
+    private sealed class JobSummaryRow
+    {
+        public Guid Id { get; init; }
+        public string FileName { get; init; } = string.Empty;
+        public string OriginalFileName { get; init; } = string.Empty;
+        public EntityType EntityType { get; init; }
+        public ImportStatus Status { get; init; }
+        public ImportWorkflowStage WorkflowStage { get; init; }
+        public DateTime? SubmittedAt { get; init; }
+        public string? SubmittedByUserId { get; init; }
+        public string? SubmittedByDisplayName { get; init; }
+        public DateTime? WithdrawnAt { get; init; }
+        public string CreatedBy { get; init; } = string.Empty;
+        public string CreatedByDisplayName { get; init; } = string.Empty;
+        public DateTime CreatedAt { get; init; }
+        public DateTime? ProcessedAt { get; init; }
+        public DateTime? CommittedAt { get; init; }
+        public string? CommittedBy { get; init; }
+        public string? RejectedBy { get; init; }
+        public DateTime? RejectedAt { get; init; }
+        public string? RejectionReason { get; init; }
+        public int TotalRows { get; init; }
+        public int ValidRows { get; init; }
+        public int WarningRows { get; init; }
+        public int ErrorRows { get; init; }
+        public int CommittedRows { get; init; }
+        public DateTime? ApprovedAt { get; init; }
+        public string? ApprovedByUserId { get; init; }
+        public string? ApprovedByDisplayName { get; init; }
+        public Guid? ValidationAnchorJobId { get; init; }
+        public ValidationAnchorKind ValidationAnchorKind { get; init; }
+        public DateTime? ValidationAnchorPinnedAt { get; init; }
+        public Guid? ReleasePackageId { get; init; }
+        public string? ReleasePackageName { get; init; }
+    }
+
+    private sealed class ReleasePackageSummaryRow
+    {
+        public Guid Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public ReleasePackageStatus Status { get; init; }
+        public string CreatedBy { get; init; } = string.Empty;
+        public string CreatedByDisplayName { get; init; } = string.Empty;
+        public DateTime CreatedAt { get; init; }
+        public DateTime? SubmittedAt { get; init; }
+        public string? SubmittedByDisplayName { get; init; }
+        public DateTime? ApprovedAt { get; init; }
+        public string? ApprovedByUserId { get; init; }
+        public string? ApprovedByDisplayName { get; init; }
+        public DateTime? RejectedAt { get; init; }
+        public string? RejectedByUserId { get; init; }
+        public string? RejectedByDisplayName { get; init; }
+        public string? RejectionReason { get; init; }
+        public DateTime? PublishedAt { get; init; }
+        public string? PublishedByDisplayName { get; init; }
+        public string? FailureReason { get; init; }
+        public List<ReleaseJobSummaryRow> Jobs { get; init; } = [];
+    }
+
+    private sealed class ReleaseJobSummaryRow
+    {
+        public Guid Id { get; init; }
+        public string OriginalFileName { get; init; } = string.Empty;
+        public EntityType EntityType { get; init; }
+        public ImportStatus Status { get; init; }
+        public ImportWorkflowStage WorkflowStage { get; init; }
+        public int TotalRows { get; init; }
+        public int ErrorRows { get; init; }
+        public Guid? ValidationAnchorJobId { get; init; }
+        public ValidationAnchorKind ValidationAnchorKind { get; init; }
+        public Guid? ReleasePackageId { get; init; }
+    }
+
+    private static readonly Expression<Func<ImportJob, JobSummaryRow>> JobSummaryProjection = job => new JobSummaryRow
+    {
+        Id = job.Id, FileName = job.FileName, OriginalFileName = job.OriginalFileName,
+        EntityType = job.EntityType, Status = job.Status, WorkflowStage = job.WorkflowStage,
+        SubmittedAt = job.SubmittedAt, SubmittedByUserId = job.SubmittedByUserId,
+        SubmittedByDisplayName = job.SubmittedByDisplayName, WithdrawnAt = job.WithdrawnAt,
+        CreatedBy = job.CreatedBy, CreatedByDisplayName = job.CreatedByDisplayName,
+        CreatedAt = job.CreatedAt, ProcessedAt = job.ProcessedAt, CommittedAt = job.CommittedAt,
+        CommittedBy = job.CommittedBy, RejectedBy = job.RejectedBy, RejectedAt = job.RejectedAt,
+        RejectionReason = job.RejectionReason, TotalRows = job.TotalRows, ValidRows = job.ValidRows,
+        WarningRows = job.WarningRows, ErrorRows = job.ErrorRows, CommittedRows = job.CommittedRows,
+        ApprovedAt = job.ApprovedAt, ApprovedByUserId = job.ApprovedByUserId,
+        ApprovedByDisplayName = job.ApprovedByDisplayName, ValidationAnchorJobId = job.ValidationAnchorJobId,
+        ValidationAnchorKind = job.ValidationAnchorKind, ValidationAnchorPinnedAt = job.ValidationAnchorPinnedAt,
+        ReleasePackageId = job.ReleasePackageId,
+        ReleasePackageName = job.ReleasePackage == null ? null : job.ReleasePackage.Name
+    };
+
+    private static ImportJob ToJobSummary(JobSummaryRow row) => new()
+    {
+        Id = row.Id, FileName = row.FileName, OriginalFileName = row.OriginalFileName,
+        EntityType = row.EntityType, Status = row.Status, WorkflowStage = row.WorkflowStage,
+        SubmittedAt = row.SubmittedAt, SubmittedByUserId = row.SubmittedByUserId,
+        SubmittedByDisplayName = row.SubmittedByDisplayName, WithdrawnAt = row.WithdrawnAt,
+        CreatedBy = row.CreatedBy, CreatedByDisplayName = row.CreatedByDisplayName,
+        CreatedAt = row.CreatedAt, ProcessedAt = row.ProcessedAt, CommittedAt = row.CommittedAt,
+        CommittedBy = row.CommittedBy, RejectedBy = row.RejectedBy, RejectedAt = row.RejectedAt,
+        RejectionReason = row.RejectionReason, TotalRows = row.TotalRows, ValidRows = row.ValidRows,
+        WarningRows = row.WarningRows, ErrorRows = row.ErrorRows, CommittedRows = row.CommittedRows,
+        ApprovedAt = row.ApprovedAt, ApprovedByUserId = row.ApprovedByUserId,
+        ApprovedByDisplayName = row.ApprovedByDisplayName, ValidationAnchorJobId = row.ValidationAnchorJobId,
+        ValidationAnchorKind = row.ValidationAnchorKind, ValidationAnchorPinnedAt = row.ValidationAnchorPinnedAt,
+        ReleasePackageId = row.ReleasePackageId,
+        ReleasePackage = row.ReleasePackageId.HasValue ? new ReleasePackage
+        {
+            Id = row.ReleasePackageId.Value,
+            Name = row.ReleasePackageName ?? string.Empty
+        } : null
+    };
+
     public async Task<ImportJob> CreateJobAsync(ImportJob job, CancellationToken ct = default)
     {
         db.ImportJobs.Add(job);
@@ -56,6 +170,21 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return job;
     }
 
+    public async Task<ImportJob?> GetJobSummaryAsync(Guid id, CancellationToken ct = default)
+    {
+        var row = await db.ImportJobs.AsNoTracking()
+            .Where(item => item.Id == id)
+            .Select(JobSummaryProjection)
+            .FirstOrDefaultAsync(ct);
+        var job = row is null ? null : ToJobSummary(row);
+        if (job is not null)
+        {
+            await MarkActiveBaselineAsync(job, ct);
+            await PopulateDraftCountsAsync([job], ct);
+        }
+        return job;
+    }
+
     public async Task<bool> IsUploadNameInUseAsync(
         string fileName,
         Guid? excludingJobId = null,
@@ -88,7 +217,6 @@ public class ImportRepository(AppDbContext db) : IImportRepository
     {
         IQueryable<ImportJob> query = db.ImportJobs
             .AsNoTracking()
-            .Include(j => j.ReleasePackage)
             .Where(j => j.WorkflowStage != ImportWorkflowStage.Private || j.CreatedBy == viewerUserId)
             .OrderByDescending(j => j.CreatedAt);
 
@@ -108,10 +236,12 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         }
 
         var total = await query.CountAsync(ct);
-        var items = await query
+        var rows = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(JobSummaryProjection)
             .ToListAsync(ct);
+        var items = rows.Select(ToJobSummary).ToList();
 
         await MarkActiveBaselinesAsync(items, ct);
         await PopulateDraftCountsAsync(items, ct);
@@ -378,12 +508,16 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    public Task<ImportJob?> GetLatestCommittedJobAsync(EntityType entityType, CancellationToken ct = default)
-        => db.ImportJobs.AsNoTracking()
+    public async Task<ImportJob?> GetLatestCommittedJobAsync(EntityType entityType, CancellationToken ct = default)
+    {
+        var row = await db.ImportJobs.AsNoTracking()
             .Where(job => job.EntityType == entityType && job.Status == ImportStatus.Committed)
             .OrderByDescending(job => job.CommittedAt)
             .ThenByDescending(job => job.CreatedAt)
+            .Select(JobSummaryProjection)
             .FirstOrDefaultAsync(ct);
+        return row is null ? null : ToJobSummary(row);
+    }
 
     public async Task<IReadOnlyList<ImportJob>> GetOwnedPrivateJobsAsync(
         string userId,
@@ -397,13 +531,15 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             query = query.Where(job => job.EntityType == entityType.Value);
         }
 
-        return await query.OrderByDescending(job => job.CreatedAt).ToListAsync(ct);
+        return (await query.OrderByDescending(job => job.CreatedAt)
+            .Select(JobSummaryProjection)
+            .ToListAsync(ct)).Select(ToJobSummary).ToList();
     }
 
     public async Task<IReadOnlyList<ImportJob>> GetArticleMasterCandidatesAsync(
         string userId,
         CancellationToken ct = default)
-        => await db.ImportJobs.AsNoTracking()
+        => (await db.ImportJobs.AsNoTracking()
             .Where(job => job.EntityType == EntityType.Article
                 && ((job.WorkflowStage == ImportWorkflowStage.Private && job.CreatedBy == userId)
                     || job.WorkflowStage == ImportWorkflowStage.Submitted
@@ -412,11 +548,105 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .OrderByDescending(job => job.WorkflowStage == ImportWorkflowStage.Published)
             .ThenByDescending(job => job.CommittedAt)
             .ThenByDescending(job => job.CreatedAt)
-            .ToListAsync(ct);
+            .Select(JobSummaryProjection)
+            .ToListAsync(ct)).Select(ToJobSummary).ToList();
+
+    public async Task<IReadOnlyList<ImportJob>> GetPriceListCandidatesAsync(
+        string userId,
+        CancellationToken ct = default)
+        => (await db.ImportJobs.AsNoTracking()
+            .Where(job => job.EntityType == EntityType.PriceList
+                && ((job.WorkflowStage == ImportWorkflowStage.Private && job.CreatedBy == userId)
+                    || job.WorkflowStage == ImportWorkflowStage.Submitted
+                    || job.WorkflowStage == ImportWorkflowStage.Approved
+                    || job.WorkflowStage == ImportWorkflowStage.Published))
+            .OrderByDescending(job => job.WorkflowStage == ImportWorkflowStage.Published)
+            .ThenByDescending(job => job.CommittedAt)
+            .ThenByDescending(job => job.CreatedAt)
+            .Select(JobSummaryProjection)
+            .ToListAsync(ct)).Select(ToJobSummary).ToList();
 
     public Task<ReleasePackage?> GetReleasePackageAsync(Guid packageId, CancellationToken ct = default)
         => db.ReleasePackages.Include(package => package.Jobs)
             .FirstOrDefaultAsync(package => package.Id == packageId, ct);
+
+    public async Task<ReleasePackage?> GetReleasePackageSummaryAsync(
+        Guid packageId,
+        CancellationToken ct = default)
+    {
+        var row = await db.ReleasePackages.AsNoTracking()
+            .Where(package => package.Id == packageId)
+            .Select(package => new ReleasePackageSummaryRow
+            {
+                Id = package.Id,
+                Name = package.Name,
+                Status = package.Status,
+                CreatedBy = package.CreatedBy,
+                CreatedByDisplayName = package.CreatedByDisplayName,
+                CreatedAt = package.CreatedAt,
+                SubmittedAt = package.SubmittedAt,
+                SubmittedByDisplayName = package.SubmittedByDisplayName,
+                ApprovedAt = package.ApprovedAt,
+                ApprovedByUserId = package.ApprovedByUserId,
+                ApprovedByDisplayName = package.ApprovedByDisplayName,
+                RejectedAt = package.RejectedAt,
+                RejectedByUserId = package.RejectedByUserId,
+                RejectedByDisplayName = package.RejectedByDisplayName,
+                RejectionReason = package.RejectionReason,
+                PublishedAt = package.PublishedAt,
+                PublishedByDisplayName = package.PublishedByDisplayName,
+                FailureReason = package.FailureReason,
+                Jobs = package.Jobs.Select(job => new ReleaseJobSummaryRow
+                {
+                    Id = job.Id,
+                    OriginalFileName = job.OriginalFileName,
+                    EntityType = job.EntityType,
+                    Status = job.Status,
+                    WorkflowStage = job.WorkflowStage,
+                    TotalRows = job.TotalRows,
+                    ErrorRows = job.ErrorRows,
+                    ValidationAnchorJobId = job.ValidationAnchorJobId,
+                    ValidationAnchorKind = job.ValidationAnchorKind,
+                    ReleasePackageId = job.ReleasePackageId
+                }).ToList()
+            })
+            .FirstOrDefaultAsync(ct);
+
+        return row is null ? null : new ReleasePackage
+        {
+            Id = row.Id,
+            Name = row.Name,
+            Status = row.Status,
+            CreatedBy = row.CreatedBy,
+            CreatedByDisplayName = row.CreatedByDisplayName,
+            CreatedAt = row.CreatedAt,
+            SubmittedAt = row.SubmittedAt,
+            SubmittedByDisplayName = row.SubmittedByDisplayName,
+            ApprovedAt = row.ApprovedAt,
+            ApprovedByUserId = row.ApprovedByUserId,
+            ApprovedByDisplayName = row.ApprovedByDisplayName,
+            RejectedAt = row.RejectedAt,
+            RejectedByUserId = row.RejectedByUserId,
+            RejectedByDisplayName = row.RejectedByDisplayName,
+            RejectionReason = row.RejectionReason,
+            PublishedAt = row.PublishedAt,
+            PublishedByDisplayName = row.PublishedByDisplayName,
+            FailureReason = row.FailureReason,
+            Jobs = row.Jobs.Select(job => new ImportJob
+            {
+                Id = job.Id,
+                OriginalFileName = job.OriginalFileName,
+                EntityType = job.EntityType,
+                Status = job.Status,
+                WorkflowStage = job.WorkflowStage,
+                TotalRows = job.TotalRows,
+                ErrorRows = job.ErrorRows,
+                ValidationAnchorJobId = job.ValidationAnchorJobId,
+                ValidationAnchorKind = job.ValidationAnchorKind,
+                ReleasePackageId = job.ReleasePackageId
+            }).ToList()
+        };
+    }
 
     public async Task AddReleasePackageAsync(ReleasePackage package, CancellationToken ct = default)
     {
@@ -442,6 +672,7 @@ public class ImportRepository(AppDbContext db) : IImportRepository
             .Where(j => j.Status == ImportStatus.Committed)
             .OrderByDescending(j => j.CommittedAt)
             .ThenByDescending(j => j.CreatedAt)
+            .Select(j => new { j.Id, j.EntityType })
             .ToListAsync(ct);
 
         var activeIds = activeCommittedJobs
