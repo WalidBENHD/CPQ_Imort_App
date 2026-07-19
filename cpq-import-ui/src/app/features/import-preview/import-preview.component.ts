@@ -29,7 +29,7 @@ import { PublicationConfirmDialogComponent } from './publication-confirm-dialog.
 import { debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DraftEditorMode, DraftRowEditorComponent } from './draft-row-editor.component';
-import { DependencyContextPrototypeComponent } from './dependency-context-prototype.component';
+import { DependencyContextPrototypeComponent } from './dependency-context.component';
 import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
 import { PortfolioReadinessComponent } from './portfolio-readiness.component';
 import { ArticleReleaseBuilderComponent } from './article-release-builder.component';
