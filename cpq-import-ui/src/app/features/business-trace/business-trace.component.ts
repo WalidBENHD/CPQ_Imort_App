@@ -4,7 +4,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { BusinessTraceActor, BusinessTraceEvent, BusinessTraceField, BusinessTraceResult, BusinessTraceSuggestion, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
@@ -442,6 +442,7 @@ type TraceObjectType = 'Article' | 'Basis price';
 })
 export class BusinessTraceComponent implements OnInit {
   private readonly importService = inject(ImportService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly pilotScope = PILOT_SCOPE;
   readonly scopeKey = 'saint-marcellin-pdu';
@@ -456,6 +457,14 @@ export class BusinessTraceComponent implements OnInit {
   filter: TraceFilter = 'all';
 
   ngOnInit(): void {
+    const identifier = this.route.snapshot.queryParamMap.get('identifier')?.trim();
+    if (identifier) {
+      this.query = identifier;
+      this.loadSuggestions(false);
+      this.search();
+      return;
+    }
+
     this.loadSuggestions(true);
   }
 

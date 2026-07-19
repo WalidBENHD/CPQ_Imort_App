@@ -1,5 +1,6 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -22,6 +23,7 @@ type UploadSpace = 'workspace' | 'review' | 'history';
   imports: [
     CommonModule,
     DatePipe,
+    FormsModule,
     MatButtonModule,
     MatCardModule,
     MatIconModule,
@@ -44,6 +46,7 @@ export class DashboardComponent implements OnInit {
   jobs: ImportJob[] = [];
   users: AuthUser[] = [];
   loading = false;
+  traceQuery = '';
 
   ngOnInit(): void {
     this.load();
@@ -94,6 +97,59 @@ export class DashboardComponent implements OnInit {
 
   get latestPublished(): ImportJob | null {
     return this.historyJobs.find(job => job.statusLabel === 'Committed') ?? null;
+  }
+
+  get activeMaster(): ImportJob | null {
+    return this.activeDataset('Article Master');
+  }
+
+  get activePriceList(): ImportJob | null {
+    return this.activeDataset('Basis Price');
+  }
+
+  get portfolioIsReady(): boolean {
+    const master = this.activeMaster;
+    const prices = this.activePriceList;
+    return !!master && !!prices && master.committedRows === prices.committedRows && master.errorRows === 0 && prices.errorRows === 0;
+  }
+
+  get portfolioStatus(): string {
+    if (!this.activeMaster && !this.activePriceList) return 'Portfolio not published';
+    if (!this.activeMaster || !this.activePriceList) return 'Portfolio incomplete';
+    return this.portfolioIsReady ? 'Portfolio aligned' : 'Portfolio attention required';
+  }
+
+  get portfolioStatusCopy(): string {
+    if (!this.activeMaster && !this.activePriceList) return 'Publish the first coordinated datasets to establish the governed portfolio.';
+    if (!this.activeMaster) return 'A published Basis Price exists without an active Article Master.';
+    if (!this.activePriceList) return 'An active Article Master exists without a published Basis Price.';
+    if (!this.portfolioIsReady) return `${this.activeMaster.committedRows} active articles and ${this.activePriceList.committedRows} priced articles need reconciliation.`;
+    return `${this.activeMaster.committedRows} active articles are covered by ${this.activePriceList.committedRows} governed price records.`;
+  }
+
+  get activeReleaseName(): string {
+    const master = this.activeMaster;
+    const prices = this.activePriceList;
+    if (master?.releasePackageId && master.releasePackageId === prices?.releasePackageId) {
+      return master.releasePackageName || 'Coordinated release';
+    }
+    return 'Governed active versions';
+  }
+
+  get latestPortfolioPublication(): string | null {
+    const dates = [this.activeMaster?.committedAt, this.activePriceList?.committedAt]
+      .filter((value): value is string => !!value)
+      .sort((left, right) => this.toTime(right) - this.toTime(left));
+    return dates[0] ?? null;
+  }
+
+  get publishedThisMonth(): number {
+    const now = new Date();
+    return this.historyJobs.filter(job => {
+      if (job.statusLabel !== 'Committed' || !job.committedAt) return false;
+      const date = new Date(job.committedAt);
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    }).length;
   }
 
   get activityJobs(): ImportJob[] {
@@ -175,6 +231,15 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/internal-tools/evolis-decryptor'], { queryParams: { history: 'all' }, fragment: 'decryption-history' });
   }
 
+  openBusinessTrace(): void {
+    const identifier = this.traceQuery.trim();
+    this.router.navigate(['/business-trace'], { queryParams: identifier ? { identifier } : undefined });
+  }
+
+  openActiveDataset(job: ImportJob | null): void {
+    if (job) this.view(job);
+  }
+
   privateStatus(job: ImportJob): string {
     if (job.statusLabel === 'AwaitingApproval') return 'Ready to submit';
     if (job.statusLabel === 'Processing') return 'Validating';
@@ -251,6 +316,11 @@ export class DashboardComponent implements OnInit {
 
   private isShared(job: ImportJob): boolean {
     return job.workflowStageLabel === 'Submitted' || job.workflowStageLabel === 'Approved';
+  }
+
+  private activeDataset(entityTypeLabel: string): ImportJob | null {
+    const published = this.historyJobs.filter(job => job.statusLabel === 'Committed' && job.entityTypeLabel === entityTypeLabel);
+    return published.find(job => job.isActiveBaseline) ?? published[0] ?? null;
   }
 
   private loadAdminUsers(): void {

@@ -1,130 +1,183 @@
-<div class="dashboard-shell">
-  <header class="page-header">
-    <div>
-      <div class="eyebrow">Your operational day</div>
-      <h1>Good to see you, {{ userFirstName }}</h1>
-      <p>Private preparation, team decisions and CPQ publication in one focused view.</p>
-    </div>
-    <button *ngIf="auth.hasCapability('imports.upload')" mat-raised-button color="primary" (click)="newImport()">
-      <mat-icon>add</mat-icon> Start private upload
-    </button>
-  </header>
-
-  <mat-card class="scope-strip">
-    <div><span>Pilot scope</span><strong>{{ pilotScope.site }} &middot; {{ pilotScope.productFamily }}</strong><small>{{ pilotScope.submissionType }}</small></div>
-    <div class="scope-chips"><span *ngFor="let chip of pilotChips">{{ chip }}</span></div>
-  </mat-card>
-
+<div class="control-tower">
   <ng-container *ngIf="!loading; else loadingState">
-    <section class="metric-grid" [class.metric-grid--admin]="showEvolisAdminMetric">
-      <button class="metric metric--private" type="button" (click)="openSpace('workspace')">
-        <span class="metric-icon"><mat-icon>lock_person</mat-icon></span>
-        <span class="metric-copy"><small>Only visible to you</small><strong>My drafts</strong></span>
-        <b>{{ privateJobs.length }}</b>
-        <span class="metric-detail">{{ readyToSubmit.length }} ready &middot; {{ privateCorrections.length }} need correction</span>
-      </button>
+    <section class="portfolio-hero" [class.portfolio-hero--attention]="!portfolioIsReady">
+      <div class="portfolio-hero__copy">
+        <span class="eyebrow"><mat-icon>shield</mat-icon> CPQ portfolio control tower</span>
+        <p class="welcome">Good to see you, {{ userFirstName }}</p>
+        <h1>Your portfolio is <span>{{ portfolioIsReady ? 'ready for business.' : 'asking for attention.' }}</span></h1>
+        <p class="hero-summary">{{ portfolioStatusCopy }}</p>
 
-      <button class="metric metric--attention" type="button" (click)="openAttention()">
-        <span class="metric-icon"><mat-icon>notifications_active</mat-icon></span>
-        <span class="metric-copy"><small>Personal priority</small><strong>Needs my attention</strong></span>
-        <b>{{ needsMyAttentionCount }}</b>
-        <span class="metric-detail">Based on your access capabilities</span>
-      </button>
+        <div class="hero-actions">
+          <button mat-raised-button color="primary" (click)="openAttention()">
+            <mat-icon>{{ attentionIcon }}</mat-icon>
+            {{ needsMyAttentionCount || readyToSubmit.length ? 'Open next action' : 'Open my workspace' }}
+          </button>
+          <button *ngIf="auth.hasCapability('imports.upload')" mat-stroked-button (click)="newImport()">
+            <mat-icon>add</mat-icon> Start an update
+          </button>
+        </div>
+      </div>
 
-      <button class="metric metric--review" type="button" (click)="openSpace('review')">
-        <span class="metric-icon"><mat-icon>groups</mat-icon></span>
-        <span class="metric-copy"><small>Shared workflow</small><strong>Team review</strong></span>
-        <b>{{ awaitingApproval.length }}</b>
-        <span class="metric-detail">Formally submitted for approval</span>
-      </button>
+      <aside class="portfolio-state">
+        <div class="portfolio-state__head">
+          <span><i></i> Active pilot scope</span>
+          <mat-icon>verified_user</mat-icon>
+        </div>
+        <strong>{{ pilotScope.site }}</strong>
+        <p>{{ pilotScope.productFamily }} &middot; {{ pilotScope.category }} &middot; {{ pilotScope.currency }}</p>
+        <div class="portfolio-state__status" [class.portfolio-state__status--attention]="!portfolioIsReady">
+          <mat-icon>{{ portfolioIsReady ? 'task_alt' : 'warning_amber' }}</mat-icon>
+          <span><strong>{{ portfolioStatus }}</strong><small>{{ activeReleaseName }}</small></span>
+        </div>
+        <small *ngIf="latestPortfolioPublication">Last portfolio publication {{ latestPortfolioPublication | date:'dd MMM yyyy, HH:mm' }}</small>
+      </aside>
+    </section>
 
-      <button class="metric metric--published" type="button" (click)="openSpace('history')">
-        <span class="metric-icon"><mat-icon>verified</mat-icon></span>
-        <span class="metric-copy"><small>Governed evidence</small><strong>Published today</strong></span>
-        <b>{{ overview?.summary?.committedToday ?? 0 }}</b>
-        <span class="metric-detail">Publication records retained</span>
-      </button>
+    <section class="portfolio-map" aria-label="Connected active portfolio">
+      <header>
+        <div>
+          <span class="section-kicker">Connected portfolio</span>
+          <h2>One commercial truth, built from governed datasets</h2>
+          <p>The active master and prices must remain aligned before the next publication.</p>
+        </div>
+        <span class="alignment-badge" [class.alignment-badge--attention]="!portfolioIsReady">
+          <mat-icon>{{ portfolioIsReady ? 'link' : 'link_off' }}</mat-icon>{{ portfolioIsReady ? 'Coverage aligned' : 'Check coverage' }}
+        </span>
+      </header>
 
-      <button *ngIf="showEvolisAdminMetric" class="metric metric--evolis" type="button" (click)="openEvolisHistory()">
-        <span class="metric-icon"><mat-icon>enhanced_encryption</mat-icon></span>
-        <span class="metric-copy"><small>Admin visibility</small><strong>Evolis decryptions</strong></span>
-        <b>{{ overview?.evolisMetrics?.total ?? 0 }}</b>
-        <span class="metric-detail">{{ overview?.evolisMetrics?.thisMonth ?? 0 }} this month &middot; {{ overview?.evolisMetrics?.failedThisMonth ?? 0 }} failed</span>
+      <div class="dataset-link">
+        <button type="button" class="dataset-node" [disabled]="!activeMaster" (click)="openActiveDataset(activeMaster)">
+          <span class="dataset-node__icon"><mat-icon>inventory_2</mat-icon></span>
+          <span class="dataset-node__copy"><small>Active Article Master</small><strong>{{ activeMaster?.originalFileName || 'Not published yet' }}</strong><em>{{ activeMaster?.committedRows || 0 }} governed articles</em></span>
+          <mat-icon class="dataset-node__open">open_in_new</mat-icon>
+        </button>
+
+        <div class="dataset-connector" [class.dataset-connector--attention]="!portfolioIsReady">
+          <span>{{ activeMaster?.committedRows || 0 }}/{{ activePriceList?.committedRows || 0 }}</span>
+          <i></i>
+          <small>article coverage</small>
+        </div>
+
+        <button type="button" class="dataset-node dataset-node--price" [disabled]="!activePriceList" (click)="openActiveDataset(activePriceList)">
+          <span class="dataset-node__icon"><mat-icon>payments</mat-icon></span>
+          <span class="dataset-node__copy"><small>Active Basis Price</small><strong>{{ activePriceList?.originalFileName || 'Not published yet' }}</strong><em>{{ activePriceList?.committedRows || 0 }} governed prices</em></span>
+          <mat-icon class="dataset-node__open">open_in_new</mat-icon>
+        </button>
+      </div>
+    </section>
+
+    <section class="priority-band" [class.priority-band--clear]="needsMyAttentionCount === 0 && readyToSubmit.length === 0">
+      <span class="priority-band__icon"><mat-icon>{{ attentionIcon }}</mat-icon></span>
+      <div class="priority-band__copy">
+        <span class="section-kicker">Your next best action</span>
+        <h2>{{ attentionTitle }}</h2>
+        <p>{{ attentionCopy }}</p>
+      </div>
+      <button mat-raised-button color="primary" (click)="openAttention()">
+        {{ needsMyAttentionCount || readyToSubmit.length ? 'Open next item' : 'View workspace' }}
+        <mat-icon>arrow_forward</mat-icon>
       </button>
     </section>
 
-    <mat-card class="attention-card" [class.attention-card--clear]="needsMyAttentionCount === 0 && readyToSubmit.length === 0">
-      <span class="attention-icon"><mat-icon>{{ attentionIcon }}</mat-icon></span>
-      <div><small>Your next best action</small><h2>{{ attentionTitle }}</h2><p>{{ attentionCopy }}</p></div>
-      <button mat-raised-button color="primary" (click)="openAttention()">
-        {{ needsMyAttentionCount || readyToSubmit.length ? 'Open next item' : 'Open my workspace' }}
-        <mat-icon>arrow_forward</mat-icon>
-      </button>
-    </mat-card>
+    <section class="pipeline-panel">
+      <header class="section-heading">
+        <div><span class="section-kicker">Publication pipeline</span><h2>From private work to governed evidence</h2></div>
+        <p>Each number opens the corresponding operating space.</p>
+      </header>
 
-    <div class="work-grid" [class.work-grid--admin]="showAdminInsights">
-      <mat-card class="panel private-panel">
-        <header class="panel-head">
-          <div><span class="panel-eyebrow"><mat-icon>lock</mat-icon> Private</span><h2>My recent work</h2><p>Experiment freely. These files stay invisible until you submit them.</p></div>
-          <button mat-button (click)="openSpace('workspace')">View workspace <mat-icon>arrow_forward</mat-icon></button>
+      <div class="pipeline">
+        <button type="button" (click)="openSpace('workspace')">
+          <span class="pipeline__icon pipeline__icon--private"><mat-icon>lock_person</mat-icon></span>
+          <span><small>Step 1</small><strong>Private preparation</strong><em>{{ privateCorrections.length }} need correction</em></span>
+          <b>{{ privateJobs.length }}</b>
+        </button>
+        <mat-icon class="pipeline__arrow">arrow_forward</mat-icon>
+        <button type="button" (click)="openSpace('review')">
+          <span class="pipeline__icon pipeline__icon--review"><mat-icon>fact_check</mat-icon></span>
+          <span><small>Step 2</small><strong>Team review</strong><em>Formal approval queue</em></span>
+          <b>{{ awaitingApproval.length }}</b>
+        </button>
+        <mat-icon class="pipeline__arrow">arrow_forward</mat-icon>
+        <button type="button" (click)="openSpace('review')">
+          <span class="pipeline__icon pipeline__icon--approved"><mat-icon>approval</mat-icon></span>
+          <span><small>Step 3</small><strong>Ready to publish</strong><em>Approval evidence preserved</em></span>
+          <b>{{ readyToPublish.length }}</b>
+        </button>
+        <mat-icon class="pipeline__arrow">arrow_forward</mat-icon>
+        <button type="button" (click)="openSpace('history')">
+          <span class="pipeline__icon pipeline__icon--published"><mat-icon>verified</mat-icon></span>
+          <span><small>Governed</small><strong>Published this month</strong><em>Retained as evidence</em></span>
+          <b>{{ publishedThisMonth }}</b>
+        </button>
+      </div>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="tower-panel workspace-panel">
+        <header class="panel-heading">
+          <div><span class="section-kicker"><mat-icon>lock</mat-icon> Only visible to you</span><h2>My working space</h2><p>Continue privately until your update is ready for formal review.</p></div>
+          <button mat-button (click)="openSpace('workspace')">View all <mat-icon>arrow_forward</mat-icon></button>
         </header>
 
-        <div class="job-list" *ngIf="privateJobs.length; else noPrivateWork">
-          <button type="button" class="job-row" *ngFor="let job of privateJobs | slice:0:3" (click)="view(job)">
-            <span class="job-icon"><mat-icon>description</mat-icon></span>
-            <span class="job-main"><strong>{{ job.originalFileName }}</strong><small>{{ job.entityTypeLabel }} &middot; {{ job.totalRows }} rows &middot; {{ job.createdAt | date:'dd MMM, HH:mm' }}</small></span>
-            <span class="private-status" [class.private-status--error]="job.errorRows > 0">{{ privateStatus(job) }}</span>
-            <mat-icon class="chevron">chevron_right</mat-icon>
+        <div class="workspace-list" *ngIf="privateJobs.length; else noPrivateWork">
+          <button type="button" *ngFor="let job of privateJobs | slice:0:3" (click)="view(job)">
+            <span class="row-icon"><mat-icon>{{ job.releasePackageId ? 'deployed_code' : 'description' }}</mat-icon></span>
+            <span class="row-main"><strong>{{ job.releasePackageName || job.originalFileName }}</strong><small>{{ job.entityTypeLabel }} &middot; {{ job.totalRows }} rows &middot; Edited {{ job.createdAt | date:'dd MMM, HH:mm' }}</small></span>
+            <span class="row-state" [class.row-state--error]="job.errorRows > 0">{{ job.errorRows > 0 ? job.errorRows + ' errors' : privateStatus(job) }}</span>
+            <mat-icon>chevron_right</mat-icon>
           </button>
         </div>
         <ng-template #noPrivateWork>
-          <div class="panel-empty"><mat-icon>note_add</mat-icon><strong>No private drafts</strong><span>Start an upload when you are ready to prepare the next update.</span></div>
+          <div class="panel-empty"><span><mat-icon>edit_note</mat-icon></span><strong>Your workspace is clear</strong><p>Start an update when you are ready to prepare the next governed version.</p><button *ngIf="auth.hasCapability('imports.upload')" mat-stroked-button (click)="newImport()">Start private upload</button></div>
         </ng-template>
-      </mat-card>
+      </section>
 
-      <mat-card class="panel shared-panel">
-        <header class="panel-head">
-          <div><span class="panel-eyebrow panel-eyebrow--shared"><mat-icon>visibility</mat-icon> Shared</span><h2>Team workflow</h2><p>Only deliberate submissions and governed decisions appear here.</p></div>
-          <button mat-button (click)="openSpace('review')">Open queue <mat-icon>arrow_forward</mat-icon></button>
-        </header>
+      <section class="trace-launcher">
+        <span class="trace-launcher__icon"><mat-icon>manage_search</mat-icon></span>
+        <span class="section-kicker">Business trace</span>
+        <h2>Need to verify a CPQ value?</h2>
+        <p>Find the current article or price and follow every approval and publication behind it.</p>
+        <label>
+          <mat-icon>search</mat-icon>
+          <input [(ngModel)]="traceQuery" (keyup.enter)="openBusinessTrace()" placeholder="Article identifier" aria-label="Article identifier to trace">
+          <button type="button" (click)="openBusinessTrace()" aria-label="Open business trace"><mat-icon>arrow_forward</mat-icon></button>
+        </label>
+        <small><mat-icon>lock</mat-icon> Search remains inside {{ pilotScope.site }} &middot; {{ pilotScope.productFamily }}</small>
+      </section>
 
-        <div class="gate-grid">
-          <button type="button" (click)="openSpace('review')"><span><mat-icon>approval</mat-icon><strong>Awaiting approval</strong></span><b>{{ awaitingApproval.length }}</b></button>
-          <button type="button" (click)="openSpace('review')"><span><mat-icon>rocket_launch</mat-icon><strong>Ready to publish</strong></span><b>{{ readyToPublish.length }}</b></button>
-        </div>
-
-        <div class="latest-publication" *ngIf="latestPublished as published; else noPublication">
-          <span class="published-icon"><mat-icon>verified</mat-icon></span>
-          <div><small>Latest publication</small><strong>{{ published.originalFileName }}</strong><span>{{ published.entityTypeLabel }} &middot; {{ published.committedRows }} rows</span></div>
-          <button mat-icon-button (click)="view(published)"><mat-icon>arrow_forward</mat-icon></button>
-        </div>
-        <ng-template #noPublication><div class="compact-empty">No publication record is available yet.</div></ng-template>
-      </mat-card>
-
-      <mat-card class="panel activity-panel">
-        <header class="panel-head">
-          <div><span class="panel-eyebrow panel-eyebrow--history"><mat-icon>history</mat-icon> Traceable</span><h2>Shared activity</h2><p>What entered the formal workflow, not every private experiment.</p></div>
-          <button mat-button (click)="openSpace('history')">View history <mat-icon>arrow_forward</mat-icon></button>
+      <section class="tower-panel activity-panel">
+        <header class="panel-heading">
+          <div><span class="section-kicker section-kicker--activity"><mat-icon>history</mat-icon> Governed activity</span><h2>What entered the formal workflow</h2><p>Private experiments stay private. Only decisions and publications appear here.</p></div>
+          <button mat-button (click)="openSpace('history')">Full history <mat-icon>arrow_forward</mat-icon></button>
         </header>
         <div class="activity-list" *ngIf="activityJobs.length; else noActivity">
           <button type="button" *ngFor="let job of activityJobs" (click)="view(job)">
-            <span class="activity-icon"><mat-icon>{{ activityIcon(job) }}</mat-icon></span>
+            <span class="activity-mark"><mat-icon>{{ activityIcon(job) }}</mat-icon></span>
             <span><strong>{{ activityLabel(job) }}</strong><small>{{ job.originalFileName }} &middot; {{ job.createdByDisplayName }}</small></span>
             <time>{{ job.committedAt || job.approvedAt || job.rejectedAt || job.createdAt | date:'dd MMM, HH:mm' }}</time>
+            <mat-icon>chevron_right</mat-icon>
           </button>
         </div>
-        <ng-template #noActivity><div class="compact-empty">Shared workflow activity will appear after a contributor submits a version.</div></ng-template>
-      </mat-card>
+        <ng-template #noActivity><div class="compact-empty">Formal workflow activity will appear after the first submission.</div></ng-template>
+      </section>
 
-      <mat-card class="panel people-panel" *ngIf="showAdminInsights">
-        <header class="panel-head"><div><span class="panel-eyebrow panel-eyebrow--admin"><mat-icon>monitoring</mat-icon> Admin pulse</span><h2>Platform presence</h2><p>{{ liveUsersCount }} live now &middot; {{ currentUsersCount }} approved users</p></div></header>
-        <div class="people-list">
-          <div *ngFor="let user of recentConnections"><span class="presence" [class]="'presence presence--' + getPresenceStatus(user)"></span><strong>{{ user.displayName }}</strong><small>{{ getPresenceLabel(user) }} &middot; {{ formatLastSeen(user) }}</small></div>
+      <section class="tower-panel admin-panel" *ngIf="showAdminInsights">
+        <header class="panel-heading">
+          <div><span class="section-kicker section-kicker--admin"><mat-icon>monitoring</mat-icon> Admin intelligence</span><h2>Platform pulse</h2><p>Operational signals kept secondary to the business workflow.</p></div>
+        </header>
+        <div class="admin-metrics">
+          <button type="button" (click)="openEvolisHistory()"><span><mat-icon>enhanced_encryption</mat-icon>Evolis decryptions</span><strong>{{ overview?.evolisMetrics?.total ?? 0 }}</strong><small>{{ overview?.evolisMetrics?.failedThisMonth ?? 0 }} failures this month</small></button>
+          <div><span><mat-icon>group</mat-icon>Approved users</span><strong>{{ currentUsersCount }}</strong><small>{{ liveUsersCount }} active now</small></div>
+          <div><span><mat-icon>schedule</mat-icon>Aging approvals</span><strong>{{ overview?.summary?.agingApprovals ?? 0 }}</strong><small>Waiting more than 24 hours</small></div>
         </div>
-      </mat-card>
+        <div class="people-strip">
+          <span *ngFor="let user of recentConnections"><i [class]="'presence presence--' + getPresenceStatus(user)"></i><strong>{{ user.displayName }}</strong><small>{{ formatLastSeen(user) }}</small></span>
+        </div>
+      </section>
     </div>
-
   </ng-container>
 
-  <ng-template #loadingState><mat-card class="loading-card"><mat-spinner diameter="34"></mat-spinner><span>Preparing your personalized dashboard...</span></mat-card></ng-template>
+  <ng-template #loadingState>
+    <section class="loading-card"><span><mat-spinner diameter="36"></mat-spinner></span><strong>Preparing your portfolio control tower</strong><small>Connecting active data, workflow priorities and governed evidence...</small></section>
+  </ng-template>
 </div>
