@@ -1849,19 +1849,26 @@ public class ImportService(
         var activePriceArticles = await GetArticlePriceContextAsync(articleJob, ct);
         var parser = GetParser(articleJob.EntityType);
         var rows = await repository.GetStagingRowsByJobAsync(articleJob.Id, ct);
-        var changed = false;
+        var originalState = rows
+            .Select(row => (row.Status, row.ValidationMessages))
+            .ToList();
         foreach (var row in rows)
         {
             var fields = DeserializeFields(row.RawData);
             var messages = parser.ValidateRow(fields);
             await ApplyCurrentBaselineValidationAsync(articleJob.EntityType, fields, messages, null, activePriceArticles, ct);
-            var validationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null;
-            var status = RowValidator.DeriveStatus(messages);
-            if (row.Status != status || !string.Equals(row.ValidationMessages, validationMessages, StringComparison.Ordinal))
-                changed = true;
-            row.ValidationMessages = validationMessages;
-            row.Status = status;
+            row.ValidationMessages = messages.Count > 0 ? JsonSerializer.Serialize(messages, JsonOpts) : null;
+            row.Status = RowValidator.DeriveStatus(messages);
         }
+
+        // Duplicate detection is cross-row, so it must run after per-row validation.
+        // Skipping it here previously wiped duplicate-article errors on every read.
+        ApplyDuplicateArticleValidation(rows);
+
+        var changed = rows
+            .Where((row, index) => row.Status != originalState[index].Status
+                || !string.Equals(row.ValidationMessages, originalState[index].ValidationMessages, StringComparison.Ordinal))
+            .Any();
 
         if (changed)
         {

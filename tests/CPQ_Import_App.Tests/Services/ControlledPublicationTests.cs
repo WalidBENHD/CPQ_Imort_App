@@ -280,6 +280,42 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task GetStagingRowsAsync_PreservesDuplicateArticleErrorsAfterReload()
+    {
+        var articleJob = CreateJob(ImportStatus.NeedsCorrection);
+        articleJob.TotalRows = 2;
+        articleJob.ErrorRows = 2;
+        var activePrice = CreatePriceJob();
+        activePrice.Status = ImportStatus.Committed;
+        activePrice.WorkflowStage = ImportWorkflowStage.Published;
+        activePrice.CommittedAt = DateTime.UtcNow;
+
+        const string duplicateMessages =
+            "[{\"field\":\"ArticleNumber\",\"message\":\"ArticleNumber value 'A-1' is duplicated within the uploaded file.\",\"severity\":2}]";
+        var firstDuplicate = new StagingRow { ImportJobId = articleJob.Id, RowNumber = 2, Status = RowStatus.Error, RawData = ArticleRow("A-1"), ValidationMessages = duplicateMessages };
+        var secondDuplicate = new StagingRow { ImportJobId = articleJob.Id, RowNumber = 3, Status = RowStatus.Error, RawData = ArticleRow("A-1"), ValidationMessages = duplicateMessages };
+
+        var repository = new FakeImportRepository(articleJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(activePrice);
+        repository.Rows.AddRange([
+            firstDuplicate,
+            secondDuplicate,
+            PriceRow(activePrice.Id, 2, "A-1")
+        ]);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        // Filtering by errors reloads the rows, which re-runs article validation.
+        // Duplicate detection is cross-row and must survive the reload.
+        await service.GetStagingRowsAsync(articleJob.Id, 1, 50, filterStatus: RowStatus.Error);
+
+        Assert.Equal(RowStatus.Error, firstDuplicate.Status);
+        Assert.Equal(RowStatus.Error, secondDuplicate.Status);
+        Assert.Contains("is duplicated within the uploaded file", firstDuplicate.ValidationMessages);
+        Assert.Contains("is duplicated within the uploaded file", secondDuplicate.ValidationMessages);
+        Assert.Equal(2, articleJob.ErrorRows);
+    }
+
+    [Fact]
     public async Task CreateReleasePackageAsync_CopiesPublishedMasterWithoutChangingSource()
     {
         var priceJob = CreatePriceJob();
