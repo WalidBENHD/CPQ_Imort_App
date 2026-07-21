@@ -113,3 +113,7 @@ public sealed record ReleasePackageItemSummary(
     int TotalRows,
     int ErrorRows,
     bool IsValidationAnchor);
+
+public sealed record MaintenanceDraft(
+    IReadOnlyList<ImportJob> Jobs,
+    ReleasePackageSummary? ReleasePackage);

@@ -30,6 +30,40 @@ public class ImportsController(
         ?? User.FindFirstValue(ClaimTypes.Name)
         ?? UserId;
 
+    /// <summary>Create an HMI maintenance candidate using the same governed workflow as an uploaded list.</summary>
+    [HttpPost("maintenance-drafts")]
+    [Authorize(Policy = Capabilities.UsersManage)]
+    [Authorize(Policy = Capabilities.ImportsUpload)]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    [Authorize(Policy = Capabilities.ImportsSubmit)]
+    public async Task<ActionResult<MaintenanceDraftDto>> CreateMaintenanceDraft(
+        [FromBody] CreateMaintenanceDraftRequest request,
+        CancellationToken ct)
+    {
+        if (!Enum.TryParse<EntityType>(request.EntityType, true, out var entityType)
+            || entityType == EntityType.Unknown
+            || !DatasetCatalog.IsSupported(entityType))
+            return BadRequest(new { error = $"Invalid dataset '{request.EntityType}'. Valid datasets: {DatasetCatalog.GetValidDatasetList()}." });
+
+        try
+        {
+            var draft = await importService.CreateMaintenanceDraftAsync(entityType, request.Name, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "CreateMaintenanceDraft",
+                $"Created HMI maintenance draft '{request.Name}' for {DatasetCatalog.Get(entityType).DisplayName}.",
+                TargetType: draft.ReleasePackage is null ? "ImportJob" : "ReleasePackage",
+                TargetId: draft.ReleasePackage?.Id.ToString() ?? draft.Jobs[0].Id.ToString(),
+                StatusCode: StatusCodes.Status201Created,
+                Metadata: new { entityType, JobIds = draft.Jobs.Select(job => job.Id), ReleasePackageId = draft.ReleasePackage?.Id }), ct);
+            return StatusCode(StatusCodes.Status201Created, new MaintenanceDraftDto(
+                draft.Jobs.Select(job => job.ToDto()).ToList(),
+                draft.ReleasePackage?.ToDto()));
+        }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     /// <summary>Upload a file and create an import job.</summary>
     [HttpPost("upload")]
     [Authorize(Policy = Capabilities.ImportsUpload)]

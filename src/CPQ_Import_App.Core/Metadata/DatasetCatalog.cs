@@ -97,6 +97,27 @@ public static class DatasetCatalog
                 new DatasetValidationRule("ShortDescription", "Required and max length 255 characters."),
                 new DatasetValidationRule("LongDescription", "Optional and max length 4000 characters.", "Warning")
             ]),
+        [EntityType.CurrencyRate] = new(
+            EntityType.CurrencyRate,
+            "Financial Rates",
+            "Saint-Marcellin PDU Finance Owner",
+            "Financial Rates Template",
+            "Active",
+            "v1.0",
+            "Governed currency conversion rates used by CPQ calculations.",
+            "Financial_Rates",
+            [
+                new DatasetColumnRequirement("FromCurrency", true, "Text", "Source ISO 4217 currency code.", "EUR"),
+                new DatasetColumnRequirement("ToCurrency", true, "Text", "Target ISO 4217 currency code.", "USD"),
+                new DatasetColumnRequirement("Rate", true, "Decimal", "Strictly positive conversion rate.", "1.08"),
+                new DatasetColumnRequirement("ValidFrom", true, "Date", "Rate validity start date.", "2026-01-01")
+            ],
+            [
+                new DatasetValidationRule("FromCurrency", "Required and must be a 3-letter ISO 4217 code."),
+                new DatasetValidationRule("ToCurrency", "Required and must be a 3-letter ISO 4217 code."),
+                new DatasetValidationRule("Rate", "Required, must be a valid decimal, and must be greater than zero."),
+                new DatasetValidationRule("ValidFrom", "Required and must be a valid date.")
+            ]),
     };
 
     public static IReadOnlyList<DatasetDefinition> All =>

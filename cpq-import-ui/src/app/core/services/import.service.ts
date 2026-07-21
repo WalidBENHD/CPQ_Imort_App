@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  ApprovedComparisonSnapshot, BusinessTraceResult, BusinessTraceSuggestion, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
+  ApprovedComparisonSnapshot, BusinessTraceResult, BusinessTraceSuggestion, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, MaintenanceDraft, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -68,6 +68,10 @@ export class ImportService {
     return this.http.post<ImportJob>(`${this.base}/upload?entityType=${entityType}`, form).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
     );
+  }
+
+  createMaintenanceDraft(entityType: EntityType, name: string): Observable<MaintenanceDraft> {
+    return this.http.post<MaintenanceDraft>(`${this.base}/maintenance-drafts`, { entityType, name });
   }
 
   approve(jobId: string): Observable<ImportJob> {

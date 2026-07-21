@@ -1,8 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { Router } from '@angular/router';
+import { Observable, concatMap, finalize, from, map, switchMap, throwError, toArray } from 'rxjs';
+import { ImportJob, MaintenanceDraft, StagingRow } from '../../core/models/import.models';
+import { ImportService } from '../../core/services/import.service';
+import { ToastService } from '../../core/services/toast.service';
 
 type DatasetKey = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
 type ChangeAction = 'Add' | 'Modify' | 'Deactivate';
@@ -38,6 +43,7 @@ interface DraftChange {
   dataset: DatasetKey;
   datasetName: string;
   recordKey: string;
+  identity: string;
   label: string;
   action: ChangeAction;
   values: Record<string, string>;
@@ -93,29 +99,15 @@ const DATASETS: DatasetDefinition[] = [
     name: 'Financial Rates',
     description: 'Currency conversion rates and effective periods',
     icon: 'currency_exchange',
-    keyField: 'CurrencyPair',
+    keyField: 'FromCurrency',
     keyLabel: 'Currency pair',
     fields: [
-      { key: 'CurrencyPair', label: 'Currency pair', required: true, hint: 'Example: EUR/CHF' },
+      { key: 'FromCurrency', label: 'From currency', required: true, hint: 'Three-letter ISO code' },
+      { key: 'ToCurrency', label: 'To currency', required: true, hint: 'Three-letter ISO code' },
       { key: 'Rate', label: 'Rate', type: 'number', required: true },
-      { key: 'ValidFrom', label: 'Valid from', type: 'date', required: true },
-      { key: 'ValidTo', label: 'Valid to', type: 'date' }
+      { key: 'ValidFrom', label: 'Valid from', type: 'date', required: true }
     ]
   }
-];
-
-const RECORDS: MaintenanceRecord[] = [
-  { id: 'a1', dataset: 'Article', status: 'Active', values: { ArticleNumber: 'PDU-10042', Name: 'PDU control module', Category: 'PDU', Unit: 'PC' } },
-  { id: 'a2', dataset: 'Article', status: 'Active', values: { ArticleNumber: 'PDU-10067', Name: 'Power distribution frame', Category: 'PDU', Unit: 'PC' } },
-  { id: 'a3', dataset: 'Article', status: 'Active', values: { ArticleNumber: 'ACC-22018', Name: 'DIN mounting kit', Category: 'Accessory', Unit: 'SET' } },
-  { id: 'a4', dataset: 'Article', status: 'Inactive', values: { ArticleNumber: 'PDU-09014', Name: 'Legacy terminal block', Category: 'Spare part', Unit: 'PC' } },
-  { id: 'p1', dataset: 'PriceList', status: 'Active', values: { ArticleNumber: 'PDU-10042', UnitPrice: '148.50', Currency: 'EUR', ValidFrom: '2026-01-01', ValidTo: '2026-12-31' } },
-  { id: 'p2', dataset: 'PriceList', status: 'Active', values: { ArticleNumber: 'PDU-10067', UnitPrice: '267.80', Currency: 'EUR', ValidFrom: '2026-01-01', ValidTo: '2026-12-31' } },
-  { id: 'p3', dataset: 'PriceList', status: 'Active', values: { ArticleNumber: 'ACC-22018', UnitPrice: '31.20', Currency: 'EUR', ValidFrom: '2026-01-01', ValidTo: '2026-12-31' } },
-  { id: 'd1', dataset: 'Description', status: 'Active', values: { ArticleNumber: 'PDU-10042', LanguageCode: 'FR', ShortDescription: 'Module de contrôle PDU', LongDescription: 'Module de contrôle pour unité de distribution de puissance.' } },
-  { id: 'd2', dataset: 'Description', status: 'Active', values: { ArticleNumber: 'PDU-10067', LanguageCode: 'EN', ShortDescription: 'Power distribution frame', LongDescription: 'Main frame for power distribution assembly.' } },
-  { id: 'r1', dataset: 'CurrencyRate', status: 'Active', values: { CurrencyPair: 'EUR/CHF', Rate: '0.9624', ValidFrom: '2026-01-01', ValidTo: '2026-12-31' } },
-  { id: 'r2', dataset: 'CurrencyRate', status: 'Active', values: { CurrencyPair: 'EUR/USD', Rate: '1.0872', ValidFrom: '2026-01-01', ValidTo: '2026-12-31' } }
 ];
 
 @Component({
@@ -146,7 +138,7 @@ const RECORDS: MaintenanceRecord[] = [
             <h2>A second way to prepare the same governed release</h2>
             <p>Individual maintenance and list uploads converge before validation. Roles, dependencies and evidence remain unchanged.</p>
           </div>
-          <span class="prototype-pill"><mat-icon>science</mat-icon> Admin UI prototype</span>
+          <span class="prototype-pill"><mat-icon>admin_panel_settings</mat-icon> Admin-only pilot</span>
         </header>
 
         <div class="maintenance-path">
@@ -160,8 +152,8 @@ const RECORDS: MaintenanceRecord[] = [
         </div>
 
         <div class="prototype-notice">
-          <mat-icon>visibility</mat-icon>
-          <div><strong>UI concept only</strong><span>No source data is changed and nothing can be submitted or published from this prototype.</span></div>
+          <mat-icon>verified_user</mat-icon>
+          <div><strong>Production governance is active</strong><span>Changes become private staging rows and use the same validation, approval and publication path as list uploads.</span></div>
         </div>
       </section>
 
@@ -199,7 +191,7 @@ const RECORDS: MaintenanceRecord[] = [
               <input [(ngModel)]="searchTerm" [placeholder]="'Search by ' + selectedDataset.keyLabel.toLowerCase() + ' or value'" />
               <button *ngIf="searchTerm" type="button" aria-label="Clear search" (click)="searchTerm = ''"><mat-icon>close</mat-icon></button>
             </label>
-            <span class="record-count">{{ filteredRecords.length }} records</span>
+            <span class="record-count">{{ loadingRecords ? 'Loading…' : filteredRecords.length + ' records' }}</span>
           </div>
 
           <div class="record-table" *ngIf="filteredRecords.length; else noRecords">
@@ -241,11 +233,11 @@ const RECORDS: MaintenanceRecord[] = [
 
           <div class="basket-validation" *ngIf="changes.length">
             <div><mat-icon>check_circle</mat-icon><span><strong>Ready for validation</strong><small>{{ changes.length }} staged change{{ changes.length === 1 ? '' : 's' }}</small></span></div>
-            <div><mat-icon>account_tree</mat-icon><span><strong>Dependencies included</strong><small>Article and price changes travel together</small></span></div>
+            <div><mat-icon>account_tree</mat-icon><span><strong>Dependencies enforced</strong><small>Article and price candidates are always paired</small></span></div>
           </div>
 
-          <button mat-flat-button type="button" class="review-button" [disabled]="!changes.length" (click)="showReview = true"><mat-icon>fact_check</mat-icon> Review draft release</button>
-          <p class="basket-caption">Prototype action — no data will be saved.</p>
+          <button mat-flat-button type="button" class="review-button" [disabled]="!changes.length" (click)="openReview()"><mat-icon>fact_check</mat-icon> Review draft release</button>
+          <p class="basket-caption">The draft remains private until you submit it from the governed preview.</p>
         </aside>
       </div>
     </section>
@@ -273,10 +265,9 @@ const RECORDS: MaintenanceRecord[] = [
           </label>
         </div>
 
-        <div class="dependency-alert" *ngIf="missingArticleDependency">
-          <mat-icon>link_off</mat-icon>
-          <div><strong>Article declaration required</strong><span>Article {{ editorValues['ArticleNumber'] }} does not exist in this scope. Its Article Master record must be included in the same release.</span></div>
-          <button mat-stroked-button type="button" (click)="includeRequiredArticle()"><mat-icon>add_link</mat-icon> Include article</button>
+        <div class="dependency-alert" *ngIf="counterpartWarning">
+          <mat-icon>account_tree</mat-icon>
+          <div><strong>Matching {{ counterpartWarning }} required</strong><span>{{ counterpartWarning }} data for {{ editorValues['ArticleNumber'] }} must be included in this same coordinated release before it can be submitted.</span></div>
         </div>
 
         <section class="rule-panel">
@@ -292,7 +283,7 @@ const RECORDS: MaintenanceRecord[] = [
 
       <footer class="drawer-footer">
         <button mat-button type="button" (click)="closeEditor()">Cancel</button>
-        <button mat-flat-button type="button" class="primary-action" [disabled]="!editorValid || missingArticleDependency" (click)="stageEditorChange()"><mat-icon>playlist_add</mat-icon> Add to change basket</button>
+        <button mat-flat-button type="button" class="primary-action" [disabled]="!editorValid" (click)="stageEditorChange()"><mat-icon>playlist_add</mat-icon> Add to change basket</button>
       </footer>
     </aside>
 
@@ -300,9 +291,10 @@ const RECORDS: MaintenanceRecord[] = [
       <section class="review-dialog" (click)="$event.stopPropagation()">
         <header><span class="review-icon"><mat-icon>fact_check</mat-icon></span><div><span class="section-kicker">Draft release review</span><h2>Changes are ready to validate</h2></div><button type="button" aria-label="Close review" (click)="showReview = false"><mat-icon>close</mat-icon></button></header>
         <div class="review-flow"><span class="active">1 <small>Prepare</small></span><i></i><span>2 <small>Validate</small></span><i></i><span>3 <small>Submit</small></span><i></i><span>4 <small>Approve</small></span><i></i><span>5 <small>Publish</small></span></div>
-        <div class="review-summary"><div><strong>{{ changes.length }}</strong><span>Record changes</span></div><div><strong>{{ affectedDatasets }}</strong><span>Affected datasets</span></div><div><strong>0</strong><span>Blocking issues</span></div></div>
-        <div class="review-callout"><mat-icon>info</mat-icon><span><strong>This is where the existing workflow takes over.</strong><small>In a production version, the draft would become staging rows and pass through the same validation, approval and publication controls as an uploaded list.</small></span></div>
-        <footer><button mat-stroked-button type="button" (click)="showReview = false">Back to draft</button><button mat-flat-button type="button" disabled><mat-icon>play_arrow</mat-icon> Validate draft (prototype)</button></footer>
+        <div class="review-summary"><div><strong>{{ changes.length }}</strong><span>Record changes</span></div><div><strong>{{ affectedDatasets }}</strong><span>Affected datasets</span></div><div><strong>Pending</strong><span>Server validation</span></div></div>
+        <label class="draft-name"><span>Release name</span><input [(ngModel)]="draftName" maxlength="140" /></label>
+        <div class="review-callout"><mat-icon>info</mat-icon><span><strong>The existing workflow takes over next.</strong><small>The server creates full working snapshots, applies these record changes, runs authoritative validation, and opens the standard preview. Submission is still a separate deliberate action.</small></span></div>
+        <footer><button mat-stroked-button type="button" [disabled]="savingDraft" (click)="showReview = false">Back to draft</button><button mat-flat-button type="button" class="primary-action" [disabled]="savingDraft || !draftName.trim()" (click)="createGovernedDraft()"><mat-icon>play_arrow</mat-icon> {{ savingDraft ? 'Creating draft…' : 'Create governed draft' }}</button></footer>
       </section>
     </div>
   `,
@@ -404,6 +396,7 @@ const RECORDS: MaintenanceRecord[] = [
     .review-flow { display:flex; align-items:center; padding:20px 24px 14px; } .review-flow > span { display:grid; place-items:center; width:31px; height:31px; border-radius:50%; color:#64748b; background:#e2e8f0; font-size:10px; font-weight:900; } .review-flow > span.active { color:#fff; background:#0f766e; } .review-flow small { position:absolute; margin-top:50px; color:var(--app-text-muted); font-size:8px; font-weight:700; } .review-flow i { flex:1; height:2px; background:#e2e8f0; }
     .review-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin:28px 18px 0; } .review-summary div { display:grid; gap:3px; padding:12px; border:1px solid var(--app-border); border-radius:8px; background:var(--app-soft-surface); } .review-summary strong { color:var(--app-text); font-size:22px; } .review-summary span { color:var(--app-text-muted); font-size:9px; text-transform:uppercase; }
     .review-callout { display:flex; gap:10px; margin:14px 18px; padding:12px; border-left:4px solid #0f766e; border-radius:6px; color:#0f766e; background:#f0fdfa; } .review-callout span { display:grid; gap:2px; } .review-callout strong { font-size:11px; } .review-callout small { font-size:9px; line-height:1.45; }
+    .draft-name { display:grid; gap:6px; margin:16px 18px 0; color:var(--app-text); font-size:11px; font-weight:800; } .draft-name input { min-height:40px; padding:0 10px; border:1px solid var(--app-border); border-radius:7px; outline:0; color:var(--app-text); background:var(--app-surface); font:inherit; } .draft-name input:focus { border-color:#2dd4bf; box-shadow:0 0 0 3px rgba(45,212,191,.12); }
     .review-dialog footer { display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid var(--app-border); }
     :host-context(html.theme-dark) .eyebrow,
     :host-context(html.theme-dark) .section-kicker,
@@ -450,9 +443,12 @@ const RECORDS: MaintenanceRecord[] = [
     @media (max-width:820px) { .maintenance-hero { align-items:stretch; flex-direction:column; gap:24px; padding:25px 20px 20px; border-radius:21px; } .maintenance-hero h1 { font-size:35px; } .maintenance-hero__copy p { font-size:14px; } .scope-card { min-width:0; } .operating-model { padding:20px 16px; border-radius:19px; } .operating-model > header { align-items:flex-start; flex-direction:column; gap:12px; } .maintenance-path { grid-template-columns:1fr; gap:8px; } .maintenance-path > mat-icon,.maintenance-path > mat-icon:nth-of-type(2) { display:block; justify-self:center; transform:rotate(90deg); } .workspace { grid-template-columns:1fr; } .dataset-rail { position:static; display:flex; gap:7px; overflow-x:auto; padding:8px; border-radius:16px; } .rail-heading,.governance-note { display:none; } .dataset-option { flex:0 0 175px; margin:0; } .record-workspace { min-height:0; border-radius:18px; } .record-heading { align-items:stretch; flex-direction:column; } .record-heading .primary-action { width:100%; white-space:nowrap; } .change-basket { border-radius:18px; } .record-table-head { display:none; } .record-row { grid-template-columns:1fr auto; gap:8px; padding:12px; } .record-summary { grid-column:1/-1; grid-row:2; } .status-pill { grid-column:2; grid-row:1; } .row-actions { grid-column:2; grid-row:2; } .field-grid { grid-template-columns:1fr; } .field-grid .field-wide { grid-column:auto; } .dependency-alert { grid-template-columns:auto 1fr; } .dependency-alert button { grid-column:1/-1; } }
   `]
 })
-export class DataMaintenanceComponent {
+export class DataMaintenanceComponent implements OnInit {
+  private readonly imports = inject(ImportService);
+  private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
   readonly datasets = DATASETS;
-  readonly records = RECORDS;
+  records: MaintenanceRecord[] = [];
   selectedDataset = DATASETS[0];
   searchTerm = '';
   changes: DraftChange[] = [];
@@ -463,6 +459,13 @@ export class DataMaintenanceComponent {
   editingRecord: MaintenanceRecord | null = null;
   editorValid = false;
   showReview = false;
+  loadingRecords = false;
+  savingDraft = false;
+  draftName = '';
+
+  ngOnInit(): void {
+    this.loadActiveRecords();
+  }
 
   get filteredRecords(): MaintenanceRecord[] {
     const term = this.searchTerm.trim().toLowerCase();
@@ -470,15 +473,16 @@ export class DataMaintenanceComponent {
       && (!term || Object.values(record.values).some(value => value.toLowerCase().includes(term))));
   }
 
-  get missingArticleDependency(): boolean {
-    if (!['PriceList', 'Description'].includes(this.selectedDataset.key)) return false;
+  get counterpartWarning(): 'Article Master' | 'Basis Price' | null {
+    if (!['Article', 'PriceList', 'Description'].includes(this.selectedDataset.key)) return null;
     const articleNumber = this.editorValues['ArticleNumber']?.trim();
-    if (!articleNumber) return false;
-    const exists = this.records.some(record => record.dataset === 'Article' && record.status === 'Active'
-      && record.values['ArticleNumber'].toLowerCase() === articleNumber.toLowerCase());
-    const staged = this.changes.some(change => change.dataset === 'Article' && change.action !== 'Deactivate'
-      && change.recordKey.toLowerCase() === articleNumber.toLowerCase());
-    return !exists && !staged;
+    if (!articleNumber) return null;
+    const requiredDataset: DatasetKey = this.selectedDataset.key === 'Article' ? 'PriceList' : 'Article';
+    const exists = this.records.some(record => record.dataset === requiredDataset && record.status === 'Active'
+      && record.values['ArticleNumber']?.toLowerCase() === articleNumber.toLowerCase());
+    const staged = this.changes.some(change => change.dataset === requiredDataset && change.action !== 'Deactivate'
+      && change.values['ArticleNumber']?.toLowerCase() === articleNumber.toLowerCase());
+    return exists || staged ? null : requiredDataset === 'Article' ? 'Article Master' : 'Basis Price';
   }
 
   get affectedDatasets(): number {
@@ -486,9 +490,14 @@ export class DataMaintenanceComponent {
   }
 
   selectDataset(dataset: DatasetDefinition): void {
+    if (this.changes.length && !this.datasetsShareRelease(this.changes[0].dataset, dataset.key)) {
+      this.toast.warning('Finish or remove the current change basket before starting a different dataset release.');
+      return;
+    }
     this.selectedDataset = dataset;
     this.searchTerm = '';
     this.closeEditor();
+    this.loadActiveRecords();
   }
 
   summaryFields(record: MaintenanceRecord): { label: string; value: string }[] {
@@ -528,9 +537,11 @@ export class DataMaintenanceComponent {
     }
     const keyValue = this.editorValues[this.selectedDataset.keyField]?.trim() ?? '';
     if (this.selectedDataset.key === 'Article' && /\s/.test(keyValue)) errors['ArticleNumber'] = 'Article number must not contain spaces.';
-    if (this.selectedDataset.key === 'CurrencyRate' && keyValue && !/^[A-Z]{3}\/[A-Z]{3}$/.test(keyValue)) errors['CurrencyPair'] = 'Use the format EUR/CHF.';
-    const numericField = this.selectedDataset.key === 'PriceList' ? 'UnitPrice' : this.selectedDataset.key === 'CurrencyRate' ? 'Rate' : null;
-    if (numericField && this.editorValues[numericField] && Number(this.editorValues[numericField]) <= 0) errors[numericField] = 'Value must be greater than zero.';
+    for (const currencyField of ['Currency', 'FromCurrency', 'ToCurrency']) {
+      const currency = this.editorValues[currencyField]?.trim();
+      if (currency && !/^[A-Za-z]{3}$/.test(currency)) errors[currencyField] = 'Use a three-letter ISO currency code.';
+    }
+    if (this.selectedDataset.key === 'CurrencyRate' && this.editorValues['Rate'] && Number(this.editorValues['Rate']) <= 0) errors['Rate'] = 'Rate must be greater than zero.';
     if (this.editorValues['ValidFrom'] && this.editorValues['ValidTo'] && this.editorValues['ValidFrom'] > this.editorValues['ValidTo']) errors['ValidTo'] = 'Valid to must be after valid from.';
     this.editorErrors = errors;
     this.editorValid = Object.keys(errors).length === 0;
@@ -540,31 +551,17 @@ export class DataMaintenanceComponent {
     return this.editorErrors[key] ?? '';
   }
 
-  includeRequiredArticle(): void {
-    const articleNumber = this.editorValues['ArticleNumber'].trim();
-    this.changes = [...this.changes, {
-      id: `change-${Date.now()}-article`,
-      dataset: 'Article',
-      datasetName: 'Article Master',
-      recordKey: articleNumber,
-      label: 'Required by dependent record',
-      action: 'Add',
-      values: { ArticleNumber: articleNumber, Name: 'Complete article details', Category: 'PDU', Unit: 'PC' },
-      valid: false
-    }];
-    this.validateEditor();
-  }
-
   stageEditorChange(): void {
     this.validateEditor();
-    if (!this.editorValid || this.missingArticleDependency) return;
-    const key = this.editorValues[this.selectedDataset.keyField].trim();
+    if (!this.editorValid) return;
+    const key = this.displayKey(this.selectedDataset.key, this.editorValues);
     const action: ChangeAction = this.editorMode === 'add' ? 'Add' : 'Modify';
     this.upsertChange({
       id: `change-${Date.now()}`,
       dataset: this.selectedDataset.key,
       datasetName: this.selectedDataset.name,
       recordKey: key,
+      identity: this.identity(this.selectedDataset.key, this.editorValues),
       label: action === 'Add' ? 'New governed record' : 'Field values updated',
       action,
       values: { ...this.editorValues },
@@ -578,7 +575,8 @@ export class DataMaintenanceComponent {
       id: `change-${Date.now()}`,
       dataset: this.selectedDataset.key,
       datasetName: this.selectedDataset.name,
-      recordKey: record.values[this.selectedDataset.keyField],
+      recordKey: this.displayKey(this.selectedDataset.key, record.values),
+      identity: this.identity(this.selectedDataset.key, record.values),
       label: 'Retained in governed history',
       action: 'Deactivate',
       values: { ...record.values },
@@ -594,7 +592,110 @@ export class DataMaintenanceComponent {
     return action === 'Add' ? 'add' : action === 'Modify' ? 'edit' : 'block';
   }
 
+  openReview(): void {
+    this.draftName = `${this.changes[0]?.datasetName ?? 'Data'} maintenance ${new Date().toISOString().slice(0, 10)}`;
+    this.showReview = true;
+  }
+
+  createGovernedDraft(): void {
+    if (!this.changes.length || !this.draftName.trim() || this.savingDraft) return;
+    this.savingDraft = true;
+    const entryDataset: DatasetKey = this.changes.some(change => change.dataset === 'Article' || change.dataset === 'PriceList')
+      ? 'Article'
+      : this.changes[0].dataset;
+    this.imports.createMaintenanceDraft(entryDataset, this.draftName.trim()).pipe(
+      switchMap(draft => from(this.changes).pipe(
+        concatMap(change => this.applyChange(draft, change)),
+        toArray(),
+        switchMap(() => from(draft.jobs).pipe(
+          concatMap(job => this.imports.refreshValidation(job.id)),
+          toArray()
+        )),
+        map(() => draft)
+      )),
+      finalize(() => this.savingDraft = false)
+    ).subscribe({
+      next: draft => {
+        this.toast.success('Private governed draft created and validated.');
+        const preferred = this.jobForDataset(draft, this.changes[0].dataset) ?? draft.jobs[0];
+        this.router.navigate(['/import', preferred.id], {
+          queryParams: { evidence: draft.releasePackage ? 'dependency-workflow' : undefined }
+        });
+      },
+      error: error => this.toast.error(error?.error?.error ?? error?.message ?? 'The governed draft could not be created.')
+    });
+  }
+
+  private applyChange(draft: MaintenanceDraft, change: DraftChange): Observable<unknown> {
+    const job = this.jobForDataset(draft, change.dataset);
+    if (!job) return throwError(() => new Error(`No ${change.datasetName} candidate exists in this draft.`));
+    if (change.action === 'Add') return this.imports.addRow(job.id, change.values);
+    return this.imports.getRows(job.id, 1, 20, this.lookupKey(change)).pipe(
+      switchMap(result => {
+        const row = result.items.find(item => this.identity(change.dataset, item.fields) === change.identity);
+        if (!row) return throwError(() => new Error(`${change.datasetName} record ${change.recordKey} was not found in the draft snapshot.`));
+        return change.action === 'Modify'
+          ? this.imports.updateRow(job.id, row.id, change.values)
+          : this.imports.deleteRows(job.id, [row.id]);
+      })
+    );
+  }
+
+  private loadActiveRecords(): void {
+    const dataset = this.selectedDataset.key;
+    if (this.records.some(record => record.dataset === dataset)) return;
+    this.loadingRecords = true;
+    this.imports.getJobs(1, 20, null, 'Committed', dataset).pipe(
+      switchMap(result => {
+        const baseline = result.items.find(job => job.isActiveBaseline) ?? result.items[0];
+        return baseline ? this.imports.getRows(baseline.id, 1, 200) : from([null]);
+      }),
+      finalize(() => this.loadingRecords = false)
+    ).subscribe({
+      next: result => {
+        if (!result) return;
+        this.records = [...this.records, ...result.items.map((row: StagingRow) => ({
+          id: row.id,
+          dataset,
+          status: 'Active' as const,
+          values: Object.fromEntries(Object.entries(row.fields).map(([key, value]) => [key, value ?? '']))
+        }))];
+      },
+      error: () => this.toast.error(`Could not load the active ${this.selectedDataset.name} baseline.`)
+    });
+  }
+
+  private jobForDataset(draft: MaintenanceDraft, dataset: DatasetKey): ImportJob | undefined {
+    const entityValue: Record<DatasetKey, number> = { Article: 1, PriceList: 2, Description: 3, CurrencyRate: 4 };
+    return draft.jobs.find(job => job.entityType === entityValue[dataset]);
+  }
+
+  private identity(dataset: DatasetKey, values: Record<string, string | null>): string {
+    const fields = dataset === 'Description'
+      ? ['ArticleNumber', 'LanguageCode']
+      : dataset === 'CurrencyRate'
+        ? ['FromCurrency', 'ToCurrency', 'ValidFrom']
+        : ['ArticleNumber'];
+    return fields.map(field => values[field]?.trim().toLowerCase() ?? '').join('|');
+  }
+
+  private displayKey(dataset: DatasetKey, values: Record<string, string | null>): string {
+    if (dataset === 'CurrencyRate') return `${values['FromCurrency'] ?? ''}/${values['ToCurrency'] ?? ''}`;
+    if (dataset === 'Description') return `${values['ArticleNumber'] ?? ''} · ${values['LanguageCode'] ?? ''}`;
+    return values['ArticleNumber'] ?? '';
+  }
+
+  private lookupKey(change: DraftChange): string {
+    return change.dataset === 'CurrencyRate'
+      ? change.values['FromCurrency']
+      : change.values['ArticleNumber'];
+  }
+
+  private datasetsShareRelease(left: DatasetKey, right: DatasetKey): boolean {
+    return left === right || (['Article', 'PriceList'].includes(left) && ['Article', 'PriceList'].includes(right));
+  }
+
   private upsertChange(change: DraftChange): void {
-    this.changes = [...this.changes.filter(item => !(item.dataset === change.dataset && item.recordKey === change.recordKey)), change];
+    this.changes = [...this.changes.filter(item => !(item.dataset === change.dataset && item.identity === change.identity)), change];
   }
 }

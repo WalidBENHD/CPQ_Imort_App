@@ -200,6 +200,11 @@ export interface ReleasePackage {
   items: ReleasePackageItem[];
 }
 
+export interface MaintenanceDraft {
+  jobs: ImportJob[];
+  releasePackage: ReleasePackage | null;
+}
+
 export interface DependencyContext {
   jobId: string;
   isDependentDataset: boolean;
@@ -472,6 +477,17 @@ export const DATASET_CATALOG: DatasetDefinition[] = [
     currentVersion: 'v1.0',
     icon: 'description',
     fileNameFragment: 'Article_Descriptions'
+  },
+  {
+    key: 'CurrencyRate',
+    name: 'Financial Rates',
+    description: 'Governed currency conversion rates used by CPQ calculations.',
+    owner: 'Saint-Marcellin PDU finance owner',
+    template: 'Financial Rates Template',
+    status: 'Active',
+    currentVersion: 'v1.0',
+    icon: 'currency_exchange',
+    fileNameFragment: 'Financial_Rates'
   }
 ];
 

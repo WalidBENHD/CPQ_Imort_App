@@ -63,6 +63,8 @@ public record ValidationMessageDto(string Field, string Message, string Severity
 public record PagedResult<T>(IReadOnlyList<T> Items, int Total, int Page, int PageSize);
 
 public record UploadRequest(string EntityType);
+public record CreateMaintenanceDraftRequest(string EntityType, string Name);
+public record MaintenanceDraftDto(IReadOnlyList<ImportJobDto> Jobs, ReleasePackageDto? ReleasePackage);
 
 public record CopyToWorkspaceRequest(string FileName);
 

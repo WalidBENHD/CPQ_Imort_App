@@ -766,6 +766,75 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task CreateMaintenanceDraftAsync_ForPortfolioDataset_CopiesAndPairsBothActiveBaselines()
+    {
+        var articleBaseline = CreateJob(ImportStatus.Committed);
+        articleBaseline.WorkflowStage = ImportWorkflowStage.Published;
+        articleBaseline.CommittedAt = DateTime.UtcNow.AddDays(-1);
+        var priceBaseline = CreatePriceJob();
+        priceBaseline.Status = ImportStatus.Committed;
+        priceBaseline.WorkflowStage = ImportWorkflowStage.Published;
+        priceBaseline.CommittedAt = DateTime.UtcNow.AddDays(-1);
+        var repository = new FakeImportRepository(articleBaseline, CreateComparison(articleBaseline.Id, true));
+        repository.AdditionalJobs.Add(priceBaseline);
+        repository.ArticleNumbers[articleBaseline.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        repository.Rows.Add(new StagingRow
+        {
+            ImportJobId = articleBaseline.Id,
+            RowNumber = 2,
+            RawData = "{\"ArticleNumber\":\"A-1\",\"Name\":\"Article\",\"Category\":\"Standard\",\"Unit\":\"PC\"}"
+        });
+        repository.Rows.Add(new StagingRow
+        {
+            ImportJobId = priceBaseline.Id,
+            RowNumber = 2,
+            RawData = "{\"ArticleNumber\":\"A-1\",\"UnitPrice\":\"0\",\"Currency\":\"EUR\",\"ValidFrom\":\"2026-01-01\"}"
+        });
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var result = await service.CreateMaintenanceDraftAsync(
+            EntityType.Article, "January maintenance", "contributor-id", "Cara Contributor");
+
+        Assert.NotNull(result.ReleasePackage);
+        Assert.Equal(2, result.Jobs.Count);
+        var articleDraft = Assert.Single(result.Jobs, item => item.EntityType == EntityType.Article);
+        var priceDraft = Assert.Single(result.Jobs, item => item.EntityType == EntityType.PriceList);
+        Assert.Equal(articleDraft.Id, priceDraft.ValidationAnchorJobId);
+        Assert.Equal(ValidationAnchorKind.ReleaseCandidate, priceDraft.ValidationAnchorKind);
+        Assert.Equal(result.ReleasePackage.Id, articleDraft.ReleasePackageId);
+        Assert.Equal(result.ReleasePackage.Id, priceDraft.ReleasePackageId);
+        Assert.All(result.Jobs, item => Assert.Equal(ImportWorkflowStage.Private, item.WorkflowStage));
+        Assert.Equal(2, repository.CopiedRows.Count);
+    }
+
+    [Fact]
+    public async Task AddStagingRowAsync_AllowsZeroBasisPrice()
+    {
+        var articleBaseline = CreateJob(ImportStatus.Committed);
+        articleBaseline.WorkflowStage = ImportWorkflowStage.Published;
+        var priceDraft = CreatePriceJob();
+        priceDraft.ValidationAnchorJobId = articleBaseline.Id;
+        priceDraft.ValidationAnchorKind = ValidationAnchorKind.ActiveBaseline;
+        var repository = new FakeImportRepository(priceDraft, CreateComparison(articleBaseline.Id, true));
+        repository.AdditionalJobs.Add(articleBaseline);
+        repository.ArticleNumbers[articleBaseline.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        await service.AddStagingRowAsync(priceDraft.Id, new Dictionary<string, string?>
+        {
+            ["ArticleNumber"] = "A-1",
+            ["UnitPrice"] = "0",
+            ["Currency"] = "EUR",
+            ["ValidFrom"] = "2026-01-01",
+            ["ValidTo"] = null
+        }, "contributor-id", "Cara Contributor");
+
+        var row = Assert.Single(repository.Rows);
+        Assert.Equal(RowStatus.Valid, row.Status);
+        Assert.Null(row.ValidationMessages);
+    }
+
+    [Fact]
     public async Task DeleteAndRestoreStagingRowsAsync_PreservesRecoverableDraftEvidence()
     {
         var job = CreateJob(ImportStatus.AwaitingApproval);
@@ -1004,6 +1073,23 @@ public class ControlledPublicationTests
             }
             CopiedContent = uploadedFileContent;
             AuditLogs.Add(auditLog);
+            return Task.FromResult(newJob);
+        }
+        public Task<ImportJob> CreateDraftSnapshotAsync(ImportJob newJob, IReadOnlyCollection<StagingRow> rows, AuditLog auditLog, CancellationToken ct = default)
+        {
+            CopiedRows.AddRange(rows);
+            Rows.AddRange(rows);
+            AdditionalJobs.Add(newJob);
+            AuditLogs.Add(auditLog);
+            if (newJob.EntityType == EntityType.Article)
+            {
+                ArticleNumbers[newJob.Id] = rows
+                    .Select(row => JsonSerializer.Deserialize<Dictionary<string, string?>>(row.RawData ?? "{}"))
+                    .Select(values => values?.GetValueOrDefault("ArticleNumber"))
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value!)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            }
             return Task.FromResult(newJob);
         }
         public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default) => throw new NotSupportedException();

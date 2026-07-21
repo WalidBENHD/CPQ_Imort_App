@@ -7,6 +7,8 @@ public interface IImportService
 {
     Task<ImportJob> UploadAsync(Stream fileStream, string fileName, EntityType entityType,
         string userId, string userDisplayName, CancellationToken ct = default);
+    Task<MaintenanceDraft> CreateMaintenanceDraftAsync(EntityType entityType, string name,
+        string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CopyToWorkspaceAsync(Guid sourceJobId, string fileName,
         string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> RenameUploadAsync(Guid jobId, string name,

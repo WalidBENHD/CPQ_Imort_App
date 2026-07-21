@@ -13,6 +13,11 @@ public interface IImportRepository
         byte[] uploadedFileContent,
         AuditLog auditLog,
         CancellationToken ct = default);
+    Task<ImportJob> CreateDraftSnapshotAsync(
+        ImportJob job,
+        IReadOnlyCollection<StagingRow> rows,
+        AuditLog auditLog,
+        CancellationToken ct = default);
     Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default);
     Task<ImportJob?> GetJobSummaryAsync(Guid id, CancellationToken ct = default);
     Task<bool> IsUploadNameInUseAsync(string fileName, Guid? excludingJobId = null, CancellationToken ct = default);

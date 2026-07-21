@@ -154,6 +154,21 @@ public class ImportRepository(AppDbContext db) : IImportRepository
         return job;
     }
 
+    public async Task<ImportJob> CreateDraftSnapshotAsync(
+        ImportJob job,
+        IReadOnlyCollection<StagingRow> rows,
+        AuditLog auditLog,
+        CancellationToken ct = default)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        db.ImportJobs.Add(job);
+        await db.StagingRows.AddRangeAsync(rows, ct);
+        db.AuditLogs.Add(auditLog);
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        return job;
+    }
+
     public async Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
     {
         var job = await db.ImportJobs

@@ -25,6 +25,139 @@ public class ImportService(
         PropertyNameCaseInsensitive = true
     };
 
+    public async Task<MaintenanceDraft> CreateMaintenanceDraftAsync(
+        EntityType entityType,
+        string name,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        if (!DatasetCatalog.IsSupported(entityType))
+            throw new InvalidDataException($"Dataset '{entityType}' is not supported.");
+
+        var draftName = name.Trim();
+        if (draftName.Length is 0 or > 140)
+            throw new InvalidDataException("Provide a maintenance draft name of at most 140 characters.");
+
+        if (entityType is EntityType.Article or EntityType.PriceList)
+        {
+            var releaseName = draftName;
+            if (await repository.IsReleaseNameInUseAsync(releaseName, ct: ct))
+                throw new InvalidDataException($"A release named '{releaseName}' already exists. Choose another name.");
+
+            var articleName = $"{draftName} - Article Master";
+            var priceName = $"{draftName} - Basis Price";
+            foreach (var candidateName in new[] { articleName, priceName })
+            {
+                if (await repository.IsUploadNameInUseAsync($"{candidateName}.hmi", ct: ct))
+                    throw new InvalidDataException($"A draft named '{candidateName}' already exists. Choose another name.");
+            }
+
+            var articleJob = await CreateMaintenanceSnapshotAsync(EntityType.Article, articleName, userId, userDisplayName, ct);
+            var priceJob = await CreateMaintenanceSnapshotAsync(EntityType.PriceList, priceName, userId, userDisplayName, ct);
+            var package = new ReleasePackage
+            {
+                Name = releaseName,
+                CreatedBy = userId,
+                CreatedByDisplayName = userDisplayName
+            };
+            await repository.AddReleasePackageAsync(package, ct);
+
+            articleJob.ReleasePackageId = package.Id;
+            priceJob.ReleasePackageId = package.Id;
+            priceJob.ValidationAnchorJobId = articleJob.Id;
+            priceJob.ValidationAnchorKind = ValidationAnchorKind.ReleaseCandidate;
+            priceJob.ValidationAnchorPinnedAt = DateTime.UtcNow;
+            await repository.UpdateJobAsync(articleJob, ct);
+            await RevalidateArticlePriceCoverageAsync(articleJob, priceJob.Id, ct);
+            await RevalidateAgainstAnchorAsync(priceJob, articleJob.Id, ct);
+
+            foreach (var job in new[] { articleJob, priceJob })
+            {
+                await repository.AddAuditLogAsync(new AuditLog
+                {
+                    ImportJobId = job.Id,
+                    Action = "MaintenanceReleaseCreated",
+                    PerformedBy = userId,
+                    PerformedByDisplayName = userDisplayName,
+                    Details = $"Created HMI maintenance candidate in coordinated release '{releaseName}' ({package.Id:D})."
+                }, ct);
+            }
+
+            var summary = await repository.GetReleasePackageSummaryAsync(package.Id, ct)
+                ?? throw new InvalidOperationException("The maintenance release could not be loaded after creation.");
+            return new MaintenanceDraft([articleJob, priceJob], ToReleaseSummary(summary));
+        }
+
+        var standalone = await CreateMaintenanceSnapshotAsync(entityType, draftName, userId, userDisplayName, ct);
+        return new MaintenanceDraft([standalone], null);
+    }
+
+    private async Task<ImportJob> CreateMaintenanceSnapshotAsync(
+        EntityType entityType,
+        string name,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct)
+    {
+        var visibleName = $"{name}.hmi";
+        if (await repository.IsUploadNameInUseAsync(visibleName, ct: ct))
+            throw new InvalidDataException($"A draft named '{name}' already exists. Choose another name.");
+
+        var baseline = await repository.GetLatestCommittedJobAsync(entityType, ct);
+        var sourceRows = baseline is null
+            ? []
+            : await repository.GetStagingRowsByJobAsync(baseline.Id, ct);
+        var now = DateTime.UtcNow;
+        var job = new ImportJob
+        {
+            FileName = $"{Guid.NewGuid()}.hmi",
+            OriginalFileName = visibleName,
+            EntityType = entityType,
+            Status = ImportStatus.AwaitingApproval,
+            WorkflowStage = ImportWorkflowStage.Private,
+            CreatedBy = userId,
+            CreatedByDisplayName = userDisplayName,
+            CreatedAt = now,
+            ProcessedAt = now,
+            TotalRows = sourceRows.Count,
+            ValidRows = sourceRows.Count(row => row.Status == RowStatus.Valid),
+            WarningRows = sourceRows.Count(row => row.Status == RowStatus.Warning),
+            ErrorRows = sourceRows.Count(row => row.Status == RowStatus.Error)
+        };
+
+        if (IsDependentDataset(entityType))
+        {
+            var activeMaster = await repository.GetLatestCommittedJobAsync(EntityType.Article, ct);
+            if (activeMaster is not null)
+            {
+                job.ValidationAnchorJobId = activeMaster.Id;
+                job.ValidationAnchorKind = ValidationAnchorKind.ActiveBaseline;
+                job.ValidationAnchorPinnedAt = now;
+            }
+        }
+
+        var rows = sourceRows.Select(row => new StagingRow
+        {
+            ImportJobId = job.Id,
+            RowNumber = row.RowNumber,
+            Status = row.Status,
+            RawData = row.RawData,
+            ValidationMessages = row.ValidationMessages,
+            IsSelected = row.IsSelected
+        }).ToList();
+        return await repository.CreateDraftSnapshotAsync(job, rows, new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "MaintenanceDraftCreated",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = baseline is null
+                ? "Created an empty HMI maintenance candidate because no published baseline exists."
+                : $"Created an HMI maintenance candidate from published baseline '{baseline.OriginalFileName}' ({baseline.Id:D}) with {rows.Count} active rows."
+        }, ct);
+    }
+
     public async Task<ImportJob> UploadAsync(Stream fileStream, string fileName, EntityType entityType,
         string userId, string userDisplayName, CancellationToken ct = default)
     {
