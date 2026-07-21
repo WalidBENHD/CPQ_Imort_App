@@ -94,13 +94,13 @@ import { ThemeService } from './core/services/theme.service';
       <div class="shell-body" [class.shell-body--collapsed]="!isSidebarOpen" [class.shell-body--mobile-open]="isMobileSidebarOpen">
         <aside class="side-nav" *ngIf="auth.isAuthenticated" aria-label="Primary navigation">
           <div class="side-nav__content">
-          <ng-container *ngIf="auth.hasCapability('imports.view')">
+          <ng-container *ngIf="visibleWorkNavItems.length">
             <div class="nav-group-label" *ngIf="isSidebarOpen">Work</div>
 
             <a
               mat-button
               class="side-link"
-              *ngFor="let item of navItems"
+              *ngFor="let item of visibleWorkNavItems"
               [routerLink]="item.route"
               routerLinkActive="side-link--active"
               [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
@@ -883,11 +883,12 @@ import { ThemeService } from './core/services/theme.service';
   `]
 })
 export class AppComponent implements OnInit, OnDestroy {
-  readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string; exact?: boolean }> = [
-    { route: '/dashboard', label: 'Dashboard', icon: 'space_dashboard' },
-    { route: '/datasets', label: 'Datasets', icon: 'dataset' },
-    { route: '/business-trace', label: 'Business trace', icon: 'manage_search' },
-    { route: '/uploads', label: 'Uploads', icon: 'view_list' }
+  readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[]; exact?: boolean }> = [
+    { route: '/dashboard', label: 'Dashboard', icon: 'space_dashboard', capabilities: ['imports.view'] },
+    { route: '/datasets', label: 'Datasets', icon: 'dataset', capabilities: ['imports.view'] },
+    { route: '/business-trace', label: 'Business trace', icon: 'manage_search', capabilities: ['imports.view'] },
+    { route: '/uploads', label: 'Uploads', icon: 'view_list', capabilities: ['imports.view'] },
+    { route: '/admin/data-maintenance', label: 'Data maintenance', icon: 'edit_square', capabilities: ['users.manage'] }
   ];
 
   readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> = [
@@ -909,6 +910,10 @@ export class AppComponent implements OnInit, OnDestroy {
   private routeSub: Subscription | null = null;
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
+
+  get visibleWorkNavItems(): ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[]; exact?: boolean }> {
+    return this.navItems.filter(item => item.capabilities.every(capability => this.auth.hasCapability(capability)));
+  }
 
   get visibleAdminNavItems(): ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> {
     return this.adminNavItems.filter(item => item.capabilities.every(capability => this.auth.hasCapability(capability)));
@@ -953,6 +958,7 @@ export class AppComponent implements OnInit, OnDestroy {
   get currentPageTitle(): string {
     const path = this.router.url.split('?')[0];
     if (path.startsWith('/import/')) return 'Upload details';
+    if (path.startsWith('/admin/data-maintenance')) return 'Data maintenance';
     if (path.startsWith('/admin/access-studio')) return 'Roles & access';
     if (path.startsWith('/admin/users')) return 'People';
     if (path.startsWith('/admin/activity')) return 'Activity';

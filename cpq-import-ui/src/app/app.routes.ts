@@ -55,6 +55,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/forbidden/forbidden.component').then(m => m.ForbiddenComponent)
   },
   {
+    path: 'admin/data-maintenance',
+    canActivate: [capabilityGuard('users.manage')],
+    loadComponent: () => import('./features/data-maintenance/data-maintenance.component').then(m => m.DataMaintenanceComponent)
+  },
+  {
     path: 'admin/users',
     canActivate: [capabilityGuard('users.manage'), capabilityGuard('users.assign_roles')],
     loadComponent: () => import('./features/admin/people-studio.component').then(m => m.PeopleStudioComponent)
