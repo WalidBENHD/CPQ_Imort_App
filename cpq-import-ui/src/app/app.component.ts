@@ -44,7 +44,7 @@ import { ThemeService } from './core/services/theme.service';
 
         <span class="spacer"></span>
 
-        <span class="scope-chip" *ngIf="auth.isAuthenticated">
+        <span class="scope-chip" *ngIf="auth.isAuthenticated && auth.hasCapability('imports.view')">
           <i></i>
           Saint-Marcellin · PDU
         </span>
@@ -94,23 +94,25 @@ import { ThemeService } from './core/services/theme.service';
       <div class="shell-body" [class.shell-body--collapsed]="!isSidebarOpen" [class.shell-body--mobile-open]="isMobileSidebarOpen">
         <aside class="side-nav" *ngIf="auth.isAuthenticated" aria-label="Primary navigation">
           <div class="side-nav__content">
-          <div class="nav-group-label" *ngIf="isSidebarOpen">Work</div>
+          <ng-container *ngIf="auth.hasCapability('imports.view')">
+            <div class="nav-group-label" *ngIf="isSidebarOpen">Work</div>
 
-          <a
-            mat-button
-            class="side-link"
-            *ngFor="let item of navItems"
-            [routerLink]="item.route"
-            routerLinkActive="side-link--active"
-            [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-            [class.side-link--compact]="!isSidebarOpen"
-            [attr.aria-label]="item.label"
-            [matTooltip]="!isSidebarOpen ? item.label : ''"
-            (click)="onNavItemClick()"
-          >
-            <mat-icon>{{ item.icon }}</mat-icon>
-            <span *ngIf="isSidebarOpen">{{ item.label }}</span>
-          </a>
+            <a
+              mat-button
+              class="side-link"
+              *ngFor="let item of navItems"
+              [routerLink]="item.route"
+              routerLinkActive="side-link--active"
+              [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+              [class.side-link--compact]="!isSidebarOpen"
+              [attr.aria-label]="item.label"
+              [matTooltip]="!isSidebarOpen ? item.label : ''"
+              (click)="onNavItemClick()"
+            >
+              <mat-icon>{{ item.icon }}</mat-icon>
+              <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+            </a>
+          </ng-container>
 
           <ng-container *ngIf="auth.isInternalTools">
             <div class="nav-group-label" *ngIf="isSidebarOpen">Tools</div>

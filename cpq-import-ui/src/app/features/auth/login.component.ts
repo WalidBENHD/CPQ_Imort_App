@@ -563,9 +563,13 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
 
     const { userName, password } = this.form.getRawValue();
     this.auth.login(userName.trim(), password).subscribe({
-      next: () => {
+      next: (response) => {
         this.submitting = false;
-        this.router.navigateByUrl('/dashboard');
+        const capabilities = response.user.capabilities ?? [];
+        const destination = capabilities.includes('tools.evolis') && !capabilities.includes('imports.view')
+          ? '/internal-tools/evolis-decryptor'
+          : '/dashboard';
+        this.router.navigateByUrl(destination);
       },
       error: (err) => {
         this.submitting = false;
