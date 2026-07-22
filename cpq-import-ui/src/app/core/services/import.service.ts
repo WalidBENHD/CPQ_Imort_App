@@ -40,6 +40,10 @@ export class ImportService {
     return this.http.get<ActiveDatasetRecord[]>(`${environment.apiUrl}/active-data/${entityType}`);
   }
 
+  getMaintenanceRequests(): Observable<ImportJob[]> {
+    return this.http.get<ImportJob[]>(`${environment.apiUrl}/maintenance-requests`);
+  }
+
   getRows(jobId: string, page = 1, pageSize = 50, search?: string | null, status?: RowStatus, comparisonStatus?: ComparisonStatus): Observable<PagedResult<StagingRow>> {
     let params = new HttpParams().set('page', page).set('pageSize', pageSize);
     if (search) params = params.set('search', search);

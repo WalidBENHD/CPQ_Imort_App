@@ -1,99 +1,38 @@
-using System.Data.Common;
-using System.Globalization;
+using System.Text.Json;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
 using CPQ_Import_App.Core.Models;
-using CPQ_Import_App.Infrastructure.Commit;
-using Dapper;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using Npgsql;
 
 namespace CPQ_Import_App.Infrastructure.Services;
 
-public sealed class ActiveDatasetReader(IConfiguration config) : IActiveDatasetReader
+public sealed class ActiveDatasetReader(IImportRepository repository) : IActiveDatasetReader
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public async Task<IReadOnlyList<ActiveDatasetRecord>> GetRecordsAsync(
         EntityType entityType,
         CancellationToken ct = default)
     {
-        await using var connection = CreateConnection();
-        await connection.OpenAsync(ct);
-
-        try
-        {
-            var rows = (await connection.QueryAsync(
-                new CommandDefinition(SqlFor(entityType), cancellationToken: ct))).Cast<object>();
-            return rows.Select((row, index) => ToRecord(entityType, row, index)).ToList();
-        }
-        catch (SqlException ex) when (ex.Number == 208)
+        var activePublication = await repository.GetLatestCommittedJobAsync(entityType, ct);
+        if (activePublication is null)
         {
             return [];
         }
-        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UndefinedTable)
-        {
-            return [];
-        }
+
+        var rows = await repository.GetStagingRowsByJobAsync(activePublication.Id, ct);
+        return rows
+            .OrderBy(row => row.RowNumber)
+            .Select((row, index) => ToRecord(entityType, row, index))
+            .ToList();
     }
 
-    private DbConnection CreateConnection()
-        => CommitConnectionResolver.ShouldUsePostgres(config)
-            ? new NpgsqlConnection(CommitConnectionResolver.GetPostgresConnectionString(config))
-            : new SqlConnection(CommitConnectionResolver.GetSqlServerConnectionString(config));
-
-    private string SqlFor(EntityType entityType)
+    private static ActiveDatasetRecord ToRecord(EntityType entityType, StagingRow row, int index)
     {
-        var postgres = CommitConnectionResolver.ShouldUsePostgres(config);
-        return (entityType, postgres) switch
-        {
-            (EntityType.Article, true) => """
-                SELECT "ArticleNumber", "Name", "Category", "Unit"
-                FROM dbo."CpqArticles"
-                ORDER BY "ArticleNumber";
-                """,
-            (EntityType.Article, false) => """
-                SELECT [ArticleNumber], [Name], [Category], [Unit]
-                FROM [dbo].[CpqArticles]
-                ORDER BY [ArticleNumber];
-                """,
-            (EntityType.PriceList, true) => """
-                SELECT "ArticleNumber", "Price" AS "UnitPrice", "Currency", "ValidFrom", "ValidTo"
-                FROM dbo."CpqArticlePrices"
-                ORDER BY "ArticleNumber", "Currency", "ValidFrom";
-                """,
-            (EntityType.PriceList, false) => """
-                SELECT [ArticleNumber], [Price] AS [UnitPrice], [Currency], [ValidFrom], [ValidTo]
-                FROM [dbo].[CpqArticlePrices]
-                ORDER BY [ArticleNumber], [Currency], [ValidFrom];
-                """,
-            (EntityType.Description, true) => """
-                SELECT "ArticleNumber", "LanguageCode", "ShortDescription", "LongDescription"
-                FROM dbo."CpqArticleDescriptions"
-                ORDER BY "ArticleNumber", "LanguageCode";
-                """,
-            (EntityType.Description, false) => """
-                SELECT [ArticleNumber], [LanguageCode], [ShortDescription], [LongDescription]
-                FROM [dbo].[CpqArticleDescriptions]
-                ORDER BY [ArticleNumber], [LanguageCode];
-                """,
-            (EntityType.CurrencyRate, true) => """
-                SELECT "FromCurrency", "ToCurrency", "Rate", "ValidFrom"
-                FROM dbo."CpqCurrencyRates"
-                ORDER BY "FromCurrency", "ToCurrency", "ValidFrom";
-                """,
-            (EntityType.CurrencyRate, false) => """
-                SELECT [FromCurrency], [ToCurrency], [Rate], [ValidFrom]
-                FROM [dbo].[CpqCurrencyRates]
-                ORDER BY [FromCurrency], [ToCurrency], [ValidFrom];
-                """,
-            _ => throw new InvalidDataException($"Dataset '{entityType}' is not supported.")
-        };
-    }
-
-    private static ActiveDatasetRecord ToRecord(EntityType entityType, object row, int index)
-    {
-        var fields = ((IDictionary<string, object?>)row)
-            .ToDictionary(pair => pair.Key, pair => FormatValue(pair.Value), StringComparer.OrdinalIgnoreCase);
+        var fields = JsonSerializer.Deserialize<Dictionary<string, string?>>(row.RawData, JsonOptions)
+            ?? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         return new ActiveDatasetRecord(entityType, BuildKey(entityType, fields, index), fields);
     }
 
@@ -109,17 +48,4 @@ public sealed class ActiveDatasetReader(IConfiguration config) : IActiveDatasetR
 
     private static string JoinKey(IReadOnlyDictionary<string, string?> fields, params string[] names)
         => string.Join('|', names.Select(name => fields.GetValueOrDefault(name) ?? string.Empty));
-
-    private static string? FormatValue(object? value)
-        => value switch
-        {
-            null or DBNull => null,
-            DateTime date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            DateTimeOffset date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            decimal number => number.ToString(CultureInfo.InvariantCulture),
-            double number => number.ToString(CultureInfo.InvariantCulture),
-            float number => number.ToString(CultureInfo.InvariantCulture),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString()
-        };
 }

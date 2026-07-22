@@ -183,7 +183,7 @@ export class MaintenanceRequestsComponent implements OnInit {
 
   get requests(): MaintenanceRequestCard[] {
     const groups = new Map<string, ImportJob[]>();
-    for (const job of this.jobs.filter(item => item.fileExtension.toLowerCase() === '.hmi')) {
+    for (const job of this.jobs) {
       const key = job.releasePackageId ? `package:${job.releasePackageId}` : `job:${job.id}`;
       groups.set(key, [...(groups.get(key) ?? []), job]);
     }
@@ -377,7 +377,13 @@ export class MaintenanceRequestsComponent implements OnInit {
 
   private load(): void {
     this.loading = true;
-    this.imports.getJobs(1, 100).pipe(finalize(() => this.loading = false)).subscribe({ next: result => this.jobs = result.items });
+    this.imports.getMaintenanceRequests().pipe(finalize(() => this.loading = false)).subscribe({
+      next: jobs => this.jobs = jobs,
+      error: error => {
+        this.jobs = [];
+        this.toast.error(error?.error?.error ?? 'Maintenance requests could not be loaded.');
+      }
+    });
   }
 
   private restoreWithdrawnChanges(request: MaintenanceRequestCard): Observable<LocalMaintenanceChange[]> {
