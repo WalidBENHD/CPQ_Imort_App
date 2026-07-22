@@ -103,6 +103,13 @@ export class DatasetHistoryComponent implements OnInit {
   }
 
   open(publication: ImportJob): void {
+    if (publication.fileExtension.toLowerCase() === '.hmi') {
+      const kind = publication.releasePackageId ? 'package' : 'job';
+      const evidenceId = publication.releasePackageId ?? publication.id;
+      this.router.navigate(['/maintenance', kind, evidenceId]);
+      return;
+    }
+
     this.router.navigate(['/import', publication.id]);
   }
 }
