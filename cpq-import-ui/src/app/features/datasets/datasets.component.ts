@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType, PILOT_SCOPE } from '../../core/models/import.models';
+import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType, ImportJob, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 import { AuthFacade } from '../../core/auth/auth.facade';
 
@@ -23,7 +23,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
         </p>
       </div>
       <div class="header-actions">
-        <span class="portfolio-signal"><i></i>{{ datasetCatalog.length }} governed datasets</span>
+        <span class="portfolio-signal"><i></i>{{ portfolioSignal }}</span>
         <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" routerLink="/import/new">
           <mat-icon>add</mat-icon> New annual submission
         </button>
@@ -55,10 +55,43 @@ import { AuthFacade } from '../../core/auth/auth.facade';
             <div class="dataset-name">{{ dataset.name }}</div>
             <div class="dataset-description">{{ dataset.description }}</div>
           </div>
-          <span class="dataset-status" [class.dataset-status--active]="dataset.status === 'Active'">
-            {{ dataset.status }}
+          <span class="dataset-status" [class.dataset-status--active]="!!activePublication(dataset.key)">
+            {{ publicationStatus(dataset.key) }}
           </span>
         </div>
+
+        <section class="active-publication" *ngIf="activePublication(dataset.key) as publication; else noActivePublication">
+          <div class="active-publication-head">
+            <span class="active-led"><i></i> Active version</span>
+            <span class="publication-source">
+              <mat-icon>{{ publicationSourceIcon(publication) }}</mat-icon>
+              {{ publicationSource(publication) }}
+            </span>
+          </div>
+          <strong class="publication-name">{{ publication.originalFileName }}</strong>
+          <div class="publication-evidence">
+            <span><mat-icon>table_rows</mat-icon><strong>{{ publication.committedRows }}</strong> rows</span>
+            <span><mat-icon>person</mat-icon>Published by <strong>{{ publication.committedBy || 'Unknown user' }}</strong></span>
+            <span><mat-icon>event</mat-icon>{{ publication.committedAt | date:'dd MMM yyyy, HH:mm' }}</span>
+          </div>
+          <div class="publication-actions">
+            <button mat-flat-button color="primary" (click)="openActivePublication(publication)">
+              <mat-icon>table_view</mat-icon> Open active list
+            </button>
+            <button mat-stroked-button (click)="openPublicationHistory(dataset)">
+              <mat-icon>history</mat-icon> View history
+            </button>
+          </div>
+        </section>
+        <ng-template #noActivePublication>
+          <section class="active-publication active-publication--empty">
+            <span class="empty-publication-icon"><mat-icon>inventory_2</mat-icon></span>
+            <div>
+              <strong>{{ emptyPublicationTitle }}</strong>
+              <p>{{ emptyPublicationMessage }}</p>
+            </div>
+          </section>
+        </ng-template>
 
         <div class="dataset-meta">
           <div class="dataset-meta-item">
@@ -70,8 +103,8 @@ import { AuthFacade } from '../../core/auth/auth.facade';
             <strong>{{ dataset.template }}</strong>
           </div>
           <div class="dataset-meta-item">
-            <span>Current version</span>
-            <strong>{{ dataset.currentVersion }}</strong>
+            <span>Governance</span>
+            <strong>Controlled publication</strong>
           </div>
         </div>
 
@@ -452,6 +485,50 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     }
     .dataset-actions mat-icon { margin-right: 4px; }
 
+    .active-publication {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid color-mix(in srgb, #22c55e 28%, var(--app-border));
+      border-radius: 15px;
+      background: linear-gradient(135deg, color-mix(in srgb, #22c55e 8%, var(--app-surface)), var(--app-surface));
+    }
+    .active-publication-head,
+    .publication-evidence,
+    .publication-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .active-publication-head { justify-content: space-between; }
+    .active-led,
+    .publication-source {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #047857;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .active-led i { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 5px color-mix(in srgb, #22c55e 14%, transparent); }
+    .publication-source { color: var(--app-text-muted); letter-spacing: 0; }
+    .publication-source mat-icon { width: 14px; height: 14px; font-size: 14px; }
+    .publication-name { overflow: hidden; color: var(--app-text); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+    .publication-evidence { gap: 7px 14px; color: var(--app-text-muted); font-size: 10px; }
+    .publication-evidence span { display: inline-flex; align-items: center; gap: 4px; }
+    .publication-evidence strong { color: var(--app-text); }
+    .publication-evidence mat-icon { width: 14px; height: 14px; color: var(--dataset-accent); font-size: 14px; }
+    .publication-actions { margin-top: 2px; }
+    .publication-actions button { min-height: 36px; border-radius: 10px; font-size: 10px; font-weight: 850; }
+    .publication-actions button:first-child { background: var(--dataset-accent); }
+    .active-publication--empty { grid-template-columns: auto 1fr; align-items: center; border-color: var(--app-border); background: var(--app-soft-surface); }
+    .empty-publication-icon { display: grid; place-items: center; width: 36px; height: 36px; color: var(--app-text-muted); border-radius: 11px; background: var(--app-surface); }
+    .active-publication--empty strong { color: var(--app-text); font-size: 12px; }
+    .active-publication--empty p { margin: 3px 0 0; color: var(--app-text-muted); font-size: 10px; }
+
     @media (max-width: 960px) {
       .page-header {
         flex-direction: column;
@@ -510,12 +587,12 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     .header-actions{display:grid;justify-items:end;gap:14px}.header-actions button{min-height:46px;padding:0 19px;border-radius:13px;font-weight:850}.portfolio-signal{display:inline-flex;align-items:center;gap:7px;color:#0f766e;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.portfolio-signal i{width:8px;height:8px;border-radius:50%;background:#14b8a6;box-shadow:0 0 0 5px color-mix(in srgb,#14b8a6 14%,transparent)}
     .pilot-scope-card{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:15px;margin:0;padding:16px 18px;border-color:color-mix(in srgb,#0f8f87 22%,var(--app-border));border-radius:19px;background:color-mix(in srgb,#0f8f87 4%,var(--app-surface-elevated));box-shadow:none}.scope-symbol{display:grid;place-items:center;width:48px;height:48px;color:#0f8f87;border-radius:15px;background:color-mix(in srgb,#14b8a6 14%,transparent)}.scope-symbol mat-icon{width:25px;height:25px;font-size:25px}.scope-copy .eyebrow{margin-bottom:3px}.pilot-scope-card h2{margin:0;color:var(--app-text);font-size:19px;letter-spacing:-.025em}.pilot-scope-card h2 span{color:#0f8f87}.pilot-scope-card p{max-width:700px;margin:4px 0 0;color:var(--app-text-muted);font-size:11px}.pilot-scope-badges{max-width:480px}.pilot-chip{padding:5px 9px;border-color:var(--app-border);color:#0f766e;background:var(--app-surface);font-size:9px;font-weight:850}
     .portfolio-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.dataset-card{--dataset-accent:#0f8f87;position:relative;overflow:hidden;gap:16px;margin:0;padding:23px;border:1px solid var(--app-border);border-radius:21px;background:var(--app-surface-elevated);box-shadow:var(--app-shadow-soft);transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}.dataset-card:before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--dataset-accent)}.dataset-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--dataset-accent) 42%,var(--app-border));box-shadow:var(--app-shadow-raised)}.dataset-card[data-dataset="Article"]{--dataset-accent:#0f8f87}.dataset-card[data-dataset="PriceList"]{--dataset-accent:#2563eb}.dataset-card[data-dataset="Description"]{--dataset-accent:#b45309}.dataset-card[data-dataset="CurrencyRate"]{--dataset-accent:#15803d}.dataset-order{display:inline-flex;align-items:center;margin-right:6px;padding-right:6px;border-right:1px solid color-mix(in srgb,var(--dataset-accent) 30%,var(--app-border));color:var(--dataset-accent);font-size:9px;font-weight:950;letter-spacing:0}
-    .dataset-top{position:relative;z-index:1;grid-template-columns:52px minmax(0,1fr) auto;gap:14px}.dataset-icon{width:52px;height:52px;color:var(--dataset-accent);border-radius:16px;background:color-mix(in srgb,var(--dataset-accent) 12%,transparent)}.dataset-icon mat-icon{width:27px;height:27px;font-size:27px}.dataset-copy{min-width:0}.dataset-kicker{margin-bottom:3px;color:var(--dataset-accent);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.dataset-name{margin:0;color:var(--app-text);font-size:21px;font-weight:780;letter-spacing:-.03em}.dataset-description{max-width:420px;color:var(--app-text-muted);font-size:12px}.dataset-status{position:relative;z-index:1;padding:5px 9px;border-color:color-mix(in srgb,#22c55e 26%,var(--app-border));color:#047857;background:color-mix(in srgb,#22c55e 10%,var(--app-surface));font-size:8px}
+    .dataset-top{position:relative;z-index:1;grid-template-columns:52px minmax(0,1fr) auto;gap:14px}.dataset-icon{width:52px;height:52px;color:var(--dataset-accent);border-radius:16px;background:color-mix(in srgb,var(--dataset-accent) 12%,transparent)}.dataset-icon mat-icon{width:27px;height:27px;font-size:27px}.dataset-copy{min-width:0}.dataset-kicker{margin-bottom:3px;color:var(--dataset-accent);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.dataset-name{margin:0;color:var(--app-text);font-size:21px;font-weight:780;letter-spacing:-.03em}.dataset-description{max-width:420px;color:var(--app-text-muted);font-size:12px}.dataset-status{position:relative;z-index:1;padding:5px 9px;border-color:var(--app-border);color:var(--app-text-muted);background:var(--app-soft-surface);font-size:8px}.dataset-status--active{border-color:color-mix(in srgb,#22c55e 26%,var(--app-border));color:#047857;background:color-mix(in srgb,#22c55e 10%,var(--app-surface))}
     .dataset-meta{gap:7px;margin:0}.dataset-meta-item{padding:11px;border-color:var(--app-border);border-radius:11px;background:var(--app-soft-surface)}.dataset-meta-item span{margin-bottom:4px;color:var(--app-text-muted);font-size:8px}.dataset-meta-item strong{color:var(--app-text);font-size:11px}.dataset-actions{gap:7px}.dataset-actions button{min-height:39px;border-radius:10px;font-size:11px;font-weight:850}.dataset-actions button:first-child{color:var(--dataset-accent);border-color:color-mix(in srgb,var(--dataset-accent) 38%,var(--app-border))}
     .dataset-details{border-color:var(--app-border);border-radius:13px;background:var(--app-surface)}.dataset-details[open]{box-shadow:none}.dataset-details summary{min-height:44px;padding:0 13px;color:var(--dataset-accent);background:color-mix(in srgb,var(--dataset-accent) 7%,var(--app-surface));font-size:11px}.dataset-details-copy{padding:12px 13px;color:var(--app-text-muted);font-size:11px}.dataset-field-list{padding:9px;border-color:var(--app-border)}.dataset-field-card{padding:11px;border-color:var(--app-border);border-radius:11px;background:var(--app-soft-surface)}.dataset-field-name{color:var(--app-text);font-size:11px}.dataset-field-body-item{border-color:var(--app-border)}.dataset-field-label{color:var(--app-text-muted);font-size:8px}.dataset-example,.dataset-meta-text{color:var(--app-text-muted);font-size:10px}.dataset-type,.badge{border-color:color-mix(in srgb,var(--dataset-accent) 25%,var(--app-border));color:var(--dataset-accent);background:color-mix(in srgb,var(--dataset-accent) 9%,var(--app-surface));font-size:8px}.badge-optional{border-color:var(--app-border);color:var(--app-text-muted);background:var(--app-surface)}.badge-warning{color:#b45309;border-color:color-mix(in srgb,#f59e0b 35%,var(--app-border));background:color-mix(in srgb,#f59e0b 9%,var(--app-surface))}
     :host-context(html.theme-dark) .portfolio-signal,:host-context(html.theme-dark) .pilot-chip{color:#5eead4}:host-context(html.theme-dark) .dataset-status{color:#86efac}
     @media(max-width:1050px){.page-header{align-items:flex-start;flex-direction:column}.header-actions{width:100%;justify-items:start;grid-auto-flow:column;justify-content:space-between;align-items:center}.pilot-scope-card{grid-template-columns:48px minmax(0,1fr)}.pilot-scope-badges{grid-column:1/-1;justify-content:flex-start;max-width:none}}
-    @media(max-width:760px){.datasets-page{gap:12px}.page-header{padding:25px 20px;border-radius:21px}.page-header:after{display:none}.header-actions{grid-auto-flow:row;justify-content:stretch}.header-actions button{width:100%}h1{font-size:38px}.page-intro{font-size:13px}.pilot-scope-card{grid-template-columns:40px minmax(0,1fr);padding:14px}.scope-symbol{width:40px;height:40px}.pilot-scope-badges{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}.portfolio-grid{grid-template-columns:1fr}.dataset-card{padding:19px 16px}.dataset-top{grid-template-columns:45px minmax(0,1fr)}.dataset-icon{width:45px;height:45px}.dataset-status{grid-column:2;justify-self:start}.dataset-meta{grid-template-columns:1fr 1fr}.dataset-meta-item:last-child{grid-column:1/-1}.dataset-actions{display:grid;grid-template-columns:1fr 1fr}.dataset-actions button{width:100%}.dataset-field-body{grid-template-columns:1fr}}
+    @media(max-width:760px){.datasets-page{gap:12px}.page-header{padding:25px 20px;border-radius:21px}.page-header:after{display:none}.header-actions{grid-auto-flow:row;justify-content:stretch}.header-actions button{width:100%}h1{font-size:38px}.page-intro{font-size:13px}.pilot-scope-card{grid-template-columns:40px minmax(0,1fr);padding:14px}.scope-symbol{width:40px;height:40px}.pilot-scope-badges{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}.portfolio-grid{grid-template-columns:1fr}.dataset-card{padding:19px 16px}.dataset-top{grid-template-columns:45px minmax(0,1fr)}.dataset-icon{width:45px;height:45px}.dataset-status{grid-column:2;justify-self:start}.dataset-meta{grid-template-columns:1fr 1fr}.dataset-meta-item:last-child{grid-column:1/-1}.dataset-actions,.publication-actions{display:grid;grid-template-columns:1fr 1fr}.dataset-actions button,.publication-actions button{width:100%}.dataset-field-body{grid-template-columns:1fr}}
     @media(max-width:430px){h1{font-size:34px}.dataset-actions{grid-template-columns:1fr}.dataset-field-card-head{flex-direction:column}.dataset-field-pills{justify-content:flex-start}}
   `]
 })
@@ -534,6 +611,31 @@ export class DatasetsComponent implements OnInit {
   ];
   readonly datasetCatalog: DatasetDefinition[] = DATASET_CATALOG;
   requirementsByType: Partial<Record<EntityType, DatasetRequirement>> = {};
+  activePublicationsByType: Partial<Record<EntityType, ImportJob>> = {};
+  activePublicationsLoading = true;
+  activePublicationsError = false;
+
+  get activePublicationCount(): number {
+    return Object.keys(this.activePublicationsByType).length;
+  }
+
+  get portfolioSignal(): string {
+    if (this.activePublicationsLoading) return 'Reading active portfolio';
+    if (this.activePublicationsError) return 'Active portfolio unavailable';
+    return `${this.activePublicationCount} of ${this.datasetCatalog.length} datasets active`;
+  }
+
+  get emptyPublicationTitle(): string {
+    if (this.activePublicationsLoading) return 'Loading active version...';
+    if (this.activePublicationsError) return 'Active version unavailable';
+    return 'No active version yet';
+  }
+
+  get emptyPublicationMessage(): string {
+    if (this.activePublicationsLoading) return 'Reading the governed publication record.';
+    if (this.activePublicationsError) return 'The publication service could not be reached. Your active data has not been removed.';
+    return 'The first approved publication will establish this dataset.';
+  }
 
   ngOnInit(): void {
     this.importService.getDatasetRequirements().subscribe({
@@ -544,6 +646,46 @@ export class DatasetsComponent implements OnInit {
         }, {} as Partial<Record<EntityType, DatasetRequirement>>);
       }
     });
+    this.importService.getActivePublications().subscribe({
+      next: publications => {
+        this.activePublicationsByType = publications.reduce((active, publication) => {
+          const dataset = this.datasetCatalog.find(item => item.name === publication.entityTypeLabel);
+          if (dataset) active[dataset.key] = publication;
+          return active;
+        }, {} as Partial<Record<EntityType, ImportJob>>);
+        this.activePublicationsLoading = false;
+      },
+      error: () => {
+        this.activePublicationsLoading = false;
+        this.activePublicationsError = true;
+      }
+    });
+  }
+
+  activePublication(type: EntityType): ImportJob | undefined {
+    return this.activePublicationsByType[type];
+  }
+
+  publicationStatus(type: EntityType): string {
+    if (this.activePublicationsLoading) return 'Loading';
+    if (this.activePublicationsError) return 'Unavailable';
+    return this.activePublication(type) ? 'Active' : 'Not published';
+  }
+
+  publicationSource(publication: ImportJob): string {
+    return publication.fileExtension.toLowerCase() === '.hmi' ? 'Maintenance' : 'Annual submission';
+  }
+
+  publicationSourceIcon(publication: ImportJob): string {
+    return publication.fileExtension.toLowerCase() === '.hmi' ? 'edit_note' : 'upload_file';
+  }
+
+  openActivePublication(publication: ImportJob): void {
+    this.router.navigate(['/import', publication.id]);
+  }
+
+  openPublicationHistory(dataset: DatasetDefinition): void {
+    this.router.navigate(['/datasets', dataset.key, 'history']);
   }
 
   getRequirement(type: EntityType): DatasetRequirement | undefined {

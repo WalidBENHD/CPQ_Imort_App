@@ -1,4 +1,5 @@
 using CPQ_Import_App.API.DTOs;
+using CPQ_Import_App.API.Mapping;
 using CPQ_Import_App.API.Security;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Interfaces;
@@ -12,8 +13,29 @@ namespace CPQ_Import_App.API.Controllers;
 [ApiController]
 [Route("api/active-data")]
 [Authorize(Policy = Capabilities.ImportsView)]
-public sealed class ActiveDataController(IActiveDatasetReader activeDatasetReader) : ControllerBase
+public sealed class ActiveDataController(
+    IActiveDatasetReader activeDatasetReader,
+    IImportRepository importRepository) : ControllerBase
 {
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<ImportJobDto>>> GetActivePublications(CancellationToken ct)
+    {
+        var activePublications = new List<ImportJobDto>();
+        foreach (var dataset in DatasetCatalog.All)
+        {
+            var publication = await importRepository.GetLatestCommittedJobAsync(dataset.EntityType, ct);
+            if (publication is null)
+            {
+                continue;
+            }
+
+            publication.IsActiveBaseline = true;
+            activePublications.Add(publication.ToDto());
+        }
+
+        return Ok(activePublications);
+    }
+
     [HttpGet("{entityType}")]
     public async Task<ActionResult<IReadOnlyList<ActiveDatasetRecordDto>>> GetRecords(
         string entityType,

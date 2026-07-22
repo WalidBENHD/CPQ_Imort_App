@@ -40,6 +40,10 @@ export class ImportService {
     return this.http.get<ActiveDatasetRecord[]>(`${environment.apiUrl}/active-data/${entityType}`);
   }
 
+  getActivePublications(): Observable<ImportJob[]> {
+    return this.http.get<ImportJob[]>(`${environment.apiUrl}/active-data`);
+  }
+
   getMaintenanceRequests(): Observable<ImportJob[]> {
     return this.http.get<ImportJob[]>(`${environment.apiUrl}/maintenance-requests`);
   }

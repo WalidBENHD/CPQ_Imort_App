@@ -26,6 +26,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/datasets/datasets.component').then(m => m.DatasetsComponent)
   },
   {
+    path: 'datasets/:entityType/history',
+    canActivate: [capabilityGuard('imports.view')],
+    loadComponent: () => import('./features/datasets/dataset-history.component').then(m => m.DatasetHistoryComponent)
+  },
+  {
     path: 'business-trace',
     canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/business-trace/business-trace.component').then(m => m.BusinessTraceComponent)
