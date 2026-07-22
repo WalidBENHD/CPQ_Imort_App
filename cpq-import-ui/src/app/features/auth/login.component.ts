@@ -34,6 +34,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           <a href="#business-case" (click)="scrollToSection($event, 'business-case')">Why it matters</a>
           <a href="#operating-model" (click)="scrollToSection($event, 'operating-model')">How it works</a>
           <a href="#governance" (click)="scrollToSection($event, 'governance')">Governance</a>
+          <a href="#creator-vision" (click)="scrollToSection($event, 'creator-vision')">The vision</a>
         </nav>
 
         <a class="header-access" href="#account-access" (click)="scrollToSection($event, 'account-access')">
@@ -195,6 +196,47 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
             <article><mat-icon>lock_person</mat-icon><span><strong>Private by default</strong><small>Work remains personal until deliberately submitted.</small></span></article>
             <article><mat-icon>account_tree</mat-icon><span><strong>Connected by design</strong><small>Master data and dependent datasets move together when required.</small></span></article>
             <article><mat-icon>history_edu</mat-icon><span><strong>Traceable by evidence</strong><small>Every formal decision and publication remains explainable.</small></span></article>
+          </div>
+        </section>
+
+        <section id="creator-vision" class="builder-section reveal-section" aria-labelledby="builder-title">
+          <div class="builder-section__glow"></div>
+
+          <figure class="builder-portrait">
+            <img src="assets/walid-benhamed.png" alt="Portrait of Walid Benhamed" loading="lazy">
+            <figcaption>
+              <span class="builder-monogram">WB</span>
+              <span><strong>Walid Benhamed</strong><small>CPQ Specialist &middot; Legrand</small></span>
+            </figcaption>
+          </figure>
+
+          <div class="builder-story">
+            <span class="builder-kicker">The conviction behind the platform</span>
+            <h2 id="builder-title">Clean data is where every transformation begins.</h2>
+            <p class="builder-lead">
+              I did not build this platform because governance needed another dashboard. I built it because every faster
+              quote, safer automation and better customer decision begins long before the screen, with data people can trust.
+            </p>
+            <blockquote>
+              <span>&ldquo;</span>
+              <p>When data is governed with clarity, improvement stops being a promise and becomes a repeatable capability.</p>
+            </blockquote>
+            <p>
+              My experience as a CPQ specialist at Legrand made one truth impossible to ignore: the quality of a commercial
+              process is inseparable from the quality of the data beneath it. An article without a price, a change without
+              context, or a publication without ownership is never just a data issue. It becomes a business issue.
+            </p>
+            <p>
+              This pilot is my answer to that reality: governance that enables people instead of slowing them down, evidence
+              instead of assumptions, and one trusted path from preparation to publication.
+            </p>
+
+            <div class="builder-footer">
+              <div><small>Personal product vision</small><strong>Built from real CPQ experience.</strong></div>
+              <a href="https://www.linkedin.com/in/walid-benhamed-26214914b/" target="_blank" rel="noopener noreferrer">
+                Connect on LinkedIn <mat-icon>north_east</mat-icon>
+              </a>
+            </div>
           </div>
         </section>
 
@@ -413,6 +455,34 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .governance-proof article span { display: flex; flex-direction: column; gap: 3px; }
     .governance-proof strong { color: #17253e; font-size: 13px; }
     .governance-proof small { color: #6c7788; font-size: 11px; line-height: 1.4; }
+    .builder-section { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(340px, .72fr) minmax(0, 1.28fr); gap: clamp(44px, 7vw, 110px); align-items: stretch; min-height: 680px; margin-bottom: 88px; padding: 24px; border: 1px solid rgba(94, 234, 212, .2); border-radius: 30px; color: #f8fafc; background: linear-gradient(125deg, #07111f 0%, #101d32 52%, #081316 100%); box-shadow: 0 30px 80px rgba(2, 6, 23, .24); }
+    .builder-section::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: .18; background-image: linear-gradient(rgba(148,163,184,.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.15) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(90deg, transparent, #000 45%, transparent); }
+    .builder-section__glow { position: absolute; z-index: -1; right: 5%; bottom: -300px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.28), transparent 68%); }
+    .builder-portrait { position: relative; overflow: hidden; min-height: 620px; margin: 0; border: 1px solid rgba(255,255,255,.14); border-radius: 22px; background: #111; }
+    .builder-portrait::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 52%, rgba(2,6,23,.72)); }
+    .builder-portrait img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 28%; filter: saturate(.92) contrast(1.03); transition: transform 900ms cubic-bezier(.22,1,.36,1); }
+    .builder-section.is-visible .builder-portrait img { transform: scale(1.025); }
+    .builder-portrait figcaption { position: absolute; z-index: 1; right: 20px; bottom: 20px; left: 20px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; padding: 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 15px; background: rgba(8,17,31,.75); backdrop-filter: blur(16px); }
+    .builder-portrait figcaption > span:last-child { display: grid; gap: 2px; }
+    .builder-portrait figcaption strong { font-size: 13px; }
+    .builder-portrait figcaption small { color: #94a3b8; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .builder-monogram { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #042f2e; background: #5eead4; font-size: 12px; font-weight: 950; }
+    .builder-story { align-self: center; max-width: 790px; padding: 54px 54px 54px 0; }
+    .builder-kicker { color: #5eead4; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .builder-story h2 { max-width: 780px; margin: 20px 0 24px; color: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(43px, 4.4vw, 67px); font-weight: 500; letter-spacing: -.045em; line-height: 1; }
+    .builder-story > p { max-width: 740px; margin: 0; color: #aebbd0; font-size: 14px; line-height: 1.75; }
+    .builder-story > p + p { margin-top: 14px; }
+    .builder-story .builder-lead { color: #d7e0ec; font-size: 17px; }
+    .builder-story blockquote { display: grid; grid-template-columns: auto 1fr; gap: 13px; max-width: 700px; margin: 28px 0; padding: 18px 20px; border-left: 3px solid #2dd4bf; border-radius: 0 14px 14px 0; background: rgba(15,118,110,.13); }
+    .builder-story blockquote > span { color: #5eead4; font-family: Georgia, serif; font-size: 42px; line-height: .8; }
+    .builder-story blockquote p { margin: 0; color: #f1f5f9; font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-style: italic; line-height: 1.55; }
+    .builder-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 32px; padding-top: 22px; border-top: 1px solid rgba(148,163,184,.2); }
+    .builder-footer > div { display: grid; gap: 3px; }
+    .builder-footer small { color: #5eead4; font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .builder-footer strong { color: #f8fafc; font-size: 12px; }
+    .builder-footer a { min-height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 15px; border: 1px solid rgba(226,232,240,.28); border-radius: 11px; color: #e2e8f0; font-size: 11px; font-weight: 850; text-decoration: none; transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease; }
+    .builder-footer a:hover { transform: translateY(-2px); border-color: #5eead4; background: rgba(45,212,191,.08); }
+    .builder-footer mat-icon { width: 17px; height: 17px; font-size: 17px; }
     .closing-section { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 20px; align-items: center; margin-bottom: 80px; padding: 32px; border-top: 1px solid #cdd3dd; border-bottom: 1px solid #cdd3dd; }
     .closing-section__mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 17px; color: #fff; background: #0f8e84; }
     .closing-section small { color: #0b7a72; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
@@ -440,6 +510,8 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .release-track__arrow { display: none; }
       .outcome-grid { grid-template-columns: 1fr 1fr; }
       .governance-section { grid-template-columns: 1fr; gap: 42px; padding: 48px; }
+      .builder-section { grid-template-columns: minmax(300px, .8fr) minmax(0, 1.2fr); gap: 42px; }
+      .builder-story { padding-right: 28px; }
     }
     @media (max-width: 720px) {
       .public-header, main, .public-footer { width: min(100% - 28px, 1420px); }
@@ -470,6 +542,13 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .audience-card { min-height: 0; padding: 28px 23px; }
       .governance-section { padding: 30px 22px; margin-bottom: 64px; }
       .governance-copy h2 { font-size: 35px; }
+      .builder-section { grid-template-columns: 1fr; min-height: 0; padding: 14px; border-radius: 22px; }
+      .builder-portrait { min-height: 520px; }
+      .builder-story { padding: 20px 9px 26px; }
+      .builder-story h2 { font-size: 42px; }
+      .builder-story .builder-lead { font-size: 15px; }
+      .builder-footer { align-items: stretch; flex-direction: column; }
+      .builder-footer a { justify-content: center; }
       .closing-section { grid-template-columns: 48px 1fr; padding: 24px 6px; margin-bottom: 66px; }
       .closing-section__mark { width: 48px; height: 48px; }
       .closing-section a { grid-column: 1 / -1; width: 100%; justify-content: center; }
@@ -483,7 +562,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     }
     @media (prefers-reduced-motion: reduce) {
       .landing-shell::before, .landing-shell::after, .public-header, .hero-kicker, .hero-story h1, .hero-copy, .hero-actions, .pilot-card, .pilot-card__status i, .access-panel { animation: none; }
-      .reveal-section, .release-track article, .comparison-row, .outcome-grid article, .governance-proof article { opacity: 1; transform: none; transition: none; }
+      .reveal-section, .release-track article, .comparison-row, .outcome-grid article, .governance-proof article, .builder-portrait img { opacity: 1; transform: none; transition: none; }
       .release-track::after { width: 100%; transition: none; }
       * { scroll-behavior: auto !important; }
     }

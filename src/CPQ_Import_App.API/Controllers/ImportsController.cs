@@ -32,7 +32,6 @@ public class ImportsController(
 
     /// <summary>Create an HMI maintenance candidate using the same governed workflow as an uploaded list.</summary>
     [HttpPost("maintenance-drafts")]
-    [Authorize(Policy = Capabilities.UsersManage)]
     [Authorize(Policy = Capabilities.ImportsUpload)]
     [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
     [Authorize(Policy = Capabilities.ImportsSubmit)]

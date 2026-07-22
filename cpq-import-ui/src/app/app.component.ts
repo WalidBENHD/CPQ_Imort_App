@@ -791,7 +791,7 @@ export class AppComponent implements OnInit, OnDestroy {
     { route: '/datasets', label: 'Datasets', description: 'Governed data catalogue', icon: 'dataset', capabilities: ['imports.view'] },
     { route: '/business-trace', label: 'Business trace', description: 'Published decision history', icon: 'manage_search', capabilities: ['imports.view'] },
     { route: '/uploads', label: 'Publications', description: 'Uploads and release records', icon: 'upload_file', capabilities: ['imports.view'] },
-    { route: '/maintenance', label: 'Data maintenance', description: 'Requests, corrections and approvals', icon: 'edit_square', capabilities: ['users.manage'] }
+    { route: '/maintenance', label: 'Data maintenance', description: 'Requests, corrections and approvals', icon: 'edit_square', capabilities: ['imports.view'] }
   ];
 
   readonly adminNavItems: ReadonlyArray<NavItem> = [

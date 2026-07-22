@@ -11,7 +11,7 @@ namespace CPQ_Import_App.API.Controllers;
 
 [ApiController]
 [Route("api/maintenance-requests")]
-[Authorize(Policy = Capabilities.UsersManage)]
+[Authorize(Policy = Capabilities.ImportsView)]
 public sealed class MaintenanceRequestsController(IImportService importService) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)

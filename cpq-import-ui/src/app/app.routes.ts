@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, capabilityGuard, internalToolsGuard } from './core/auth/auth.guard';
+import { capabilityGuard, internalToolsGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -61,12 +61,12 @@ export const routes: Routes = [
   },
   {
     path: 'maintenance',
-    canActivate: [capabilityGuard('users.manage')],
+    canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/data-maintenance/maintenance-requests.component').then(m => m.MaintenanceRequestsComponent)
   },
   {
     path: 'maintenance/new',
-    canActivate: [capabilityGuard('users.manage')],
+    canActivate: [capabilityGuard('imports.upload'), capabilityGuard('imports.correct_own'), capabilityGuard('imports.submit')],
     loadComponent: () => import('./features/data-maintenance/data-maintenance.component').then(m => m.DataMaintenanceComponent)
   },
   {
@@ -80,7 +80,7 @@ export const routes: Routes = [
   },
   {
     path: 'maintenance/:kind/:id',
-    canActivate: [capabilityGuard('users.manage')],
+    canActivate: [capabilityGuard('imports.view')],
     loadComponent: () => import('./features/data-maintenance/maintenance-request.component').then(m => m.MaintenanceRequestComponent)
   },
   {

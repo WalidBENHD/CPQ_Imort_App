@@ -35,7 +35,7 @@ interface MaintenanceRequestCard {
     <section class="requests-page">
       <header class="requests-hero">
         <div><span class="eyebrow"><mat-icon>fact_check</mat-icon> Data maintenance</span><h1>Maintenance requests</h1><p>Create record changes, see validation errors before submission, and follow approvals and publication from one place.</p></div>
-        <a mat-flat-button routerLink="/maintenance/new"><mat-icon>{{ localDraft ? 'edit' : 'add' }}</mat-icon>{{ localDraft ? 'Continue draft' : 'Add request' }}</a>
+        <a *ngIf="canCreateMaintenance" mat-flat-button routerLink="/maintenance/new"><mat-icon>{{ localDraft ? 'edit' : 'add' }}</mat-icon>{{ localDraft ? 'Continue draft' : 'Add request' }}</a>
       </header>
 
       <nav class="spaces" aria-label="Maintenance request views">
@@ -180,6 +180,12 @@ export class MaintenanceRequestsComponent implements OnInit {
   actingRequestId: string | null = null;
   pushingLocalDraft = false;
   viewMode: RequestViewMode = this.readViewPreference();
+
+  get canCreateMaintenance(): boolean {
+    return this.auth.hasCapability('imports.upload')
+      && this.auth.hasCapability('imports.correct_own')
+      && this.auth.hasCapability('imports.submit');
+  }
 
   get requests(): MaintenanceRequestCard[] {
     const groups = new Map<string, ImportJob[]>();
