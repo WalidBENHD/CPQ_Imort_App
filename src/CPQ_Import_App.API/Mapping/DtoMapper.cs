@@ -115,7 +115,8 @@ public static class DtoMapper
 
     public static ReleasePackageDto ToDto(this ReleasePackageSummary package) => new(
         package.Id, package.Name, package.Status, package.CreatedBy, package.CreatedByDisplayName,
-        package.CreatedAt, package.SubmittedAt, package.ApprovedAt, package.ApprovedByDisplayName,
+        package.CreatedAt, package.SubmittedAt, package.SubmittedByDisplayName,
+        package.ApprovedAt, package.ApprovedByDisplayName,
         package.RejectedAt, package.RejectedByDisplayName, package.RejectionReason,
         package.PublishedAt, package.PublishedByDisplayName, package.FailureReason,
         package.Items.Select(ToDto).ToList());

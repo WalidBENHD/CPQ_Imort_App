@@ -57,15 +57,24 @@ export const routes: Routes = [
   {
     path: 'maintenance',
     canActivate: [capabilityGuard('users.manage')],
-    loadComponent: () => import('./features/data-maintenance/data-maintenance.component').then(m => m.DataMaintenanceComponent)
-  },
-  {
-    path: 'maintenance/requests',
-    canActivate: [capabilityGuard('users.manage')],
     loadComponent: () => import('./features/data-maintenance/maintenance-requests.component').then(m => m.MaintenanceRequestsComponent)
   },
   {
+    path: 'maintenance/new',
+    canActivate: [capabilityGuard('users.manage')],
+    loadComponent: () => import('./features/data-maintenance/data-maintenance.component').then(m => m.DataMaintenanceComponent)
+  },
+  {
     path: 'maintenance/requests/:kind/:id',
+    redirectTo: 'maintenance/:kind/:id'
+  },
+  {
+    path: 'maintenance/requests',
+    redirectTo: 'maintenance',
+    pathMatch: 'full'
+  },
+  {
+    path: 'maintenance/:kind/:id',
     canActivate: [capabilityGuard('users.manage')],
     loadComponent: () => import('./features/data-maintenance/maintenance-request.component').then(m => m.MaintenanceRequestComponent)
   },

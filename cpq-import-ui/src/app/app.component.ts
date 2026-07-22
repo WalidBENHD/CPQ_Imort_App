@@ -791,8 +791,7 @@ export class AppComponent implements OnInit, OnDestroy {
     { route: '/datasets', label: 'Datasets', description: 'Governed data catalogue', icon: 'dataset', capabilities: ['imports.view'] },
     { route: '/business-trace', label: 'Business trace', description: 'Published decision history', icon: 'manage_search', capabilities: ['imports.view'] },
     { route: '/uploads', label: 'Publications', description: 'Uploads and release records', icon: 'upload_file', capabilities: ['imports.view'] },
-    { route: '/maintenance', label: 'Data maintenance', description: 'Correct governed records', icon: 'edit_square', capabilities: ['users.manage'], exact: true },
-    { route: '/maintenance/requests', label: 'Maintenance requests', description: 'Review correction workflow', icon: 'fact_check', capabilities: ['users.manage'] }
+    { route: '/maintenance', label: 'Data maintenance', description: 'Requests, corrections and approvals', icon: 'edit_square', capabilities: ['users.manage'] }
   ];
 
   readonly adminNavItems: ReadonlyArray<NavItem> = [
@@ -866,8 +865,8 @@ export class AppComponent implements OnInit, OnDestroy {
   get currentPageTitle(): string {
     const path = this.router.url.split('?')[0];
     if (path.startsWith('/import/')) return 'Upload details';
-    if (path.startsWith('/maintenance/requests/')) return 'Maintenance request';
-    if (path.startsWith('/maintenance/requests')) return 'Maintenance requests';
+    if (path.startsWith('/maintenance/new')) return 'New maintenance request';
+    if (/^\/maintenance\/(package|job)\//.test(path)) return 'Maintenance request';
     if (path.startsWith('/maintenance')) return 'Data maintenance';
     if (path.startsWith('/admin/access-studio')) return 'Roles & access';
     if (path.startsWith('/admin/users')) return 'People';

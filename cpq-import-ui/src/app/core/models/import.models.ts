@@ -189,6 +189,7 @@ export interface ReleasePackage {
   createdByDisplayName: string;
   createdAt: string;
   submittedAt: string | null;
+  submittedByDisplayName: string | null;
   approvedAt: string | null;
   approvedByDisplayName: string | null;
   rejectedAt: string | null;

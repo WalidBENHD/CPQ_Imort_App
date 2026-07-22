@@ -182,6 +182,7 @@ public record ReleasePackageDto(
     string CreatedByDisplayName,
     DateTime CreatedAt,
     DateTime? SubmittedAt,
+    string? SubmittedByDisplayName,
     DateTime? ApprovedAt,
     string? ApprovedByDisplayName,
     DateTime? RejectedAt,

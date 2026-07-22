@@ -3,10 +3,11 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { Router } from '@angular/router';
-import { Observable, concatMap, finalize, from, map, switchMap, throwError, toArray } from 'rxjs';
+import { Router, RouterLink } from '@angular/router';
+import { Observable, catchError, concatMap, finalize, forkJoin, from, map, of, switchMap, throwError, toArray } from 'rxjs';
 import { ImportJob, MaintenanceDraft, StagingRow } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
+import { MaintenanceLocalDraftService } from '../../core/services/maintenance-local-draft.service';
 import { ToastService } from '../../core/services/toast.service';
 
 type DatasetKey = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
@@ -47,7 +48,20 @@ interface DraftChange {
   label: string;
   action: ChangeAction;
   values: Record<string, string>;
+  originalValues?: Record<string, string>;
   valid: boolean;
+}
+
+interface ValidationIssue {
+  dataset: string;
+  record: string;
+  field: string;
+  message: string;
+}
+
+interface ValidationOutcome {
+  draft: MaintenanceDraft;
+  issues: ValidationIssue[];
 }
 
 const DATASETS: DatasetDefinition[] = [
@@ -113,11 +127,12 @@ const DATASETS: DatasetDefinition[] = [
 @Component({
   selector: 'app-data-maintenance',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule],
   template: `
     <section class="maintenance-page">
       <header class="maintenance-hero">
         <div class="maintenance-hero__copy">
+          <div class="hero-navigation"><a class="back-to-work" routerLink="/maintenance"><mat-icon>arrow_back</mat-icon>Back to My requests</a></div>
           <span class="eyebrow"><mat-icon>edit_note</mat-icon> Governed record maintenance</span>
           <h1>Change one record.<br><span>Keep the whole portfolio safe.</span></h1>
           <p>Prepare precise business changes without rebuilding a complete list. Every record still follows the same validation, approval and publication controls.</p>
@@ -226,18 +241,22 @@ const DATASETS: DatasetDefinition[] = [
           <div class="change-list" *ngIf="changes.length">
             <article class="change-item" *ngFor="let change of changes">
               <span class="change-icon" [attr.data-action]="change.action"><mat-icon>{{ changeIcon(change.action) }}</mat-icon></span>
-              <div><span>{{ change.datasetName }}</span><strong>{{ change.recordKey }}</strong><small>{{ change.action }} · {{ change.label }}</small></div>
+              <div><span>{{ change.datasetName }}</span><strong>{{ change.recordKey }}</strong><small>{{ change.action }} · {{ change.label }}</small><div class="field-diffs" *ngIf="changedFields(change).length"><div *ngFor="let field of changedFields(change)"><b>{{ field.label }}</b><del>{{ field.oldValue || 'Not set' }}</del><mat-icon>arrow_forward</mat-icon><ins>{{ field.newValue || 'Not set' }}</ins></div></div></div>
               <button type="button" aria-label="Remove change" (click)="removeChange(change.id)"><mat-icon>close</mat-icon></button>
             </article>
           </div>
 
           <div class="basket-validation" *ngIf="changes.length">
-            <div><mat-icon>check_circle</mat-icon><span><strong>Ready for validation</strong><small>{{ changes.length }} staged change{{ changes.length === 1 ? '' : 's' }}</small></span></div>
+            <div [class.validation-blocked]="basketIssues.length"><mat-icon>{{ basketIssues.length ? 'error' : 'check_circle' }}</mat-icon><span><strong>{{ basketIssues.length ? 'Resolve blocking checks' : 'Ready for validation' }}</strong><small>{{ basketIssues.length ? basketIssues.length + ' issue' + (basketIssues.length === 1 ? '' : 's') : changes.length + ' staged change' + (changes.length === 1 ? '' : 's') }}</small></span></div>
             <div><mat-icon>account_tree</mat-icon><span><strong>Dependencies enforced</strong><small>Article and price candidates are always paired</small></span></div>
           </div>
 
-          <button mat-flat-button type="button" class="review-button" [disabled]="!changes.length" (click)="openReview()"><mat-icon>fact_check</mat-icon> Review draft release</button>
-          <p class="basket-caption">The draft remains private until you submit it from its Maintenance request.</p>
+          <div class="basket-issues" *ngIf="basketIssues.length">
+            <span *ngFor="let issue of basketIssues"><mat-icon>error_outline</mat-icon>{{ issue }}</span>
+          </div>
+
+          <button mat-flat-button type="button" class="review-button" [disabled]="changes.length === 0 || basketIssues.length > 0" (click)="openReview()"><mat-icon>fact_check</mat-icon> Review and validate request</button>
+          <p class="basket-caption">{{ changes.length ? 'Saved locally in this browser. Validation runs here before submission.' : 'Validation runs here before the request is sent to approvers.' }}</p>
         </aside>
       </div>
     </section>
@@ -287,14 +306,18 @@ const DATASETS: DatasetDefinition[] = [
       </footer>
     </aside>
 
-    <div class="review-backdrop" *ngIf="showReview" (click)="showReview = false">
+    <div class="review-backdrop" *ngIf="showReview" (click)="!savingDraft && !submittingRequest && closeReview()">
       <section class="review-dialog" (click)="$event.stopPropagation()">
-        <header><span class="review-icon"><mat-icon>fact_check</mat-icon></span><div><span class="section-kicker">Draft release review</span><h2>Changes are ready to validate</h2></div><button type="button" aria-label="Close review" (click)="showReview = false"><mat-icon>close</mat-icon></button></header>
+        <header><span class="review-icon"><mat-icon>{{ validationPassed ? 'verified' : 'fact_check' }}</mat-icon></span><div><span class="section-kicker">Maintenance request</span><h2>{{ validationPassed ? 'Request ready for approval' : 'Validate these changes' }}</h2></div><button type="button" aria-label="Close review" [disabled]="savingDraft || submittingRequest" (click)="closeReview()"><mat-icon>close</mat-icon></button></header>
         <div class="review-flow"><span class="active">1 <small>Prepare</small></span><i></i><span>2 <small>Validate</small></span><i></i><span>3 <small>Submit</small></span><i></i><span>4 <small>Approve</small></span><i></i><span>5 <small>Publish</small></span></div>
-        <div class="review-summary"><div><strong>{{ changes.length }}</strong><span>Record changes</span></div><div><strong>{{ affectedDatasets }}</strong><span>Affected datasets</span></div><div><strong>Pending</strong><span>Server validation</span></div></div>
-        <label class="draft-name"><span>Release name</span><input [(ngModel)]="draftName" maxlength="140" /></label>
-        <div class="review-callout"><mat-icon>info</mat-icon><span><strong>Your Maintenance request is created next.</strong><small>The server creates full working snapshots, applies these record changes, and runs authoritative validation. You review and submit the request as a separate deliberate action.</small></span></div>
-        <footer><button mat-stroked-button type="button" [disabled]="savingDraft" (click)="showReview = false">Back to draft</button><button mat-flat-button type="button" class="primary-action" [disabled]="savingDraft || !draftName.trim()" (click)="createGovernedDraft()"><mat-icon>play_arrow</mat-icon> {{ savingDraft ? 'Creating draft…' : 'Create governed draft' }}</button></footer>
+        <div class="review-summary"><div><strong>{{ changes.length }}</strong><span>Record changes</span></div><div><strong>{{ affectedDatasets }}</strong><span>Affected datasets</span></div><div><strong>{{ serverValidationIssues.length ? serverValidationIssues.length : validationPassed ? 'Passed' : 'Pending' }}</strong><span>{{ serverValidationIssues.length ? 'Blocking errors' : validationPassed ? 'Server validation' : 'Ready to validate' }}</span></div></div>
+        <label class="draft-name"><span>Request name</span><input [(ngModel)]="draftName" (ngModelChange)="persistLocalDraft()" maxlength="140" /></label>
+        <section class="server-errors" *ngIf="serverValidationIssues.length">
+          <header><mat-icon>error</mat-icon><span><strong>Server validation found blocking errors</strong><small>Correct the records in your change basket, then validate and submit again.</small></span></header>
+          <article *ngFor="let issue of serverValidationIssues"><strong>{{ issue.dataset }} · {{ issue.record }}</strong><span><b>{{ issue.field || 'Record' }}:</b> {{ issue.message }}</span></article>
+        </section>
+        <div class="review-callout" [class.review-callout--ready]="validationPassed"><mat-icon>{{ validationPassed ? 'verified_user' : 'shield' }}</mat-icon><span><strong>{{ validationPassed ? 'All authoritative checks passed.' : 'Validation stays inside this maintenance form.' }}</strong><small>{{ validationPassed ? 'The request can now be pushed to approvers. No private correction workspace has been created.' : 'Dataset and dependency rules run before the approval action becomes available. Errors return here for correction.' }}</small></span></div>
+        <footer><button mat-stroked-button type="button" [disabled]="savingDraft || submittingRequest" (click)="closeReview()">Back to changes</button><button *ngIf="!validationPassed" mat-flat-button type="button" class="primary-action" [disabled]="savingDraft || !draftName.trim()" (click)="validateMaintenanceRequest()"><mat-icon>fact_check</mat-icon> {{ savingDraft ? 'Validating…' : serverValidationIssues.length ? 'Validate again' : 'Validate request' }}</button><button *ngIf="validationPassed" mat-flat-button type="button" class="primary-action" [disabled]="submittingRequest" (click)="pushForApproval()"><mat-icon>send</mat-icon> {{ submittingRequest ? 'Pushing for approval…' : 'Push for approval' }}</button></footer>
       </section>
     </div>
   `,
@@ -304,6 +327,7 @@ const DATASETS: DatasetDefinition[] = [
     .maintenance-hero { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:flex-end; gap:36px; padding:30px 34px; border:1px solid color-mix(in srgb,#0f8f87 24%,var(--app-border)); border-radius:24px; background:linear-gradient(125deg,color-mix(in srgb,var(--app-surface) 96%,#0f766e),color-mix(in srgb,var(--app-surface) 90%,#dbeafe)); box-shadow:var(--app-shadow-soft); }
     .maintenance-hero::after { content:''; position:absolute; width:330px; height:330px; right:22%; top:-245px; border:70px solid rgba(20,184,166,.08); border-radius:50%; pointer-events:none; }
     .maintenance-hero__copy { position:relative; z-index:1; max-width:780px; }
+    .hero-navigation { display:flex; margin-bottom:20px; } .back-to-work { display:inline-flex; align-items:center; gap:7px; min-height:34px; padding:0 11px 0 8px; border:1px solid color-mix(in srgb,#0f8f87 24%,var(--app-border)); border-radius:10px; color:var(--app-text); background:color-mix(in srgb,var(--app-surface) 88%,#ccfbf1); box-shadow:0 4px 12px rgba(15,23,42,.05); font-size:11px; font-weight:850; text-decoration:none; transition:transform .16s ease,border-color .16s ease,color .16s ease; } .back-to-work:hover { transform:translateX(-2px); border-color:#0f8f87; color:#0f8f87; } .back-to-work mat-icon { width:17px; height:17px; font-size:17px; }
     .eyebrow,.section-kicker { display:inline-flex; align-items:center; gap:6px; color:#0f8f87; font-size:11px; line-height:1.2; font-weight:850; letter-spacing:.1em; text-transform:uppercase; }
     .eyebrow mat-icon { width:18px; height:18px; font-size:18px; }
     h1 { margin:10px 0; color:var(--app-text); font-size:clamp(29px,3.1vw,48px); line-height:1.04; letter-spacing:-.045em; } h1 span { color:#0f8f87; }
@@ -374,7 +398,9 @@ const DATASETS: DatasetDefinition[] = [
     .change-icon { display:grid; place-items:center; width:30px; height:30px; border-radius:7px; color:#047857; background:#d1fae5; } .change-icon[data-action="Modify"] { color:#1d4ed8; background:#dbeafe; } .change-icon[data-action="Deactivate"] { color:#b91c1c; background:#fee2e2; }
     .change-icon mat-icon { width:16px; height:16px; font-size:16px; } .change-item > div { display:grid; gap:1px; min-width:0; } .change-item span { color:var(--app-text-muted); font-size:8px; text-transform:uppercase; } .change-item strong { color:var(--app-text); font-size:11px; } .change-item small { color:var(--app-text-muted); font-size:9px; }
     .change-item button mat-icon { width:15px; height:15px; font-size:15px; }
+    .field-diffs { display:grid; gap:4px; margin-top:6px; } .field-diffs > div { display:grid; grid-template-columns:minmax(65px,.75fr) minmax(0,1fr) 13px minmax(0,1fr); align-items:center; gap:5px; padding:5px 6px; border:1px solid var(--app-border); border-radius:6px; background:var(--app-soft-surface); font-size:8px; } .field-diffs b { overflow:hidden; color:var(--app-text-muted); text-overflow:ellipsis; white-space:nowrap; } .field-diffs del,.field-diffs ins { overflow:hidden; color:var(--app-text); text-decoration:none; text-overflow:ellipsis; white-space:nowrap; } .field-diffs del { color:#b91c1c; text-decoration:line-through; } .field-diffs ins { color:#047857; font-weight:850; } .field-diffs mat-icon { width:13px; height:13px; color:var(--app-text-muted); font-size:13px; }
     .basket-validation { display:grid; gap:8px; padding:12px 15px; border-top:1px solid var(--app-border); background:var(--app-soft-surface); } .basket-validation > div { display:flex; align-items:center; gap:8px; } .basket-validation mat-icon { width:17px; height:17px; color:#0f766e; font-size:17px; } .basket-validation span { display:grid; } .basket-validation strong { color:var(--app-text); font-size:10px; } .basket-validation small { color:var(--app-text-muted); font-size:9px; }
+    .basket-validation .validation-blocked mat-icon { color:#dc2626; } .basket-issues { display:grid; gap:6px; padding:10px 15px; border-top:1px solid color-mix(in srgb,#ef4444 35%,var(--app-border)); color:#b91c1c; background:color-mix(in srgb,#ef4444 7%,var(--app-surface)); } .basket-issues span { display:flex; align-items:flex-start; gap:6px; font-size:9px; line-height:1.4; } .basket-issues mat-icon { flex:none; width:15px; height:15px; font-size:15px; }
     .review-button { width:calc(100% - 30px); margin:14px 15px 4px; color:#fff !important; background:#1d4ed8 !important; border-radius:7px !important; } .review-button:disabled { background:#94a3b8 !important; }
     .basket-caption { margin:3px 15px 13px; color:var(--app-text-muted); font-size:8px; text-align:center; }
     .drawer-backdrop,.review-backdrop { position:fixed; inset:58px 0 0; z-index:190; background:rgba(15,23,42,.42); backdrop-filter:blur(2px); }
@@ -397,6 +423,7 @@ const DATASETS: DatasetDefinition[] = [
     .review-flow { display:flex; align-items:center; padding:20px 24px 14px; } .review-flow > span { display:grid; place-items:center; width:31px; height:31px; border-radius:50%; color:#64748b; background:#e2e8f0; font-size:10px; font-weight:900; } .review-flow > span.active { color:#fff; background:#0f766e; } .review-flow small { position:absolute; margin-top:50px; color:var(--app-text-muted); font-size:8px; font-weight:700; } .review-flow i { flex:1; height:2px; background:#e2e8f0; }
     .review-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin:28px 18px 0; } .review-summary div { display:grid; gap:3px; padding:12px; border:1px solid var(--app-border); border-radius:8px; background:var(--app-soft-surface); } .review-summary strong { color:var(--app-text); font-size:22px; } .review-summary span { color:var(--app-text-muted); font-size:9px; text-transform:uppercase; }
     .review-callout { display:flex; gap:10px; margin:14px 18px; padding:12px; border-left:4px solid #0f766e; border-radius:6px; color:#0f766e; background:#f0fdfa; } .review-callout span { display:grid; gap:2px; } .review-callout strong { font-size:11px; } .review-callout small { font-size:9px; line-height:1.45; }
+    .server-errors { display:grid; gap:8px; max-height:230px; overflow:auto; margin:14px 18px 0; padding:12px; border:1px solid color-mix(in srgb,#ef4444 40%,var(--app-border)); border-radius:8px; background:color-mix(in srgb,#ef4444 7%,var(--app-surface)); } .server-errors > header { display:flex; grid-template-columns:none; align-items:flex-start; gap:8px; padding:0 0 8px; border-bottom:1px solid color-mix(in srgb,#ef4444 28%,var(--app-border)); color:#b91c1c; } .server-errors > header mat-icon { flex:none; width:18px; height:18px; font-size:18px; } .server-errors > header span { display:grid; gap:2px; } .server-errors > header strong { font-size:11px; } .server-errors > header small { font-size:9px; } .server-errors article { display:grid; grid-template-columns:minmax(120px,180px) 1fr; gap:9px; color:var(--app-text); font-size:9px; } .server-errors article > strong { color:#b91c1c; } .server-errors article span { line-height:1.4; } .server-errors article b { font-weight:850; }
     .draft-name { display:grid; gap:6px; margin:16px 18px 0; color:var(--app-text); font-size:11px; font-weight:800; } .draft-name input { min-height:40px; padding:0 10px; border:1px solid var(--app-border); border-radius:7px; outline:0; color:var(--app-text); background:var(--app-surface); font:inherit; } .draft-name input:focus { border-color:#2dd4bf; box-shadow:0 0 0 3px rgba(45,212,191,.12); }
     .review-dialog footer { display:flex; justify-content:flex-end; gap:8px; padding:14px 18px; border-top:1px solid var(--app-border); }
     :host-context(html.theme-dark) .eyebrow,
@@ -439,13 +466,19 @@ const DATASETS: DatasetDefinition[] = [
     :host-context(html.theme-dark) .review-flow > span.active { color:#ecfeff; background:#0f766e; }
     :host-context(html.theme-dark) .review-flow i { background:#334155; }
     :host-context(html.theme-dark) .review-callout { border-left-color:#2dd4bf; color:#99f6e4; background:rgba(15,118,110,.2); }
+    :host-context(html.theme-dark) .basket-validation .validation-blocked mat-icon,
+    :host-context(html.theme-dark) .basket-issues,
+    :host-context(html.theme-dark) .server-errors > header,
+    :host-context(html.theme-dark) .server-errors article > strong { color:#fca5a5; }
     @keyframes drawer-in { from { transform:translateX(100%); } to { transform:translateX(0); } }
+    @media (min-width:1201px) { .workspace { position:sticky; top:74px; height:calc(100dvh - 90px); } .dataset-rail,.record-workspace,.change-basket { position:static; } .record-workspace { height:100%; } }
     @media (max-width:1200px) { .workspace { grid-template-columns:220px minmax(480px,1fr); } .change-basket { position:static; grid-column:1/-1; } }
-    @media (max-width:820px) { .maintenance-hero { align-items:stretch; flex-direction:column; gap:24px; padding:25px 20px 20px; border-radius:21px; } .maintenance-hero h1 { font-size:35px; } .maintenance-hero__copy p { font-size:14px; } .scope-card { min-width:0; } .operating-model { padding:20px 16px; border-radius:19px; } .operating-model > header { align-items:flex-start; flex-direction:column; gap:12px; } .maintenance-path { grid-template-columns:1fr; gap:8px; } .maintenance-path > mat-icon,.maintenance-path > mat-icon:nth-of-type(2) { display:block; justify-self:center; transform:rotate(90deg); } .workspace { grid-template-columns:1fr; padding-bottom:0; } .dataset-rail { position:static; display:flex; gap:7px; overflow-x:auto; padding:8px; border-radius:16px; } .rail-heading,.governance-note { display:none; } .dataset-option { flex:0 0 175px; margin:0; } .record-workspace { position:static; height:auto; min-height:0; border-radius:18px; } .record-heading { align-items:stretch; flex-direction:column; } .record-heading .primary-action { width:100%; white-space:nowrap; } .change-basket { border-radius:18px; } .record-table { overflow:visible; } .record-table-head { display:none; } .record-row { grid-template-columns:1fr auto; gap:8px; padding:12px; } .record-summary { grid-column:1/-1; grid-row:2; } .status-pill { grid-column:2; grid-row:1; } .row-actions { grid-column:2; grid-row:2; } .field-grid { grid-template-columns:1fr; } .field-grid .field-wide { grid-column:auto; } .dependency-alert { grid-template-columns:auto 1fr; } .dependency-alert button { grid-column:1/-1; } }
+    @media (max-width:820px) { .maintenance-hero { align-items:stretch; flex-direction:column; gap:24px; padding:25px 20px 20px; border-radius:21px; } .maintenance-hero h1 { font-size:35px; } .maintenance-hero__copy p { font-size:14px; } .scope-card { min-width:0; } .operating-model { padding:20px 16px; border-radius:19px; } .operating-model > header { align-items:flex-start; flex-direction:column; gap:12px; } .maintenance-path { grid-template-columns:1fr; gap:8px; } .maintenance-path > mat-icon,.maintenance-path > mat-icon:nth-of-type(2) { display:block; justify-self:center; transform:rotate(90deg); } .workspace { grid-template-columns:1fr; padding-bottom:0; } .dataset-rail { position:static; display:flex; gap:7px; overflow-x:auto; padding:8px; border-radius:16px; } .rail-heading,.governance-note { display:none; } .dataset-option { flex:0 0 175px; margin:0; } .record-workspace { position:static; height:auto; min-height:0; border-radius:18px; } .record-heading { align-items:stretch; flex-direction:column; } .record-heading .primary-action { width:100%; white-space:nowrap; } .change-basket { border-radius:18px; } .record-table { overflow:visible; } .record-table-head { display:none; } .record-row { grid-template-columns:1fr auto; gap:8px; padding:12px; } .record-summary { grid-column:1/-1; grid-row:2; } .status-pill { grid-column:2; grid-row:1; } .row-actions { grid-column:2; grid-row:2; } .field-grid { grid-template-columns:1fr; } .field-grid .field-wide { grid-column:auto; } .dependency-alert { grid-template-columns:auto 1fr; } .dependency-alert button { grid-column:1/-1; } .server-errors article { grid-template-columns:1fr; } }
   `]
 })
 export class DataMaintenanceComponent implements OnInit {
   private readonly imports = inject(ImportService);
+  private readonly localDrafts = inject(MaintenanceLocalDraftService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   readonly datasets = DATASETS;
@@ -462,9 +495,16 @@ export class DataMaintenanceComponent implements OnInit {
   showReview = false;
   loadingRecords = false;
   savingDraft = false;
+  submittingRequest = false;
+  validationPassed = false;
   draftName = '';
+  serverValidationIssues: ValidationIssue[] = [];
+  private pendingGeneratedDraft: MaintenanceDraft | null = null;
+  private readonly loadedDatasets = new Set<DatasetKey>();
+  private readonly loadingDatasets = new Set<DatasetKey>();
 
   ngOnInit(): void {
+    this.restoreLocalDraft();
     this.loadActiveRecords();
   }
 
@@ -490,6 +530,36 @@ export class DataMaintenanceComponent implements OnInit {
     return new Set(this.changes.map(change => change.dataset)).size;
   }
 
+  get basketIssues(): string[] {
+    const issues: string[] = [];
+    const affected = new Set(this.changes.map(change => change.dataset));
+    if (affected.has('Article') || affected.has('PriceList')) {
+      if (!this.loadedDatasets.has('Article') || !this.loadedDatasets.has('PriceList')) {
+        issues.push('The Article Master and Basis Price dependency context is still loading.');
+      }
+    }
+
+    for (const change of this.changes.filter(item => item.action === 'Add')) {
+      const alreadyExists = this.records.some(record => record.dataset === change.dataset
+        && record.status === 'Active' && this.identity(change.dataset, record.values) === change.identity);
+      if (alreadyExists) issues.push(`${change.datasetName} ${change.recordKey} already exists; modify it instead of adding it.`);
+    }
+
+    const articleNumbers = new Set(this.changes
+      .filter(change => change.dataset === 'Article' || change.dataset === 'PriceList')
+      .map(change => change.values['ArticleNumber']?.trim())
+      .filter((value): value is string => !!value));
+    if (this.loadedDatasets.has('Article') && this.loadedDatasets.has('PriceList')) {
+      for (const articleNumber of articleNumbers) {
+        const articleExists = this.projectedRecordExists('Article', articleNumber);
+        const priceExists = this.projectedRecordExists('PriceList', articleNumber);
+        if (!articleExists && priceExists) issues.push(`Deactivate Basis Price ${articleNumber} in this request before deactivating its Article Master record.`);
+        if (articleExists && !priceExists) issues.push(`Article Master ${articleNumber} must retain a Basis Price in the projected release.`);
+      }
+    }
+    return [...new Set(issues)];
+  }
+
   selectDataset(dataset: DatasetDefinition): void {
     if (this.changes.length && !this.datasetsShareRelease(this.changes[0].dataset, dataset.key)) {
       this.toast.warning('Finish or remove the current change basket before starting a different dataset release.');
@@ -498,6 +568,7 @@ export class DataMaintenanceComponent implements OnInit {
     this.selectedDataset = dataset;
     this.searchTerm = '';
     this.closeEditor();
+    this.persistLocalDraft();
     this.loadActiveRecords();
   }
 
@@ -566,6 +637,7 @@ export class DataMaintenanceComponent implements OnInit {
       label: action === 'Add' ? 'New governed record' : 'Field values updated',
       action,
       values: { ...this.editorValues },
+      originalValues: action === 'Modify' && this.editingRecord ? { ...this.editingRecord.values } : undefined,
       valid: true
     });
     this.closeEditor();
@@ -587,44 +659,163 @@ export class DataMaintenanceComponent implements OnInit {
 
   removeChange(id: string): void {
     this.changes = this.changes.filter(change => change.id !== id);
+    this.resetValidationState();
+    this.persistLocalDraft();
   }
 
   changeIcon(action: ChangeAction): string {
     return action === 'Add' ? 'add' : action === 'Modify' ? 'edit' : 'block';
   }
 
+  changedFields(change: DraftChange): { label: string; oldValue: string; newValue: string }[] {
+    if (change.action !== 'Modify' || !change.originalValues) return [];
+    const dataset = this.datasets.find(item => item.key === change.dataset);
+    if (!dataset) return [];
+    return dataset.fields
+      .filter(field => (change.originalValues?.[field.key] ?? '') !== (change.values[field.key] ?? ''))
+      .map(field => ({
+        label: field.label,
+        oldValue: change.originalValues?.[field.key] ?? '',
+        newValue: change.values[field.key] ?? ''
+      }));
+  }
+
   openReview(): void {
-    this.draftName = `${this.changes[0]?.datasetName ?? 'Data'} maintenance ${new Date().toISOString().slice(0, 10)}`;
+    if (this.basketIssues.length) return;
+    if (!this.draftName.trim()) {
+      this.draftName = `${this.changes[0]?.datasetName ?? 'Data'} maintenance ${new Date().toISOString().slice(0, 10)}`;
+    }
+    this.persistLocalDraft();
+    this.resetValidationState();
     this.showReview = true;
   }
 
-  createGovernedDraft(): void {
-    if (!this.changes.length || !this.draftName.trim() || this.savingDraft) return;
+  closeReview(): void {
+    if (this.savingDraft || this.submittingRequest) return;
+    this.showReview = false;
+  }
+
+  validateMaintenanceRequest(): void {
+    if (!this.changes.length || this.basketIssues.length || !this.draftName.trim() || this.savingDraft) return;
     this.savingDraft = true;
+    this.resetValidationState();
+    this.prepareGovernedDraft().pipe(
+      switchMap(outcome => this.discardGeneratedDraft(outcome.draft).pipe(
+        map(() => outcome)
+      )),
+      finalize(() => this.savingDraft = false)
+    ).subscribe({
+      next: outcome => {
+        this.pendingGeneratedDraft = null;
+        this.serverValidationIssues = outcome.issues;
+        this.validationPassed = outcome.issues.length === 0;
+        if (outcome.issues.length) {
+          this.toast.error('Correct the blocking validation errors before submitting.');
+          return;
+        }
+        this.toast.success('Server validation passed. The request is ready to push for approval.');
+      },
+      error: error => {
+        this.cleanupPendingDraft();
+        this.toast.error(error?.error?.error ?? error?.message ?? 'The maintenance request could not be validated.');
+      }
+    });
+  }
+
+  pushForApproval(): void {
+    if (!this.validationPassed || this.submittingRequest) return;
+    this.submittingRequest = true;
+    this.prepareGovernedDraft().pipe(
+      switchMap(outcome => {
+        if (outcome.issues.length) {
+          return this.discardGeneratedDraft(outcome.draft).pipe(
+            map(() => ({ ...outcome, submitted: false }))
+          );
+        }
+        return this.submitGeneratedDraft(outcome.draft).pipe(map(() => ({ ...outcome, submitted: true })));
+      }),
+      finalize(() => this.submittingRequest = false)
+    ).subscribe({
+      next: outcome => {
+        this.pendingGeneratedDraft = null;
+        if (!outcome.submitted) {
+          this.validationPassed = false;
+          this.serverValidationIssues = outcome.issues;
+          this.toast.error('The data changed before submission. Correct the new validation errors and validate again.');
+          return;
+        }
+        this.localDrafts.clear();
+        this.changes = [];
+        this.toast.success('Maintenance request pushed for approval.');
+        void this.router.navigate(['/maintenance']);
+      },
+      error: error => {
+        this.cleanupPendingDraft();
+        this.toast.error(error?.error?.error ?? error?.message ?? 'The request could not be pushed for approval.');
+      }
+    });
+  }
+
+  private prepareGovernedDraft(): Observable<ValidationOutcome> {
     const entryDataset: DatasetKey = this.changes.some(change => change.dataset === 'Article' || change.dataset === 'PriceList')
       ? 'Article'
       : this.changes[0].dataset;
-    this.imports.createMaintenanceDraft(entryDataset, this.draftName.trim()).pipe(
+    return this.imports.createMaintenanceDraft(entryDataset, this.draftName.trim()).pipe(
+      map(draft => {
+        this.pendingGeneratedDraft = draft;
+        return draft;
+      }),
       switchMap(draft => from(this.changes).pipe(
         concatMap(change => this.applyChange(draft, change)),
         toArray(),
         switchMap(() => from(draft.jobs).pipe(
           concatMap(job => this.imports.refreshValidation(job.id)),
-          toArray()
+          toArray(),
+          map(jobs => ({ ...draft, jobs }))
         )),
-        map(() => draft)
-      )),
-      finalize(() => this.savingDraft = false)
-    ).subscribe({
-      next: draft => {
-        this.toast.success('Private governed draft created and validated.');
-        const preferred = this.jobForDataset(draft, this.changes[0].dataset) ?? draft.jobs[0];
-        const kind = draft.releasePackage ? 'package' : 'job';
-        const requestId = draft.releasePackage?.id ?? preferred.id;
-        this.router.navigate(['/maintenance/requests', kind, requestId]);
-      },
-      error: error => this.toast.error(error?.error?.error ?? error?.message ?? 'The governed draft could not be created.')
-    });
+        switchMap(validatedDraft => this.collectValidationIssues(validatedDraft).pipe(
+          map(issues => ({ draft: validatedDraft, issues }))
+        ))
+      ))
+    );
+  }
+
+  private cleanupPendingDraft(): void {
+    const draft = this.pendingGeneratedDraft;
+    this.pendingGeneratedDraft = null;
+    if (draft) this.discardGeneratedDraft(draft).pipe(catchError(() => of(undefined))).subscribe();
+  }
+
+  private resetValidationState(): void {
+    this.validationPassed = false;
+    this.serverValidationIssues = [];
+  }
+
+  private collectValidationIssues(draft: MaintenanceDraft): Observable<ValidationIssue[]> {
+    const jobsWithErrors = draft.jobs.filter(job => job.errorRows > 0);
+    if (!jobsWithErrors.length) return of([]);
+    return forkJoin(jobsWithErrors.map(job => this.imports.getRows(job.id, 1, 500, null, 'Error').pipe(
+      map(result => result.items.flatMap(row => {
+        const dataset = this.datasetForJob(job);
+        const record = dataset ? this.displayKey(dataset.key, row.fields) : `Row ${row.rowNumber}`;
+        const errors = row.validationMessages.filter(message => message.severity === 'Error');
+        return errors.length
+          ? errors.map(message => ({ dataset: job.entityTypeLabel, record, field: message.field, message: message.message }))
+          : [{ dataset: job.entityTypeLabel, record, field: '', message: 'This record did not pass authoritative validation.' }];
+      }))
+    ))).pipe(map(groups => groups.flat()));
+  }
+
+  private submitGeneratedDraft(draft: MaintenanceDraft): Observable<unknown> {
+    return draft.releasePackage
+      ? this.imports.submitReleasePackage(draft.releasePackage.id)
+      : this.imports.submitForReview(draft.jobs[0].id);
+  }
+
+  private discardGeneratedDraft(draft: MaintenanceDraft): Observable<unknown> {
+    return draft.releasePackage
+      ? this.imports.discardReleasePackage(draft.releasePackage.id)
+      : this.imports.deletePrivateDraft(draft.jobs[0].id);
   }
 
   private applyChange(draft: MaintenanceDraft, change: DraftChange): Observable<unknown> {
@@ -643,32 +834,88 @@ export class DataMaintenanceComponent implements OnInit {
   }
 
   private loadActiveRecords(): void {
-    const dataset = this.selectedDataset.key;
-    if (this.records.some(record => record.dataset === dataset)) return;
-    this.loadingRecords = true;
+    this.loadDatasetRecords(this.selectedDataset);
+    if (this.selectedDataset.key === 'Article' || this.selectedDataset.key === 'PriceList') {
+      const counterpart = this.datasets.find(dataset => dataset.key === (this.selectedDataset.key === 'Article' ? 'PriceList' : 'Article'));
+      if (counterpart) this.loadDatasetRecords(counterpart);
+    }
+  }
+
+  private loadDatasetRecords(definition: DatasetDefinition): void {
+    const dataset = definition.key;
+    if (this.loadedDatasets.has(dataset) || this.loadingDatasets.has(dataset)) {
+      this.loadingRecords = this.loadingDatasets.has(this.selectedDataset.key);
+      return;
+    }
+    this.loadingDatasets.add(dataset);
+    if (dataset === this.selectedDataset.key) this.loadingRecords = true;
     this.imports.getJobs(1, 20, null, 'Committed', dataset).pipe(
       switchMap(result => {
         const baseline = result.items.find(job => job.isActiveBaseline) ?? result.items[0];
-        return baseline ? this.imports.getRows(baseline.id, 1, 200) : from([null]);
+        return baseline ? this.loadAllBaselineRows(baseline.id) : of(null);
       }),
-      finalize(() => this.loadingRecords = false)
+      finalize(() => {
+        this.loadingDatasets.delete(dataset);
+        if (dataset === this.selectedDataset.key) this.loadingRecords = false;
+      })
     ).subscribe({
       next: result => {
-        if (!result) return;
-        this.records = [...this.records, ...result.items.map((row: StagingRow) => ({
-          id: row.id,
-          dataset,
-          status: 'Active' as const,
-          values: Object.fromEntries(Object.entries(row.fields).map(([key, value]) => [key, value ?? '']))
-        }))];
+        this.loadedDatasets.add(dataset);
+        if (result) {
+          this.records = [...this.records, ...result.map((row: StagingRow) => ({
+            id: row.id,
+            dataset,
+            status: 'Active' as const,
+            values: Object.fromEntries(Object.entries(row.fields).map(([key, value]) => [key, value ?? '']))
+          }))];
+        }
+        this.hydrateOriginalValues(dataset);
+        this.persistLocalDraft();
       },
-      error: () => this.toast.error(`Could not load the active ${this.selectedDataset.name} baseline.`)
+      error: () => this.toast.error(`Could not load the active ${definition.name} baseline.`)
+    });
+  }
+
+  private loadAllBaselineRows(jobId: string): Observable<StagingRow[]> {
+    const requestedPageSize = 200;
+    return this.imports.getRows(jobId, 1, requestedPageSize).pipe(
+      switchMap(firstPage => {
+        const pageCount = Math.ceil(firstPage.total / firstPage.pageSize);
+        if (pageCount <= 1) return of(firstPage.items);
+        const remainingPages = Array.from({ length: pageCount - 1 }, (_, index) => index + 2);
+        return forkJoin(remainingPages.map(page => this.imports.getRows(jobId, page, firstPage.pageSize))).pipe(
+          map(pages => [firstPage.items, ...pages.map(result => result.items)].flat())
+        );
+      })
+    );
+  }
+
+  private hydrateOriginalValues(dataset: DatasetKey): void {
+    this.changes = this.changes.map(change => {
+      if (change.dataset !== dataset || change.action !== 'Modify' || change.originalValues) return change;
+      const baseline = this.records.find(record => record.dataset === dataset
+        && record.status === 'Active'
+        && this.identity(dataset, record.values) === change.identity);
+      return baseline ? { ...change, originalValues: { ...baseline.values } } : change;
     });
   }
 
   private jobForDataset(draft: MaintenanceDraft, dataset: DatasetKey): ImportJob | undefined {
     const entityValue: Record<DatasetKey, number> = { Article: 1, PriceList: 2, Description: 3, CurrencyRate: 4 };
     return draft.jobs.find(job => job.entityType === entityValue[dataset]);
+  }
+
+  private datasetForJob(job: ImportJob): DatasetDefinition | undefined {
+    const entityValue: Record<DatasetKey, number> = { Article: 1, PriceList: 2, Description: 3, CurrencyRate: 4 };
+    return this.datasets.find(dataset => entityValue[dataset.key] === job.entityType);
+  }
+
+  private projectedRecordExists(dataset: 'Article' | 'PriceList', articleNumber: string): boolean {
+    const identity = articleNumber.trim().toLowerCase();
+    const staged = this.changes.find(change => change.dataset === dataset && change.identity === identity);
+    if (staged) return staged.action !== 'Deactivate';
+    return this.records.some(record => record.dataset === dataset && record.status === 'Active'
+      && this.identity(dataset, record.values) === identity);
   }
 
   private identity(dataset: DatasetKey, values: Record<string, string | null>): string {
@@ -698,5 +945,34 @@ export class DataMaintenanceComponent implements OnInit {
 
   private upsertChange(change: DraftChange): void {
     this.changes = [...this.changes.filter(item => !(item.dataset === change.dataset && item.identity === change.identity)), change];
+    this.resetValidationState();
+    this.persistLocalDraft();
+  }
+
+  persistLocalDraft(): void {
+    if (!this.changes.length) {
+      this.localDrafts.clear();
+      return;
+    }
+    this.localDrafts.save({
+      name: this.draftName.trim(),
+      selectedDataset: this.selectedDataset.key,
+      changes: this.changes,
+      blockingIssues: this.basketIssues
+    });
+  }
+
+  private restoreLocalDraft(): void {
+    const draft = this.localDrafts.load();
+    if (!draft?.changes.length) return;
+    this.changes = draft.changes.map(change => ({
+      ...change,
+      values: { ...change.values },
+      originalValues: change.originalValues ? { ...change.originalValues } : undefined
+    }));
+    this.draftName = draft.name;
+    this.selectedDataset = this.datasets.find(dataset => dataset.key === draft.selectedDataset)
+      ?? this.datasets.find(dataset => dataset.key === this.changes[0].dataset)
+      ?? DATASETS[0];
   }
 }

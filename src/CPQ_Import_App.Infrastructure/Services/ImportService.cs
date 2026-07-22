@@ -2463,6 +2463,7 @@ public class ImportService(
             package.CreatedByDisplayName,
             package.CreatedAt,
             package.SubmittedAt,
+            package.SubmittedByDisplayName,
             package.ApprovedAt,
             package.ApprovedByDisplayName,
             package.RejectedAt,
