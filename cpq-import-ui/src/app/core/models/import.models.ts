@@ -369,6 +369,7 @@ export interface BusinessTraceEvent {
   actor: string;
   sourceJobId: string | null;
   sourceName: string;
+  sourceType: 'maintenance' | 'upload';
   releasePackageId: string | null;
   releaseName: string | null;
   decision: string | null;

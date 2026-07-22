@@ -176,6 +176,9 @@ public sealed class BusinessTraceService(AppDbContext db) : IBusinessTraceServic
             var primary = jobs.OrderByDescending(job => job.CommittedAt).First();
             var publishedAt = package?.PublishedAt ?? primary.CommittedAt ?? primary.CreatedAt;
             var sourceName = string.Join(" + ", jobs.Select(job => Path.GetFileNameWithoutExtension(job.OriginalFileName)).Distinct());
+            var sourceType = string.Equals(Path.GetExtension(primary.FileName), ".hmi", StringComparison.OrdinalIgnoreCase)
+                ? "maintenance"
+                : "upload";
             var releaseName = package?.Name;
             var releaseId = package?.Id;
             var changes = groupImpacts.SelectMany(impact => impact.Changes).ToList();
@@ -209,6 +212,7 @@ public sealed class BusinessTraceService(AppDbContext db) : IBusinessTraceServic
                 package?.PublishedByDisplayName ?? primary.CommittedBy ?? "Unknown user",
                 primary.Id,
                 sourceName,
+                sourceType,
                 releaseId,
                 releaseName,
                 null,
@@ -228,6 +232,7 @@ public sealed class BusinessTraceService(AppDbContext db) : IBusinessTraceServic
                     package?.ApprovedByDisplayName ?? primary.ApprovedByDisplayName ?? "Unknown approver",
                     primary.Id,
                     sourceName,
+                    sourceType,
                     releaseId,
                     releaseName,
                     BuildApprovalDecision(jobs),
@@ -250,6 +255,7 @@ public sealed class BusinessTraceService(AppDbContext db) : IBusinessTraceServic
                     package?.SubmittedByDisplayName ?? primary.SubmittedByDisplayName ?? primary.CreatedByDisplayName,
                     primary.Id,
                     sourceName,
+                    sourceType,
                     releaseId,
                     releaseName,
                     null,

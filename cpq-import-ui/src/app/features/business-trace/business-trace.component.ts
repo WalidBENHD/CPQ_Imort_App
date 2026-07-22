@@ -4,7 +4,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { BusinessTraceActor, BusinessTraceEvent, BusinessTraceField, BusinessTraceResult, BusinessTraceSuggestion, PILOT_SCOPE } from '../../core/models/import.models';
@@ -187,7 +187,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
                   <span><mat-icon>person</mat-icon><small>{{ event.actorLabel }}</small><strong>{{ event.actor }}</strong></span>
                   <span><mat-icon>description</mat-icon><small>Source</small><strong>{{ event.sourceName }}</strong></span>
                   <span><mat-icon>inventory_2</mat-icon><small>Release</small><strong>{{ event.releaseName || 'Individual publication' }}</strong></span>
-                  <a mat-button *ngIf="event.sourceJobId" [routerLink]="['/import', event.sourceJobId]"><mat-icon>fact_check</mat-icon> Open evidence</a>
+                  <button mat-button *ngIf="event.sourceJobId" (click)="openEvidence(event)"><mat-icon>fact_check</mat-icon> Open evidence</button>
                 </footer>
               </div>
             </article>
@@ -449,6 +449,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
 export class BusinessTraceComponent implements OnInit {
   private readonly importService = inject(ImportService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly auth = inject(AuthFacade);
 
   readonly pilotScope = PILOT_SCOPE;
@@ -513,6 +514,18 @@ export class BusinessTraceComponent implements OnInit {
     return responsibility
       ? [responsibility.prepared, responsibility.approved, responsibility.published].filter((actor): actor is BusinessTraceActor => !!actor)
       : [];
+  }
+
+  openEvidence(event: BusinessTraceEvent): void {
+    if (!event.sourceJobId) return;
+    if (event.sourceType === 'maintenance') {
+      const kind = event.releasePackageId ? 'package' : 'job';
+      const evidenceId = event.releasePackageId ?? event.sourceJobId;
+      this.router.navigate(['/maintenance', kind, evidenceId]);
+      return;
+    }
+
+    this.router.navigate(['/import', event.sourceJobId]);
   }
 
   search(): void {

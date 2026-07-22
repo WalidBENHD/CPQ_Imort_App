@@ -60,6 +60,7 @@ public sealed record BusinessTraceEvent(
     string Actor,
     Guid? SourceJobId,
     string SourceName,
+    string SourceType,
     Guid? ReleasePackageId,
     string? ReleaseName,
     string? Decision,
