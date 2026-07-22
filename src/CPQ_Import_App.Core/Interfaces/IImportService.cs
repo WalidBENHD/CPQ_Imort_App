@@ -27,11 +27,13 @@ public interface IImportService
     Task<ReleasePackageSummary> CreateReleasePackageAsync(Guid jobId, Guid articleMasterJobId, string name, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> CreateReleasePackageFromArticleAsync(Guid articleJobId, Guid priceListJobId, string name, string userId, string userDisplayName, CancellationToken ct = default);
     Task DissolveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task DiscardReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> GetReleasePackageAsync(Guid packageId, string userId, bool canReview, CancellationToken ct = default);
     Task<ReleasePackageSummary> SubmitReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> WithdrawReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> ApproveReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ReleasePackageSummary> RejectReleasePackageAsync(Guid packageId, string userId, string userDisplayName, string reason, CancellationToken ct = default);
+    Task<ReleasePackageSummary> ReturnReleasePackageForCorrectionAsync(Guid packageId, string userId, string userDisplayName, string reason, CancellationToken ct = default);
     Task<ReleasePackageSummary> PublishReleasePackageAsync(Guid packageId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<StagingRow> UpdateStagingRowAsync(
         Guid jobId, Guid rowId, Dictionary<string, string?> fields, string userId, string userDisplayName, CancellationToken ct = default);
@@ -47,6 +49,7 @@ public interface IImportService
     Task DeletePrivateDraftAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> ApproveAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default, bool coordinatedRelease = false);
     Task<ImportJob> ReturnToReviewAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
+    Task<ImportJob> ReturnForCorrectionAsync(Guid jobId, string userId, string userDisplayName, string reason, CancellationToken ct = default);
     Task<ImportJob> PublishAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> CancelAsync(Guid jobId, string userId, string userDisplayName, CancellationToken ct = default);
     Task<ImportJob> RejectAsync(Guid jobId, string userId, string userDisplayName,

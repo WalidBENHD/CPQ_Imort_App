@@ -553,6 +553,27 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    [HttpDelete("release-packages/{packageId:guid}/discard")]
+    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
+    public async Task<IActionResult> DiscardReleasePackage(Guid packageId, CancellationToken ct)
+    {
+        try
+        {
+            await importService.DiscardReleasePackageAsync(packageId, UserId, UserDisplayName, ct);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "DiscardMaintenanceChangeSet",
+                $"Permanently discarded private maintenance change set {packageId}.",
+                TargetType: "ReleasePackage",
+                TargetId: packageId.ToString(),
+                StatusCode: StatusCodes.Status204NoContent), ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     [HttpPost("release-packages/{packageId:guid}/approve")]
     [Authorize(Policy = Capabilities.ImportsApprove)]
     public async Task<ActionResult<ReleasePackageDto>> ApproveReleasePackage(Guid packageId, CancellationToken ct)
@@ -603,6 +624,36 @@ public class ImportsController(
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
+    [HttpPost("release-packages/{packageId:guid}/return-for-correction")]
+    [Authorize(Policy = Capabilities.ImportsReject)]
+    public async Task<ActionResult<ReleasePackageDto>> ReturnReleasePackageForCorrection(
+        Guid packageId, [FromBody] RejectRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "Correction guidance is required." });
+
+        try
+        {
+            var package = await importService.ReturnReleasePackageForCorrectionAsync(
+                packageId, UserId, UserDisplayName, request.Reason, ct);
+            var representative = await importService.GetJobAsync(package.Items.First().JobId, ct);
+            if (representative is not null && Guid.TryParse(package.CreatedBy, out var ownerId))
+                await notificationService.NotifyImportNeedsCorrectionAsync(representative, ownerId);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "ReturnMaintenanceReleaseForCorrection",
+                $"Returned maintenance release '{package.Name}' for correction.",
+                TargetType: "ReleasePackage",
+                TargetId: package.Id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { Reason = request.Reason.Trim() }), ct);
+            return Ok(package.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
     [HttpPost("release-packages/{packageId:guid}/publish")]
     [Authorize(Policy = Capabilities.ImportsPublish)]
     public async Task<ActionResult<ReleasePackageDto>> PublishReleasePackage(Guid packageId, CancellationToken ct)
@@ -621,6 +672,35 @@ public class ImportsController(
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
         catch (InvalidDataException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Return an unpublished submission to its owner's private workspace.</summary>
+    [HttpPost("{id:guid}/return-for-correction")]
+    [Authorize(Policy = Capabilities.ImportsReject)]
+    public async Task<ActionResult<ImportJobDto>> ReturnForCorrection(
+        Guid id, [FromBody] RejectRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return BadRequest(new { error = "Correction guidance is required." });
+
+        try
+        {
+            var job = await importService.ReturnForCorrectionAsync(id, UserId, UserDisplayName, request.Reason, ct);
+            if (Guid.TryParse(job.CreatedBy, out var ownerId))
+                await notificationService.NotifyImportNeedsCorrectionAsync(job, ownerId);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "ReturnMaintenanceRequestForCorrection",
+                $"Returned maintenance request {id} for correction.",
+                TargetType: "ImportJob",
+                TargetId: id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { Reason = request.Reason.Trim() }), ct);
+            return Ok(job.ToDto());
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 
     /// <summary>Return an unpublished submission to its owner's private workspace.</summary>

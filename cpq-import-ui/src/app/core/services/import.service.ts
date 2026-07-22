@@ -136,6 +136,10 @@ export class ImportService {
     return this.http.delete<void>(`${this.base}/release-packages/${packageId}`);
   }
 
+  discardReleasePackage(packageId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/release-packages/${packageId}/discard`);
+  }
+
   approveReleasePackage(packageId: string): Observable<ReleasePackage> {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/approve`, {});
   }
@@ -144,6 +148,10 @@ export class ImportService {
     return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/reject`, { reason }).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
     );
+  }
+
+  returnReleasePackageForCorrection(packageId: string, reason: string): Observable<ReleasePackage> {
+    return this.http.post<ReleasePackage>(`${this.base}/release-packages/${packageId}/return-for-correction`, { reason });
   }
 
   publishReleasePackage(packageId: string): Observable<ReleasePackage> {
@@ -194,6 +202,10 @@ export class ImportService {
     return this.http.post<ImportJob>(`${this.base}/${jobId}/return-to-review`, {}).pipe(
       tap(() => this.notificationService.pollNow().subscribe())
     );
+  }
+
+  returnForCorrection(jobId: string, reason: string): Observable<ImportJob> {
+    return this.http.post<ImportJob>(`${this.base}/${jobId}/return-for-correction`, { reason });
   }
 
   publish(jobId: string): Observable<PublicationResult> {

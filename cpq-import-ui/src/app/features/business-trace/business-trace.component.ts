@@ -6,11 +6,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs/operators';
+import { AuthFacade } from '../../core/auth/auth.facade';
 import { BusinessTraceActor, BusinessTraceEvent, BusinessTraceField, BusinessTraceResult, BusinessTraceSuggestion, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 
 type TraceFilter = 'all' | 'changes' | 'decisions';
 type TraceObjectType = 'Article' | 'Basis price';
+type TraceHistory = Record<TraceObjectType, BusinessTraceSuggestion[]>;
+
+const TRACE_STATE_KEY_PREFIX = 'cpq.business-trace.state';
+const TRACE_HISTORY_KEY_PREFIX = 'cpq.business-trace.history';
+const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
 
 @Component({
   selector: 'app-business-trace',
@@ -86,7 +92,7 @@ type TraceObjectType = 'Article' | 'Basis price';
           <button type="button" *ngFor="let item of suggestions" (click)="useSuggestion(item)">
             <mat-icon>{{ resultIcon }}</mat-icon>{{ item.identifier }}
           </button>
-          <small *ngIf="!suggestions.length && !suggestionsLoading">No active {{ objectType.toLowerCase() }} records yet.</small>
+          <small *ngIf="!suggestions.length">No recent {{ objectType.toLowerCase() }} searches yet.</small>
         </div>
       </section>
 
@@ -443,6 +449,7 @@ type TraceObjectType = 'Article' | 'Basis price';
 export class BusinessTraceComponent implements OnInit {
   private readonly importService = inject(ImportService);
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthFacade);
 
   readonly pilotScope = PILOT_SCOPE;
   readonly scopeKey = 'saint-marcellin-pdu';
@@ -451,21 +458,24 @@ export class BusinessTraceComponent implements OnInit {
   trace: BusinessTraceResult | null = null;
   suggestions: BusinessTraceSuggestion[] = [];
   isLoading = false;
-  suggestionsLoading = false;
   showEmpty = false;
   searchError = '';
   filter: TraceFilter = 'all';
 
   ngOnInit(): void {
+    this.removeLegacyStorage();
     const identifier = this.route.snapshot.queryParamMap.get('identifier')?.trim();
     if (identifier) {
+      this.objectType = 'Article';
       this.query = identifier;
-      this.loadSuggestions(false);
+      this.loadHistory();
       this.search();
       return;
     }
 
-    this.loadSuggestions(true);
+    this.restoreState();
+    this.loadHistory();
+    if (this.query) this.search();
   }
 
   get visibleEvents(): BusinessTraceEvent[] {
@@ -509,19 +519,26 @@ export class BusinessTraceComponent implements OnInit {
     const identifier = this.query.trim();
     if (!identifier || this.isLoading) return;
 
+    const requestedObjectType = this.objectType;
+    const requestedApiObjectType = this.apiObjectType;
+    this.query = identifier;
+    this.saveState(identifier);
     this.isLoading = true;
     this.trace = null;
     this.showEmpty = false;
     this.searchError = '';
     this.filter = 'all';
-    this.importService.searchBusinessTrace(this.scopeKey, this.apiObjectType, identifier)
+    this.importService.searchBusinessTrace(this.scopeKey, requestedApiObjectType, identifier)
       .pipe(finalize(() => this.isLoading = false))
       .subscribe({
         next: result => {
+          if (this.objectType !== requestedObjectType) return;
           this.trace = result;
           this.query = result.identifier;
+          this.rememberSearch(result.identifier, result);
         },
         error: (error: HttpErrorResponse) => {
+          if (this.objectType !== requestedObjectType) return;
           this.showEmpty = true;
           this.searchError = error.error?.error || 'The business trace could not be loaded.';
         }
@@ -534,11 +551,12 @@ export class BusinessTraceComponent implements OnInit {
   }
 
   selectObjectType(): void {
-    this.query = '';
     this.trace = null;
     this.showEmpty = false;
     this.searchError = '';
-    this.loadSuggestions(true);
+    this.query = this.readState().queries[this.objectType] ?? '';
+    this.saveState();
+    this.loadHistory();
   }
 
   iconFor(kind: BusinessTraceEvent['kind']): string {
@@ -583,24 +601,101 @@ export class BusinessTraceComponent implements OnInit {
     return value ? `${this.formatDate(value)} · ${this.formatTime(value)}` : 'Time not recorded';
   }
 
-  private loadSuggestions(searchFirst: boolean): void {
-    this.suggestionsLoading = true;
-    this.suggestions = [];
-    this.importService.getBusinessTraceSuggestions(this.scopeKey, this.apiObjectType)
-      .pipe(finalize(() => this.suggestionsLoading = false))
-      .subscribe({
-        next: suggestions => {
-          this.suggestions = suggestions;
-          if (searchFirst && suggestions.length) {
-            this.query = suggestions[0].identifier;
-            this.search();
-          }
-        },
-        error: () => {
-          this.searchError = 'Published records are temporarily unavailable.';
-          this.showEmpty = true;
+  private restoreState(): void {
+    const state = this.readState();
+    this.objectType = state.objectType;
+    this.query = state.queries[this.objectType] ?? '';
+  }
+
+  private loadHistory(): void {
+    this.suggestions = this.readHistory()[this.objectType];
+  }
+
+  private rememberSearch(identifier: string, result?: BusinessTraceResult): void {
+    const history = this.readHistory();
+    const suggestion: BusinessTraceSuggestion = {
+      identifier,
+      label: result?.displayName || identifier,
+      detail: result?.statusLabel ?? null,
+      objectType: result?.objectType ?? (this.apiObjectType === 'Article' ? 0 : 1),
+      objectTypeLabel: result?.objectTypeLabel ?? this.objectType
+    };
+    history[this.objectType] = [
+      suggestion,
+      ...history[this.objectType].filter(item => item.identifier.toLocaleLowerCase() !== identifier.toLocaleLowerCase())
+    ].slice(0, 6);
+    this.writeStorage(this.historyStorageKey, history);
+    this.saveState(identifier);
+    this.loadHistory();
+  }
+
+  private saveState(identifier = this.query.trim()): void {
+    const state = this.readState();
+    state.objectType = this.objectType;
+    state.queries[this.objectType] = identifier;
+    this.writeStorage(this.stateStorageKey, state);
+  }
+
+  private readState(): { objectType: TraceObjectType; queries: Record<TraceObjectType, string> } {
+    try {
+      const stored = JSON.parse(localStorage.getItem(this.stateStorageKey) ?? '{}');
+      return {
+        objectType: stored.objectType === 'Basis price' ? 'Basis price' : 'Article',
+        queries: {
+          Article: typeof stored.queries?.Article === 'string' ? stored.queries.Article : '',
+          'Basis price': typeof stored.queries?.['Basis price'] === 'string' ? stored.queries['Basis price'] : ''
         }
-      });
+      };
+    } catch {
+      return { objectType: 'Article', queries: { Article: '', 'Basis price': '' } };
+    }
+  }
+
+  private readHistory(): TraceHistory {
+    try {
+      const stored = JSON.parse(localStorage.getItem(this.historyStorageKey) ?? '{}');
+      return {
+        Article: this.validHistoryItems(stored.Article),
+        'Basis price': this.validHistoryItems(stored['Basis price'])
+      };
+    } catch {
+      return { ...EMPTY_TRACE_HISTORY };
+    }
+  }
+
+  private validHistoryItems(value: unknown): BusinessTraceSuggestion[] {
+    return Array.isArray(value)
+      ? value.filter((item): item is BusinessTraceSuggestion => !!item && typeof item.identifier === 'string').slice(0, 6)
+      : [];
+  }
+
+  private writeStorage(key: string, value: unknown): void {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Search remains available when browser storage is disabled or full.
+    }
+  }
+
+  private removeLegacyStorage(): void {
+    try {
+      localStorage.removeItem(TRACE_STATE_KEY_PREFIX);
+      localStorage.removeItem(TRACE_HISTORY_KEY_PREFIX);
+    } catch {
+      // Search remains available when browser storage is disabled.
+    }
+  }
+
+  private get stateStorageKey(): string {
+    return `${TRACE_STATE_KEY_PREFIX}:${this.storageOwner}:${this.scopeKey}`;
+  }
+
+  private get historyStorageKey(): string {
+    return `${TRACE_HISTORY_KEY_PREFIX}:${this.storageOwner}:${this.scopeKey}`;
+  }
+
+  private get storageOwner(): string {
+    return encodeURIComponent(this.auth.userId || this.auth.loginName || 'unknown-user');
   }
 
   private get apiObjectType(): 'Article' | 'PriceList' {

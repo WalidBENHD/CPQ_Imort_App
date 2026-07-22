@@ -55,9 +55,24 @@ export const routes: Routes = [
     loadComponent: () => import('./features/forbidden/forbidden.component').then(m => m.ForbiddenComponent)
   },
   {
-    path: 'admin/data-maintenance',
+    path: 'maintenance',
     canActivate: [capabilityGuard('users.manage')],
     loadComponent: () => import('./features/data-maintenance/data-maintenance.component').then(m => m.DataMaintenanceComponent)
+  },
+  {
+    path: 'maintenance/requests',
+    canActivate: [capabilityGuard('users.manage')],
+    loadComponent: () => import('./features/data-maintenance/maintenance-requests.component').then(m => m.MaintenanceRequestsComponent)
+  },
+  {
+    path: 'maintenance/requests/:kind/:id',
+    canActivate: [capabilityGuard('users.manage')],
+    loadComponent: () => import('./features/data-maintenance/maintenance-request.component').then(m => m.MaintenanceRequestComponent)
+  },
+  {
+    path: 'admin/data-maintenance',
+    redirectTo: 'maintenance',
+    pathMatch: 'full'
   },
   {
     path: 'admin/users',

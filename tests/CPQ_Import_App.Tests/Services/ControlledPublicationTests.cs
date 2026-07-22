@@ -402,6 +402,60 @@ public class ControlledPublicationTests
     }
 
     [Fact]
+    public async Task DiscardReleasePackageAsync_DeletesEveryPrivateMemberAndPackage()
+    {
+        var packageId = Guid.NewGuid();
+        var priceJob = CreatePriceJob();
+        priceJob.ReleasePackageId = packageId;
+        var masterJob = CreateJob(ImportStatus.AwaitingApproval);
+        masterJob.ReleasePackageId = packageId;
+        var repository = new FakeImportRepository(priceJob, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(masterJob);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Maintenance draft",
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await service.DiscardReleasePackageAsync(packageId, "contributor-id", "Cara Contributor");
+
+        Assert.Equal(2, repository.DeletedJobs.Count);
+        Assert.Contains(priceJob, repository.DeletedJobs);
+        Assert.Contains(masterJob, repository.DeletedJobs);
+        Assert.Empty(repository.ReleasePackages);
+    }
+
+    [Fact]
+    public async Task DiscardReleasePackageAsync_RequiresOwnerAndPrivateDraft()
+    {
+        var packageId = Guid.NewGuid();
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        job.ReleasePackageId = packageId;
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        var package = new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Maintenance draft",
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        };
+        repository.ReleasePackages.Add(package);
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.DiscardReleasePackageAsync(
+            packageId, "another-user", "Another User"));
+
+        package.Status = ReleasePackageStatus.Submitted;
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.DiscardReleasePackageAsync(
+            packageId, "contributor-id", "Cara Contributor"));
+        Assert.Empty(repository.DeletedJobs);
+    }
+
+    [Fact]
     public async Task WithdrawReleasePackageAsync_ReturnsEveryMemberToPrivateWorkspace()
     {
         var packageId = Guid.NewGuid();
@@ -499,6 +553,85 @@ public class ControlledPublicationTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RejectReleasePackageAsync(
             packageId, "contributor-id", "Cara Contributor", "Changed my mind."));
+    }
+
+    [Fact]
+    public async Task ReturnReleasePackageForCorrectionAsync_ReopensSamePackageAndPreservesGuidance()
+    {
+        var packageId = Guid.NewGuid();
+        var master = CreateJob(ImportStatus.AwaitingApproval);
+        master.WorkflowStage = ImportWorkflowStage.Submitted;
+        master.ReleasePackageId = packageId;
+        var price = CreatePriceJob();
+        price.WorkflowStage = ImportWorkflowStage.Submitted;
+        price.ReleasePackageId = packageId;
+        price.ValidationAnchorJobId = master.Id;
+        price.ValidationAnchorKind = ValidationAnchorKind.ReleaseCandidate;
+        var repository = new FakeImportRepository(master, CreateComparison(Guid.NewGuid(), true));
+        repository.AdditionalJobs.Add(price);
+        repository.ReleasePackages.Add(new ReleasePackage
+        {
+            Id = packageId,
+            Name = "Maintenance correction",
+            Status = ReleasePackageStatus.Submitted,
+            CreatedBy = "contributor-id",
+            CreatedByDisplayName = "Cara Contributor"
+        });
+        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+
+        var result = await service.ReturnReleasePackageForCorrectionAsync(
+            packageId, "approver-id", "Anne Approver", "Complete the missing commercial description.");
+
+        Assert.Equal(packageId, result.Id);
+        Assert.Equal(ReleasePackageStatus.Draft, result.Status);
+        Assert.Equal("Complete the missing commercial description.", result.RejectionReason);
+        Assert.All(new[] { master, price }, item =>
+        {
+            Assert.Equal(ImportWorkflowStage.Private, item.WorkflowStage);
+            Assert.Equal(ImportStatus.AwaitingApproval, item.Status);
+            Assert.Null(item.SubmittedComparisonJson);
+            Assert.Equal(result.RejectionReason, item.RejectionReason);
+        });
+        Assert.Equal(2, repository.AuditLogs.Count(log => log.Action == "ReleasePackageReturnedForCorrection"));
+
+        var resubmitted = await service.SubmitReleasePackageAsync(
+            packageId, "contributor-id", "Cara Contributor");
+
+        Assert.Equal(packageId, resubmitted.Id);
+        Assert.Equal(ReleasePackageStatus.Submitted, resubmitted.Status);
+        Assert.All(new[] { master, price }, item => Assert.Equal(ImportWorkflowStage.Submitted, item.WorkflowStage));
+    }
+
+    [Fact]
+    public async Task ReturnForCorrectionAsync_ReopensStandaloneRequestWithGuidance()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var result = await service.ReturnForCorrectionAsync(
+            job.Id, "approver-id", "Anne Approver", "Correct the description.");
+
+        Assert.Equal(ImportWorkflowStage.Private, result.WorkflowStage);
+        Assert.Equal(ImportStatus.AwaitingApproval, result.Status);
+        Assert.Equal("Correct the description.", result.RejectionReason);
+        Assert.Null(result.SubmittedComparisonJson);
+        Assert.Contains(repository.AuditLogs, log => log.Action == "ReturnedForCorrection");
+    }
+
+    [Fact]
+    public async Task ReturnForCorrectionAsync_RequiresAnotherReviewerAndGuidance()
+    {
+        var job = CreateJob(ImportStatus.AwaitingApproval);
+        job.WorkflowStage = ImportWorkflowStage.Submitted;
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ReturnForCorrectionAsync(
+            job.Id, job.CreatedBy, job.CreatedByDisplayName, "Correct this request."));
+        await Assert.ThrowsAsync<InvalidDataException>(() => service.ReturnForCorrectionAsync(
+            job.Id, "approver-id", "Anne Approver", "   "));
     }
 
     [Fact]
@@ -1017,6 +1150,7 @@ public class ControlledPublicationTests
         public List<ImportJob> AdditionalJobs { get; } = [];
         public Dictionary<Guid, IReadOnlySet<string>> ArticleNumbers { get; } = [];
         public List<ReleasePackage> ReleasePackages { get; } = [];
+        public List<ImportJob> DeletedJobs { get; } = [];
 
         public Task<ImportJob?> GetJobAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<ImportJob?>(id == job.Id ? job : AdditionalJobs.FirstOrDefault(item => item.Id == id));
@@ -1093,7 +1227,11 @@ public class ControlledPublicationTests
             return Task.FromResult(newJob);
         }
         public Task<(IReadOnlyList<ImportJob> Items, int Total)> GetJobsPagedAsync(int page, int pageSize, string viewerUserId, string? search = null, ImportStatus? status = null, EntityType? entityType = null, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task DeleteJobAsync(ImportJob deletedJob, CancellationToken ct = default) => Task.CompletedTask;
+        public Task DeleteJobAsync(ImportJob deletedJob, CancellationToken ct = default)
+        {
+            DeletedJobs.Add(deletedJob);
+            return Task.CompletedTask;
+        }
         public Task AddStagingRowsAsync(IEnumerable<StagingRow> rows, CancellationToken ct = default)
         {
             Rows.AddRange(rows);

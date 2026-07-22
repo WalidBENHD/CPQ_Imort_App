@@ -131,12 +131,15 @@ public class NotificationService(
 
     public async Task NotifyImportNeedsCorrectionAsync(ImportJob job, Guid uploaderId)
     {
+        var message = string.IsNullOrWhiteSpace(job.RejectionReason)
+            ? $"Errors were detected in '{DisplayName(job)}'. Open the submission to correct the highlighted rows."
+            : $"'{DisplayName(job)}' was returned for correction. Guidance: {job.RejectionReason}";
         var notification = new Notification
         {
             UserId = uploaderId,
             NotificationType = NotificationType.ImportNeedsCorrection,
-            Title = "Import Needs Correction",
-            Message = $"Errors were detected in '{DisplayName(job)}'. Open the submission to correct the highlighted rows.",
+            Title = "Submission Needs Correction",
+            Message = message,
             RelatedImportId = job.Id,
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         };

@@ -198,7 +198,7 @@ export class DashboardComponent implements OnInit {
     }).subscribe({
       next: result => {
         this.overview = result.overview;
-        this.jobs = result.jobs.items;
+        this.jobs = result.jobs.items.filter(job => job.fileExtension.toLowerCase() !== '.hmi');
         this.loading = false;
       },
       error: () => {

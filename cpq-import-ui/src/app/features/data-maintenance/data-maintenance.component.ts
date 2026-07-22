@@ -61,7 +61,7 @@ const DATASETS: DatasetDefinition[] = [
     fields: [
       { key: 'ArticleNumber', label: 'Article number', required: true, hint: 'No spaces allowed' },
       { key: 'Name', label: 'Article name', required: true },
-      { key: 'Category', label: 'Category', type: 'select', required: true, options: ['PDU', 'Accessory', 'Spare part'] },
+      { key: 'Category', label: 'Category', required: true },
       { key: 'Unit', label: 'Unit', type: 'select', required: true, options: ['PC', 'SET', 'M'] }
     ]
   },
@@ -136,7 +136,7 @@ const DATASETS: DatasetDefinition[] = [
           <div>
             <span class="section-kicker">One governance model</span>
             <h2>A second way to prepare the same governed release</h2>
-            <p>Individual maintenance and list uploads converge before validation. Roles, dependencies and evidence remain unchanged.</p>
+            <p>Record maintenance follows its own preparation, review and publication experience. Roles, dependencies and evidence remain unchanged.</p>
           </div>
           <span class="prototype-pill"><mat-icon>admin_panel_settings</mat-icon> Admin-only pilot</span>
         </header>
@@ -153,7 +153,7 @@ const DATASETS: DatasetDefinition[] = [
 
         <div class="prototype-notice">
           <mat-icon>verified_user</mat-icon>
-          <div><strong>Production governance is active</strong><span>Changes become private staging rows and use the same validation, approval and publication path as list uploads.</span></div>
+          <div><strong>Production governance is active</strong><span>Changes remain private while authoritative validation, approval and publication controls protect the portfolio.</span></div>
         </div>
       </section>
 
@@ -237,7 +237,7 @@ const DATASETS: DatasetDefinition[] = [
           </div>
 
           <button mat-flat-button type="button" class="review-button" [disabled]="!changes.length" (click)="openReview()"><mat-icon>fact_check</mat-icon> Review draft release</button>
-          <p class="basket-caption">The draft remains private until you submit it from the governed preview.</p>
+          <p class="basket-caption">The draft remains private until you submit it from its Maintenance request.</p>
         </aside>
       </div>
     </section>
@@ -271,7 +271,7 @@ const DATASETS: DatasetDefinition[] = [
         </div>
 
         <section class="rule-panel">
-          <div><mat-icon>verified_user</mat-icon><span><strong>Governed validation</strong><small>The same server rules used for list uploads will run before submission.</small></span></div>
+          <div><mat-icon>verified_user</mat-icon><span><strong>Governed validation</strong><small>Authoritative dataset and dependency rules run before submission.</small></span></div>
           <ul>
             <li><mat-icon>check</mat-icon> Required fields and formats</li>
             <li><mat-icon>check</mat-icon> Duplicate business keys</li>
@@ -293,7 +293,7 @@ const DATASETS: DatasetDefinition[] = [
         <div class="review-flow"><span class="active">1 <small>Prepare</small></span><i></i><span>2 <small>Validate</small></span><i></i><span>3 <small>Submit</small></span><i></i><span>4 <small>Approve</small></span><i></i><span>5 <small>Publish</small></span></div>
         <div class="review-summary"><div><strong>{{ changes.length }}</strong><span>Record changes</span></div><div><strong>{{ affectedDatasets }}</strong><span>Affected datasets</span></div><div><strong>Pending</strong><span>Server validation</span></div></div>
         <label class="draft-name"><span>Release name</span><input [(ngModel)]="draftName" maxlength="140" /></label>
-        <div class="review-callout"><mat-icon>info</mat-icon><span><strong>The existing workflow takes over next.</strong><small>The server creates full working snapshots, applies these record changes, runs authoritative validation, and opens the standard preview. Submission is still a separate deliberate action.</small></span></div>
+        <div class="review-callout"><mat-icon>info</mat-icon><span><strong>Your Maintenance request is created next.</strong><small>The server creates full working snapshots, applies these record changes, and runs authoritative validation. You review and submit the request as a separate deliberate action.</small></span></div>
         <footer><button mat-stroked-button type="button" [disabled]="savingDraft" (click)="showReview = false">Back to draft</button><button mat-flat-button type="button" class="primary-action" [disabled]="savingDraft || !draftName.trim()" (click)="createGovernedDraft()"><mat-icon>play_arrow</mat-icon> {{ savingDraft ? 'Creating draft…' : 'Create governed draft' }}</button></footer>
       </section>
     </div>
@@ -332,7 +332,7 @@ const DATASETS: DatasetDefinition[] = [
     .maintenance-path > mat-icon:nth-of-type(2) { display:none; }
     .prototype-notice { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:9px; margin-top:18px; padding:11px 13px; border-left:4px solid #0f8f87; border-radius:0 10px 10px 0; color:#0f766e; background:color-mix(in srgb,#0f8f87 7%,transparent); }
     .prototype-notice > mat-icon { width:18px; height:18px; font-size:18px; } .prototype-notice div { display:grid; gap:1px; } .prototype-notice strong { font-size:11px; } .prototype-notice span { color:var(--app-text-muted); font-size:10px; }
-    .workspace { display:grid; grid-template-columns:250px minmax(520px,1fr) 300px; align-items:start; gap:14px; }
+    .workspace { display:grid; grid-template-columns:250px minmax(520px,1fr) 300px; align-items:start; gap:14px; padding-bottom:48px; }
     .dataset-rail,.record-workspace,.change-basket { border:1px solid var(--app-border); border-radius:20px; background:var(--app-surface); box-shadow:var(--app-shadow-soft); }
     .dataset-rail { position:sticky; top:74px; overflow:hidden; padding:14px; }
     .rail-heading { display:grid; gap:2px; padding:5px 7px 10px; } .rail-heading span { color:var(--app-text-muted); font-size:10px; font-weight:800; text-transform:uppercase; } .rail-heading strong { color:var(--app-text); font-size:15px; }
@@ -344,7 +344,7 @@ const DATASETS: DatasetDefinition[] = [
     .dataset-chevron { width:17px; height:17px; color:#94a3b8; font-size:17px; }
     .governance-note { display:flex; gap:8px; margin-top:12px; padding:10px; border-top:1px solid var(--app-border); color:var(--app-text-muted); }
     .governance-note > mat-icon { width:18px; height:18px; color:#0f766e; font-size:18px; } .governance-note div { display:grid; gap:2px; } .governance-note strong { color:var(--app-text); font-size:11px; } .governance-note span { font-size:9px; line-height:1.4; }
-    .record-workspace { overflow:hidden; min-height:580px; }
+    .record-workspace { position:sticky; top:74px; display:flex; flex-direction:column; height:calc(100dvh - 90px); min-height:0; overflow:hidden; }
     .record-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 22px 16px; border-bottom:1px solid var(--app-border); }
     .record-title { display:flex; align-items:center; gap:12px; } .record-icon { display:grid; place-items:center; width:46px; height:46px; border-radius:14px; color:#0f766e; background:#ccfbf1; }
     .primary-action { min-height:42px; color:#fff !important; background:linear-gradient(135deg,#0f8f87,#08776f) !important; border-radius:12px !important; font-weight:800; box-shadow:0 8px 18px rgba(15,143,135,.2); }
@@ -355,7 +355,8 @@ const DATASETS: DatasetDefinition[] = [
     .search-box button,.row-actions button,.change-item button,.drawer-header button,.review-dialog header > button { display:grid; place-items:center; padding:0; border:0; color:var(--app-text-muted); background:transparent; cursor:pointer; }
     .search-box button mat-icon { width:17px; height:17px; font-size:17px; } .record-count { color:var(--app-text-muted); font-size:11px; font-weight:750; white-space:nowrap; }
     .record-table-head,.record-row { display:grid; grid-template-columns:1.05fr 2fr 82px 68px; align-items:center; gap:12px; padding:0 18px; }
-    .record-table-head { min-height:34px; color:var(--app-text-muted); background:var(--app-soft-surface); font-size:9px; font-weight:900; text-transform:uppercase; }
+    .record-table { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+    .record-table-head { position:sticky; z-index:2; top:0; min-height:34px; color:var(--app-text-muted); background:var(--app-soft-surface); font-size:9px; font-weight:900; text-transform:uppercase; }
     .record-row { min-height:67px; border-top:1px solid var(--app-border); } .record-row:hover { background:color-mix(in srgb,var(--app-accent) 3%,transparent); }
     .record-key { color:var(--app-text); font-size:12px; } .record-summary { display:flex; min-width:0; gap:18px; }
     .record-summary span { display:grid; min-width:0; color:var(--app-text); font-size:11px; overflow-wrap:anywhere; } .record-summary small { margin-bottom:2px; color:var(--app-text-muted); font-size:8px; font-weight:800; text-transform:uppercase; }
@@ -440,7 +441,7 @@ const DATASETS: DatasetDefinition[] = [
     :host-context(html.theme-dark) .review-callout { border-left-color:#2dd4bf; color:#99f6e4; background:rgba(15,118,110,.2); }
     @keyframes drawer-in { from { transform:translateX(100%); } to { transform:translateX(0); } }
     @media (max-width:1200px) { .workspace { grid-template-columns:220px minmax(480px,1fr); } .change-basket { position:static; grid-column:1/-1; } }
-    @media (max-width:820px) { .maintenance-hero { align-items:stretch; flex-direction:column; gap:24px; padding:25px 20px 20px; border-radius:21px; } .maintenance-hero h1 { font-size:35px; } .maintenance-hero__copy p { font-size:14px; } .scope-card { min-width:0; } .operating-model { padding:20px 16px; border-radius:19px; } .operating-model > header { align-items:flex-start; flex-direction:column; gap:12px; } .maintenance-path { grid-template-columns:1fr; gap:8px; } .maintenance-path > mat-icon,.maintenance-path > mat-icon:nth-of-type(2) { display:block; justify-self:center; transform:rotate(90deg); } .workspace { grid-template-columns:1fr; } .dataset-rail { position:static; display:flex; gap:7px; overflow-x:auto; padding:8px; border-radius:16px; } .rail-heading,.governance-note { display:none; } .dataset-option { flex:0 0 175px; margin:0; } .record-workspace { min-height:0; border-radius:18px; } .record-heading { align-items:stretch; flex-direction:column; } .record-heading .primary-action { width:100%; white-space:nowrap; } .change-basket { border-radius:18px; } .record-table-head { display:none; } .record-row { grid-template-columns:1fr auto; gap:8px; padding:12px; } .record-summary { grid-column:1/-1; grid-row:2; } .status-pill { grid-column:2; grid-row:1; } .row-actions { grid-column:2; grid-row:2; } .field-grid { grid-template-columns:1fr; } .field-grid .field-wide { grid-column:auto; } .dependency-alert { grid-template-columns:auto 1fr; } .dependency-alert button { grid-column:1/-1; } }
+    @media (max-width:820px) { .maintenance-hero { align-items:stretch; flex-direction:column; gap:24px; padding:25px 20px 20px; border-radius:21px; } .maintenance-hero h1 { font-size:35px; } .maintenance-hero__copy p { font-size:14px; } .scope-card { min-width:0; } .operating-model { padding:20px 16px; border-radius:19px; } .operating-model > header { align-items:flex-start; flex-direction:column; gap:12px; } .maintenance-path { grid-template-columns:1fr; gap:8px; } .maintenance-path > mat-icon,.maintenance-path > mat-icon:nth-of-type(2) { display:block; justify-self:center; transform:rotate(90deg); } .workspace { grid-template-columns:1fr; padding-bottom:0; } .dataset-rail { position:static; display:flex; gap:7px; overflow-x:auto; padding:8px; border-radius:16px; } .rail-heading,.governance-note { display:none; } .dataset-option { flex:0 0 175px; margin:0; } .record-workspace { position:static; height:auto; min-height:0; border-radius:18px; } .record-heading { align-items:stretch; flex-direction:column; } .record-heading .primary-action { width:100%; white-space:nowrap; } .change-basket { border-radius:18px; } .record-table { overflow:visible; } .record-table-head { display:none; } .record-row { grid-template-columns:1fr auto; gap:8px; padding:12px; } .record-summary { grid-column:1/-1; grid-row:2; } .status-pill { grid-column:2; grid-row:1; } .row-actions { grid-column:2; grid-row:2; } .field-grid { grid-template-columns:1fr; } .field-grid .field-wide { grid-column:auto; } .dependency-alert { grid-template-columns:auto 1fr; } .dependency-alert button { grid-column:1/-1; } }
   `]
 })
 export class DataMaintenanceComponent implements OnInit {
@@ -618,9 +619,9 @@ export class DataMaintenanceComponent implements OnInit {
       next: draft => {
         this.toast.success('Private governed draft created and validated.');
         const preferred = this.jobForDataset(draft, this.changes[0].dataset) ?? draft.jobs[0];
-        this.router.navigate(['/import', preferred.id], {
-          queryParams: { evidence: draft.releasePackage ? 'dependency-workflow' : undefined }
-        });
+        const kind = draft.releasePackage ? 'package' : 'job';
+        const requestId = draft.releasePackage?.id ?? preferred.id;
+        this.router.navigate(['/maintenance/requests', kind, requestId]);
       },
       error: error => this.toast.error(error?.error?.error ?? error?.message ?? 'The governed draft could not be created.')
     });

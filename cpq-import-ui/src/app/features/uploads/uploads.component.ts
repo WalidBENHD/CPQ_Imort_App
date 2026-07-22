@@ -234,7 +234,9 @@ export class UploadsComponent implements OnInit {
       })
     ).subscribe({
       next: jobs => {
-        this.jobs = [...new Map(jobs.map(job => [job.id, job])).values()];
+        this.jobs = [...new Map(jobs
+          .filter(job => job.fileExtension.toLowerCase() !== '.hmi')
+          .map(job => [job.id, job])).values()];
         this.loading = false;
       },
       error: () => {

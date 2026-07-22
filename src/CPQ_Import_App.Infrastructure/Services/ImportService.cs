@@ -891,6 +891,32 @@ public class ImportService(
         await repository.DeleteReleasePackageAsync(package, ct);
     }
 
+    public async Task DiscardReleasePackageAsync(
+        Guid packageId,
+        string userId,
+        string userDisplayName,
+        CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (!string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Only the change set owner can discard it.");
+        if (package.Status != ReleasePackageStatus.Draft
+            || package.Jobs.Any(job => job.WorkflowStage != ImportWorkflowStage.Private))
+            throw new InvalidOperationException("Only a private draft change set can be discarded.");
+
+        var jobs = package.Jobs.ToList();
+        package.Jobs.Clear();
+        foreach (var job in jobs)
+        {
+            job.ReleasePackageId = null;
+            job.ReleasePackage = null;
+            await repository.DeleteJobAsync(job, ct);
+        }
+
+        await repository.DeleteReleasePackageAsync(package, ct);
+    }
+
     public async Task<ReleasePackageSummary> SubmitReleasePackageAsync(
         Guid packageId, string userId, string userDisplayName, CancellationToken ct = default)
     {
@@ -1027,6 +1053,60 @@ public class ImportService(
                 PerformedBy = userId,
                 PerformedByDisplayName = userDisplayName,
                 Details = $"Release package '{package.Name}' rejected: {trimmedReason}"
+            }, ct);
+        }
+
+        return ToReleaseSummary(package);
+    }
+
+    public async Task<ReleasePackageSummary> ReturnReleasePackageForCorrectionAsync(
+        Guid packageId,
+        string userId,
+        string userDisplayName,
+        string reason,
+        CancellationToken ct = default)
+    {
+        var package = await repository.GetReleasePackageAsync(packageId, ct)
+            ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
+        if (package.Status != ReleasePackageStatus.Submitted)
+            throw new InvalidOperationException("Only a submitted release package can be returned for correction.");
+        if (string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("You cannot review your own release package.");
+
+        var trimmedReason = reason.Trim();
+        if (trimmedReason.Length is 0 or > 2000)
+            throw new InvalidDataException("Provide correction guidance of at most 2000 characters.");
+        if (package.Jobs.Any(job => job.Status != ImportStatus.AwaitingApproval || job.WorkflowStage != ImportWorkflowStage.Submitted))
+            throw new InvalidOperationException("Every release item must still be awaiting approval before it can be returned.");
+
+        var returnedAt = DateTime.UtcNow;
+        package.Status = ReleasePackageStatus.Draft;
+        package.SubmittedAt = null;
+        package.SubmittedByDisplayName = null;
+        package.RejectedAt = returnedAt;
+        package.RejectedByUserId = userId;
+        package.RejectedByDisplayName = userDisplayName;
+        package.RejectionReason = trimmedReason;
+
+        foreach (var job in package.Jobs)
+        {
+            job.WorkflowStage = ImportWorkflowStage.Private;
+            job.SubmittedComparisonJson = null;
+            job.RejectedAt = returnedAt;
+            job.RejectedBy = userDisplayName;
+            job.RejectionReason = trimmedReason;
+        }
+
+        await repository.SaveChangesAsync(ct);
+        foreach (var job in package.Jobs)
+        {
+            await repository.AddAuditLogAsync(new AuditLog
+            {
+                ImportJobId = job.Id,
+                Action = "ReleasePackageReturnedForCorrection",
+                PerformedBy = userId,
+                PerformedByDisplayName = userDisplayName,
+                Details = $"Returned maintenance release '{package.Name}' for correction: {trimmedReason}"
             }, ct);
         }
 
@@ -1302,6 +1382,43 @@ public class ImportService(
             Details = "Approval withdrawn and submission returned to review before publication."
         }, ct);
 
+        return job;
+    }
+
+    public async Task<ImportJob> ReturnForCorrectionAsync(
+        Guid jobId,
+        string userId,
+        string userDisplayName,
+        string reason,
+        CancellationToken ct = default)
+    {
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+        if (job.WorkflowStage != ImportWorkflowStage.Submitted || job.Status != ImportStatus.AwaitingApproval)
+            throw new InvalidOperationException("Only a request awaiting approval can be returned for correction.");
+        if (job.ReleasePackageId.HasValue)
+            throw new InvalidOperationException("This request belongs to a coordinated release and must be returned as a complete change set.");
+        if (string.Equals(job.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("You cannot review your own maintenance request.");
+
+        var trimmedReason = reason.Trim();
+        if (trimmedReason.Length is 0 or > 2000)
+            throw new InvalidDataException("Provide correction guidance of at most 2000 characters.");
+
+        job.WorkflowStage = ImportWorkflowStage.Private;
+        job.SubmittedComparisonJson = null;
+        job.RejectedAt = DateTime.UtcNow;
+        job.RejectedBy = userDisplayName;
+        job.RejectionReason = trimmedReason;
+        await repository.UpdateJobAsync(job, ct);
+        await repository.AddAuditLogAsync(new AuditLog
+        {
+            ImportJobId = job.Id,
+            Action = "ReturnedForCorrection",
+            PerformedBy = userId,
+            PerformedByDisplayName = userDisplayName,
+            Details = $"Returned maintenance request for correction: {trimmedReason}"
+        }, ct);
         return job;
     }
 
