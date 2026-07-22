@@ -20,15 +20,30 @@ type DecryptionStatus = 'Successful' | 'Failed';
   imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatIconModule],
   template: `
     <section class="page-shell evolis-decryptor-page">
-      <header class="page-header">
-        <div>
-          <div class="eyebrow">Internal tools</div>
-          <h1>Evolis Decryptor</h1>
-          <p class="page-intro">
-            Upload an Evolis pricing file, decrypt it, and download the generated PDF report.
-          </p>
+      <header class="page-header decryptor-hero">
+        <div class="hero-copy">
+          <span class="hero-mark"><mat-icon>enhanced_encryption</mat-icon></span>
+          <div>
+            <div class="eyebrow">Secure operations / Internal tools</div>
+            <h1>Evolis decryption workspace</h1>
+            <p class="page-intro">
+              Turn an encrypted Evolis pricing file into a clear, reviewable PDF report.
+            </p>
+          </div>
+        </div>
+        <div class="hero-signal">
+          <span><i></i> Restricted tool</span>
+          <strong>Every operation is recorded</strong>
         </div>
       </header>
+
+      <div class="tool-context" aria-label="Decryption workflow">
+        <div><span><mat-icon>description</mat-icon></span><p><small>Source</small><strong>Encrypted text file</strong></p></div>
+        <mat-icon class="context-arrow">arrow_forward</mat-icon>
+        <div><span><mat-icon>verified_user</mat-icon></span><p><small>Process</small><strong>Controlled decryption</strong></p></div>
+        <mat-icon class="context-arrow">arrow_forward</mat-icon>
+        <div><span><mat-icon>picture_as_pdf</mat-icon></span><p><small>Output</small><strong>Reviewable PDF</strong></p></div>
+      </div>
 
       <button *ngIf="historyExpanded" class="history-backdrop" type="button" aria-label="Close full decryption history" (click)="historyExpanded = false"></button>
       <mat-card class="panel history-panel" id="decryption-history" [class.history-panel--expanded]="historyExpanded">
@@ -101,9 +116,10 @@ type DecryptionStatus = 'Successful' | 'Failed';
             (dragleave)="dragActive = false"
             (drop)="onDrop($event)"
           >
-            <mat-icon class="dropzone-icon">lock_open</mat-icon>
+            <mat-icon class="dropzone-icon">upload_file</mat-icon>
+            <div class="eyebrow">Start a decryption</div>
             <h2>Drop the encrypted file here</h2>
-            <p>Or choose a text file to decrypt and generate the PDF report.</p>
+            <p>Choose one Evolis text file. We will process it and prepare the PDF report for review.</p>
 
             <input #fileInput type="file" accept=".txt,text/plain" class="file-input" (change)="onFileSelected($event)" />
 
@@ -356,11 +372,135 @@ type DecryptionStatus = 'Successful' | 'Failed';
 
     .page-header {
       grid-column: 1 / -1;
+      grid-row: 1;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
       gap: 16px;
     }
+
+    .decryptor-hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 176px;
+      padding: 28px 30px;
+      border: 1px solid color-mix(in srgb, #0f766e 32%, var(--app-border));
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 88% 18%, color-mix(in srgb, #f59e0b 22%, transparent) 0 12%, transparent 13%),
+        linear-gradient(125deg, color-mix(in srgb, #0f766e 15%, var(--app-surface-elevated)), var(--app-surface-elevated) 58%);
+      box-shadow: var(--app-shadow-soft);
+    }
+
+    .decryptor-hero::after {
+      content: '';
+      position: absolute;
+      right: -54px;
+      bottom: -88px;
+      width: 250px;
+      height: 250px;
+      border: 34px solid color-mix(in srgb, #0f766e 9%, transparent);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .hero-mark {
+      display: grid;
+      flex: 0 0 64px;
+      width: 64px;
+      height: 64px;
+      place-items: center;
+      border-radius: 20px;
+      color: #fff;
+      background: linear-gradient(145deg, #0f766e, #0d9488);
+      box-shadow: 0 14px 30px color-mix(in srgb, #0f766e 30%, transparent);
+    }
+
+    .hero-mark mat-icon {
+      width: 32px;
+      height: 32px;
+      font-size: 32px;
+    }
+
+    .hero-signal {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      min-width: 220px;
+      gap: 6px;
+      padding: 14px 16px;
+      border: 1px solid color-mix(in srgb, #0f766e 28%, var(--app-border));
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--app-surface-elevated) 86%, transparent);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-signal span {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #0f766e;
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .hero-signal i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #14b8a6;
+      box-shadow: 0 0 0 5px color-mix(in srgb, #14b8a6 15%, transparent);
+    }
+
+    .hero-signal strong { color: var(--app-text); font-size: 13px; }
+
+    .tool-context {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 14px 20px;
+      border: 1px solid var(--app-border);
+      border-radius: 18px;
+      background: var(--app-surface-elevated);
+      box-shadow: var(--app-shadow-soft);
+    }
+
+    .tool-context > div {
+      display: flex;
+      min-width: 180px;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .tool-context > div > span {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      place-items: center;
+      border-radius: 11px;
+      color: #0f766e;
+      background: color-mix(in srgb, #14b8a6 11%, var(--app-surface));
+    }
+
+    .tool-context mat-icon { width: 20px; height: 20px; font-size: 20px; }
+    .tool-context p { display: grid; gap: 2px; margin: 0; }
+    .tool-context small { color: var(--app-text-muted); font-size: 9px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .tool-context strong { color: var(--app-text); font-size: 12px; }
+    .tool-context .context-arrow { color: color-mix(in srgb, var(--app-text-muted) 55%, transparent); }
 
     .eyebrow {
       color: var(--app-accent);
@@ -396,7 +536,7 @@ type DecryptionStatus = 'Successful' | 'Failed';
     .layout-grid {
       display: grid;
       grid-column: 1;
-      grid-row: 2;
+      grid-row: 3;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
       gap: 16px;
       align-items: stretch;
@@ -449,10 +589,12 @@ type DecryptionStatus = 'Successful' | 'Failed';
       display: grid;
       gap: 14px;
       justify-items: start;
-      border: 1px dashed rgba(59, 130, 246, 0.32);
+      border: 1px dashed color-mix(in srgb, #0f766e 42%, var(--app-border));
       border-radius: 20px;
       padding: 24px;
-      background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+      background:
+        radial-gradient(circle at 50% 12%, color-mix(in srgb, #14b8a6 10%, transparent), transparent 42%),
+        color-mix(in srgb, #0f766e 3%, var(--app-surface));
     }
 
     .dropzone--active {
@@ -467,8 +609,9 @@ type DecryptionStatus = 'Successful' | 'Failed';
       align-items: center;
       justify-content: center;
       border-radius: 14px;
-      background: rgba(59, 130, 246, 0.12);
-      color: var(--app-accent);
+      background: linear-gradient(145deg, #0f766e, #0d9488);
+      color: #fff;
+      box-shadow: 0 10px 24px color-mix(in srgb, #0f766e 24%, transparent);
     }
 
     .dropzone h2 {
@@ -728,11 +871,11 @@ type DecryptionStatus = 'Successful' | 'Failed';
 
     .details-panel {
       grid-column: 1;
-      grid-row: 3;
+      grid-row: 4;
       padding: 20px;
     }
 
-    .history-panel { position: sticky; top: 78px; grid-column: 2; grid-row: 2 / span 2; max-height: calc(100vh - 96px); overflow: auto; }
+    .history-panel { position: sticky; top: 78px; grid-column: 2; grid-row: 3 / span 2; max-height: calc(100vh - 96px); overflow: auto; }
     .history-head { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; border-bottom: 1px solid var(--app-border); }
     .history-title { display: flex; align-items: center; gap: 14px; }
     .history-title h2 { margin: 3px 0 4px; font-size: 22px; }
@@ -1001,15 +1144,28 @@ type DecryptionStatus = 'Successful' | 'Failed';
       color: var(--app-accent);
     }
 
+    :host-context(html.theme-dark) .hero-signal span { color: #5eead4; }
+    :host-context(html.theme-dark) .overview-item,
+    :host-context(html.theme-dark) .summary-item {
+      background: linear-gradient(180deg, color-mix(in srgb, #0f766e 8%, var(--app-surface-elevated)), var(--app-surface));
+      border-color: var(--app-border);
+    }
+    :host-context(html.theme-dark) .overview-item-head span,
+    :host-context(html.theme-dark) .summary-item .value,
+    :host-context(html.theme-dark) .details-summary strong { color: var(--app-text); }
+    :host-context(html.theme-dark) .summary-item .label { color: var(--app-text-muted); }
+    :host-context(html.theme-dark) .error-box { color: #fca5a5; }
+
     @media (max-width: 1350px) {
       .page-shell { grid-template-columns: 1fr; }
       .page-header { grid-column: 1; grid-row: 1; }
-      .history-panel { position: relative; top: auto; grid-column: 1; grid-row: 2; max-height: none; }
+      .tool-context { grid-column: 1; grid-row: 2; }
       .layout-grid {
         grid-column: 1;
         grid-row: 3;
       }
-      .details-panel { grid-column: 1; grid-row: 4; }
+      .history-panel { position: relative; top: auto; grid-column: 1; grid-row: 4; max-height: none; }
+      .details-panel { grid-column: 1; grid-row: 5; }
       .history-panel--expanded { position: fixed; top: 5vh; }
     }
 
@@ -1018,11 +1174,40 @@ type DecryptionStatus = 'Successful' | 'Failed';
     }
 
     @media (max-width: 768px) {
+      .decryptor-hero {
+        min-height: 0;
+        padding: 20px;
+        border-radius: 20px;
+      }
+
       .page-header,
       .result-head {
         align-items: flex-start;
         flex-direction: column;
       }
+
+      .hero-copy { align-items: flex-start; gap: 14px; }
+      .hero-mark { width: 48px; height: 48px; flex-basis: 48px; border-radius: 15px; }
+      .hero-mark mat-icon { width: 25px; height: 25px; font-size: 25px; }
+      h1 { font-size: clamp(25px, 8vw, 34px); line-height: 1.08; }
+      .hero-signal { width: 100%; min-width: 0; box-sizing: border-box; }
+
+      .tool-context {
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-items: stretch;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .tool-context > div {
+        width: 100%;
+        min-width: 0;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+
+      .tool-context .context-arrow { display: none; }
 
       .details-head {
         align-items: flex-start;
@@ -1058,6 +1243,9 @@ type DecryptionStatus = 'Successful' | 'Failed';
       .dropzone {
         padding: 18px;
       }
+
+      .actions { width: 100%; }
+      .actions button { flex: 1 1 100%; }
 
       .result-summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));

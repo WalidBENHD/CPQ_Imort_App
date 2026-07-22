@@ -6,6 +6,12 @@ export type ComparisonStatus = 'New' | 'Modified' | 'Unchanged';
 export type ValidationAnchorKind = 0 | 1 | 2 | 3;
 export type ReleasePackageStatus = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+export interface ActiveDatasetRecord {
+  key: string;
+  entityType: number;
+  fields: Record<string, string | null>;
+}
+
 export interface DatasetDefinition {
   key: EntityType;
   name: string;

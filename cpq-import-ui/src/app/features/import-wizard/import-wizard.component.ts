@@ -17,20 +17,23 @@ import { ImportService } from '../../core/services/import.service';
     MatCardModule, MatButtonModule, MatIconModule, MatStepperModule,
     MatProgressBarModule, MatSnackBarModule],
   template: `
+    <section class="submission-page">
     <div class="page-header">
-      <div>
-        <div class="eyebrow">Dataset submission</div>
-        <h1>New Annual Submission</h1>
+      <div class="header-copy">
+        <div class="eyebrow"><mat-icon>cloud_upload</mat-icon> Dataset submission</div>
+        <h1>New annual submission</h1>
         <p class="page-intro">
           Saint-Marcellin PDU annual update for Article Master and Basis Price, including a clear unit price for each article, controlled through one governed workflow.
         </p>
       </div>
-      <a mat-button routerLink="/dashboard">
-        <mat-icon>arrow_back</mat-icon> Back to Datasets
+      <a class="back-link" mat-stroked-button routerLink="/datasets">
+        <mat-icon>arrow_back</mat-icon> Back to datasets
       </a>
     </div>
 
+    <section class="context-grid">
     <mat-card class="pilot-scope-card">
+      <span class="context-icon"><mat-icon>location_on</mat-icon></span>
       <div class="pilot-scope-copy">
         <div class="eyebrow">Pilot scope</div>
         <h2>{{ pilotScope.site }} - {{ pilotScope.productFamily }}</h2>
@@ -49,6 +52,7 @@ import { ImportService } from '../../core/services/import.service';
     </mat-card>
 
     <mat-card class="annual-flow-card">
+      <span class="context-icon context-icon--review"><mat-icon>difference</mat-icon></span>
       <div class="annual-flow-copy">
         <div class="eyebrow">Annual review path</div>
         <h3>Compare each new submission with the approved baseline</h3>
@@ -63,8 +67,10 @@ import { ImportService } from '../../core/services/import.service';
         <span class="flow-chip">Annual refresh</span>
       </div>
     </mat-card>
+    </section>
 
     <mat-card class="wizard-shell">
+      <header class="wizard-intro"><div><span>Guided submission</span><h2>Prepare a governed annual version</h2></div><small><mat-icon>lock</mat-icon>Private until you submit</small></header>
       <mat-card-content>
         <mat-stepper linear #stepper [orientation]="isMobile ? 'vertical' : 'horizontal'">
 
@@ -76,6 +82,7 @@ import { ImportService } from '../../core/services/import.service';
                 <div
                   *ngFor="let opt of entityOptions"
                   class="entity-card"
+                  [attr.data-dataset]="opt.value"
                   [class.selected]="selectedType === opt.value"
                   (click)="setSelectedType(opt.value)">
                   <mat-icon>{{ entityIcon(opt.value) }}</mat-icon>
@@ -215,6 +222,7 @@ import { ImportService } from '../../core/services/import.service';
         </mat-stepper>
       </mat-card-content>
     </mat-card>
+    </section>
   `,
   styles: [`
     :host { display: block; color: var(--app-text); }
@@ -575,6 +583,18 @@ import { ImportService } from '../../core/services/import.service';
       .center { padding: 20px 8px; }
       .workspace-notice { padding: 12px; }
     }
+  `, `
+    :host{display:block;color:var(--app-text)}.submission-page{display:grid;gap:16px}
+    .page-header{position:relative;overflow:hidden;align-items:center;margin:0;padding:31px 34px;border:1px solid color-mix(in srgb,#2563eb 24%,var(--app-border));border-radius:24px;background:linear-gradient(125deg,color-mix(in srgb,var(--app-surface) 96%,#2563eb),color-mix(in srgb,var(--app-surface) 88%,#ccfbf1));box-shadow:var(--app-shadow-soft)}.page-header:after{content:'';position:absolute;right:17%;top:-180px;width:290px;height:290px;border:62px solid color-mix(in srgb,#2563eb 7%,transparent);border-radius:50%;pointer-events:none}.header-copy,.back-link{position:relative;z-index:1}.header-copy{max-width:850px}.eyebrow{display:flex;align-items:center;gap:6px;margin:0 0 8px;color:#2563eb;font-size:10px;font-weight:900;letter-spacing:.09em}.eyebrow mat-icon{width:17px;height:17px;font-size:17px}h1{margin:0;color:var(--app-text);font-size:clamp(36px,4.5vw,56px);font-weight:770;letter-spacing:-.055em;line-height:1}.page-intro{max-width:780px;margin:14px 0 0;color:var(--app-text-muted);font-size:14px;line-height:1.6}.back-link{min-height:40px;padding:0 13px;border-color:color-mix(in srgb,#2563eb 30%,var(--app-border));border-radius:11px;color:var(--app-text);background:color-mix(in srgb,var(--app-surface) 88%,#dbeafe);font-size:11px;font-weight:850}
+    .context-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pilot-scope-card,.annual-flow-card{display:grid;grid-template-columns:43px minmax(0,1fr);align-items:start;gap:12px;margin:0;padding:16px;border:1px solid var(--app-border);border-radius:18px;background:var(--app-surface-elevated);box-shadow:none}.context-icon{display:grid;place-items:center;width:43px;height:43px;color:#0f8f87;border-radius:13px;background:color-mix(in srgb,#14b8a6 13%,transparent)}.context-icon--review{color:#2563eb;background:color-mix(in srgb,#3b82f6 12%,transparent)}.context-icon mat-icon{width:23px;height:23px;font-size:23px}.pilot-scope-copy h2,.annual-flow-copy h3{margin:0;color:var(--app-text);font-size:17px;font-weight:800;letter-spacing:-.025em}.pilot-scope-copy p,.annual-flow-copy p{max-width:none;margin:5px 0 0;color:var(--app-text-muted);font-size:10px;line-height:1.5}.pilot-scope-chips,.annual-flow-chips{grid-column:1/-1;justify-content:flex-start;gap:5px}.scope-chip,.flow-chip{padding:4px 7px;border-color:var(--app-border);color:var(--app-text-muted);background:var(--app-soft-surface);font-size:8px;font-weight:850}.annual-flow-card .flow-chip{color:#2563eb}
+    .wizard-shell{overflow:hidden;margin:0;border:1px solid color-mix(in srgb,#2563eb 20%,var(--app-border));border-radius:22px;background:var(--app-surface-elevated);box-shadow:var(--app-shadow-soft)}.wizard-intro{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px 16px;border-bottom:1px solid var(--app-border)}.wizard-intro>div{display:grid;gap:2px}.wizard-intro span{color:#2563eb;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.09em}.wizard-intro h2{margin:0;color:var(--app-text);font-size:22px;letter-spacing:-.035em}.wizard-intro small{display:flex;align-items:center;gap:5px;padding:7px 10px;color:#0f766e;border-radius:999px;background:color-mix(in srgb,#14b8a6 10%,transparent);font-size:9px;font-weight:850}.wizard-intro small mat-icon{width:14px;height:14px;font-size:14px}:host ::ng-deep .wizard-shell .mat-mdc-card-content{padding:0!important}:host ::ng-deep .wizard-shell .mat-stepper-horizontal{background:transparent}:host ::ng-deep .wizard-shell .mat-horizontal-stepper-header-container{gap:8px;padding:13px 18px;border-bottom:1px solid var(--app-border);background:var(--app-soft-surface)}:host ::ng-deep .wizard-shell .mat-step-header{height:48px;padding:0 14px;border:1px solid transparent;border-radius:12px}:host ::ng-deep .wizard-shell .mat-step-header[aria-selected="true"]{border-color:color-mix(in srgb,#2563eb 28%,var(--app-border));background:var(--app-surface);box-shadow:0 5px 14px rgba(15,23,42,.06)}:host ::ng-deep .wizard-shell .mat-step-icon{color:var(--app-text-muted);background:color-mix(in srgb,var(--app-text-muted) 14%,transparent)}:host ::ng-deep .wizard-shell .mat-step-icon-selected,:host ::ng-deep .wizard-shell .mat-step-icon-state-done{color:#fff;background:#2563eb}:host ::ng-deep .wizard-shell .mat-step-label{color:var(--app-text-muted);font-size:11px;font-weight:800}:host ::ng-deep .wizard-shell .mat-step-label-selected{color:var(--app-text)}:host ::ng-deep .wizard-shell .mat-stepper-horizontal-line{border-color:var(--app-border)}:host ::ng-deep .wizard-shell .mat-horizontal-content-container{padding:0 24px 24px}
+    .step-content{padding:21px 0 0}.step-subtitle{margin:0 0 16px;color:var(--app-text-muted);font-size:12px}.entity-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;max-width:none;margin-bottom:18px}.entity-card{--entity-accent:#0f8f87;position:relative;min-height:126px;padding:15px;border:1px solid var(--app-border);border-radius:15px;background:var(--app-surface);box-shadow:0 5px 14px rgba(15,23,42,.04);transition:transform .18s ease,border-color .18s ease,background .18s ease}.entity-card[data-dataset="PriceList"]{--entity-accent:#2563eb}.entity-card[data-dataset="Description"]{--entity-accent:#b45309}.entity-card[data-dataset="CurrencyRate"]{--entity-accent:#15803d}.entity-card:after{content:'';position:absolute;inset:auto 14px -1px;height:3px;border-radius:3px 3px 0 0;background:transparent}.entity-card:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--entity-accent) 42%,var(--app-border));background:color-mix(in srgb,var(--entity-accent) 4%,var(--app-surface))}.entity-card.selected{border-color:var(--entity-accent);background:color-mix(in srgb,var(--entity-accent) 8%,var(--app-surface));box-shadow:0 10px 24px color-mix(in srgb,var(--entity-accent) 12%,transparent)}.entity-card.selected:after{background:var(--entity-accent)}.entity-card mat-icon{margin-bottom:6px;color:var(--entity-accent)}.entity-label{color:var(--app-text);font-size:13px;font-weight:850}.entity-desc{color:var(--app-text-muted);font-size:10px}
+    .requirements-panel{margin:0 0 17px;padding:0;border-color:var(--app-border);border-radius:15px;background:var(--app-surface);overflow:hidden}.requirements-header{align-items:center;margin:0;padding:14px 16px;border-bottom:1px solid var(--app-border);background:var(--app-soft-surface)}.requirements-header h3{font-size:14px}.requirements-header p{font-size:10px}.requirements-header button{min-height:36px;border-radius:9px;font-size:10px;font-weight:850}.requirements-table{border:0;border-radius:0}.requirements-table-head{padding:9px 14px;font-size:8px}.requirements-table-row{padding:11px 14px}.requirements-name{font-size:10px}.requirements-type,.badge{font-size:8px}.requirements-meta,.requirements-example{font-size:9px}
+    .upload-hint{margin-bottom:12px;padding:10px 12px;border-color:color-mix(in srgb,#2563eb 24%,var(--app-border));border-radius:10px;background:color-mix(in srgb,#2563eb 7%,var(--app-surface));font-size:10px}.drop-zone{min-height:220px;padding:32px;border:1.5px dashed color-mix(in srgb,#2563eb 44%,var(--app-border));border-radius:17px;background:radial-gradient(circle at 50% 35%,color-mix(in srgb,#2563eb 8%,transparent),transparent 48%),var(--app-surface);transition:transform .18s ease,border-color .18s ease,background .18s ease}.drop-zone:hover,.drop-zone.drag-over{transform:translateY(-2px);border-color:#2563eb;background:color-mix(in srgb,#2563eb 6%,var(--app-surface))}.drop-icon{width:54px;height:54px;color:#2563eb;font-size:54px}.drop-zone p{margin:2px 0;color:var(--app-text);font-size:12px}.hint{font-size:9px}.file-preview{max-width:560px;padding:13px;border-radius:12px;background:var(--app-soft-surface)}.workspace-notice{margin:15px 0;padding:12px;border-radius:12px}.notice-content h3{font-size:12px}.notice-content p{font-size:10px}.step-actions{justify-content:flex-end;gap:7px;margin-top:18px}.step-actions .ml-8{margin:0}.step-actions button[mat-raised-button],.step-actions button[mat-stroked-button]{min-height:40px;border-radius:10px;font-size:11px;font-weight:850}.center{padding:48px 12px}.center h2{color:var(--app-text);font-size:25px}.center p{max-width:560px;margin:0 auto 20px;color:var(--app-text-muted)}
+    :host-context(html.theme-dark) .back-link{background:color-mix(in srgb,#2563eb 12%,var(--app-surface))}:host-context(html.theme-dark) .annual-flow-card .flow-chip{color:#93c5fd}
+    @media(max-width:1100px){.entity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.context-grid{grid-template-columns:1fr}.pilot-scope-card,.annual-flow-card{grid-template-columns:43px minmax(0,1fr) auto}.pilot-scope-chips,.annual-flow-chips{grid-column:auto;align-self:center;justify-content:flex-end}.requirements-table-head,.requirements-table-row{grid-template-columns:minmax(150px,1fr) minmax(190px,1.2fr) minmax(180px,1fr)}}
+    @media(max-width:768px){.submission-page{gap:12px}.page-header{padding:24px 19px;border-radius:20px}.page-header:after{display:none}h1{font-size:37px}.page-intro{font-size:12px}.back-link{width:100%;justify-content:center}.pilot-scope-card,.annual-flow-card{grid-template-columns:39px minmax(0,1fr);padding:13px}.context-icon{width:39px;height:39px}.pilot-scope-chips,.annual-flow-chips{grid-column:1/-1;display:flex;overflow-x:auto;flex-wrap:nowrap;justify-content:flex-start;padding-bottom:2px;scrollbar-width:none}.wizard-intro{align-items:flex-start;padding:17px;flex-direction:column}.wizard-intro h2{font-size:19px}:host ::ng-deep .wizard-shell .mat-mdc-card-content{padding:0 15px 16px!important}:host ::ng-deep .wizard-shell .mat-stepper-vertical{background:transparent}:host ::ng-deep .wizard-shell .mat-vertical-stepper-header{height:51px;padding:0 7px}:host ::ng-deep .wizard-shell .mat-vertical-content-container{margin-left:18px}:host ::ng-deep .wizard-shell .mat-vertical-content{padding:0 0 19px 13px}.step-content{padding:8px 0 0}.entity-grid{grid-template-columns:1fr 1fr;gap:7px}.entity-card{min-height:118px;padding:12px}.requirements-header{align-items:stretch}.drop-zone{min-height:155px;padding:22px 12px}.step-actions{align-items:stretch}.center{padding:30px 5px}}
+    @media(max-width:470px){h1{font-size:33px}.entity-grid{grid-template-columns:1fr}.entity-card{min-height:105px}.requirements-table-row{padding:10px}.step-actions{flex-direction:column}.step-actions button{width:100%}}
   `]
 })
 export class ImportWizardComponent {

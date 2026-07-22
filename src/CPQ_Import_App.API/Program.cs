@@ -52,6 +52,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IImportRepository, ImportRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IActivityRepository, ActivityRepository>();
+builder.Services.AddScoped<IActiveDatasetReader, ActiveDatasetReader>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IBusinessTraceService, BusinessTraceService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();

@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, catchError, concatMap, finalize, forkJoin, from, map, of, switchMap, throwError, toArray } from 'rxjs';
-import { ImportJob, MaintenanceDraft, StagingRow } from '../../core/models/import.models';
+import { ActiveDatasetRecord, ImportJob, MaintenanceDraft, StagingRow } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 import { MaintenanceLocalDraftService } from '../../core/services/maintenance-local-draft.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -849,11 +849,7 @@ export class DataMaintenanceComponent implements OnInit {
     }
     this.loadingDatasets.add(dataset);
     if (dataset === this.selectedDataset.key) this.loadingRecords = true;
-    this.imports.getJobs(1, 20, null, 'Committed', dataset).pipe(
-      switchMap(result => {
-        const baseline = result.items.find(job => job.isActiveBaseline) ?? result.items[0];
-        return baseline ? this.loadAllBaselineRows(baseline.id) : of(null);
-      }),
+    this.imports.getActiveRecords(dataset).pipe(
       finalize(() => {
         this.loadingDatasets.delete(dataset);
         if (dataset === this.selectedDataset.key) this.loadingRecords = false;
@@ -861,33 +857,19 @@ export class DataMaintenanceComponent implements OnInit {
     ).subscribe({
       next: result => {
         this.loadedDatasets.add(dataset);
-        if (result) {
-          this.records = [...this.records, ...result.map((row: StagingRow) => ({
-            id: row.id,
+        if (result.length) {
+          this.records = [...this.records, ...result.map((record: ActiveDatasetRecord) => ({
+            id: record.key,
             dataset,
             status: 'Active' as const,
-            values: Object.fromEntries(Object.entries(row.fields).map(([key, value]) => [key, value ?? '']))
+            values: Object.fromEntries(Object.entries(record.fields).map(([key, value]) => [key, value ?? '']))
           }))];
         }
         this.hydrateOriginalValues(dataset);
         this.persistLocalDraft();
       },
-      error: () => this.toast.error(`Could not load the active ${definition.name} baseline.`)
+      error: () => this.toast.error(`Could not load the active ${definition.name} records.`)
     });
-  }
-
-  private loadAllBaselineRows(jobId: string): Observable<StagingRow[]> {
-    const requestedPageSize = 200;
-    return this.imports.getRows(jobId, 1, requestedPageSize).pipe(
-      switchMap(firstPage => {
-        const pageCount = Math.ceil(firstPage.total / firstPage.pageSize);
-        if (pageCount <= 1) return of(firstPage.items);
-        const remainingPages = Array.from({ length: pageCount - 1 }, (_, index) => index + 2);
-        return forkJoin(remainingPages.map(page => this.imports.getRows(jobId, page, firstPage.pageSize))).pipe(
-          map(pages => [firstPage.items, ...pages.map(result => result.items)].flat())
-        );
-      })
-    );
   }
 
   private hydrateOriginalValues(dataset: DatasetKey): void {

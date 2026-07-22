@@ -13,26 +13,30 @@ import { AuthFacade } from '../../core/auth/auth.facade';
   standalone: true,
   imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule],
   template: `
+    <section class="datasets-page">
     <div class="page-header">
-      <div>
-        <div class="eyebrow">Dataset governance</div>
-        <h1>Pilot Dataset Management</h1>
+      <div class="header-copy">
+        <div class="eyebrow"><mat-icon>account_tree</mat-icon> Dataset governance</div>
+        <h1>The governed data portfolio</h1>
         <p class="page-intro">
-          Manage the pilot dataset portfolio, ownership, template standards and current version for Saint-Marcellin PDU.
+          Understand the records that power Saint-Marcellin PDU, who owns them, and the structure every governed submission must respect.
         </p>
       </div>
-      <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" routerLink="/import/new">
-        <mat-icon>add</mat-icon> New Annual Submission
-      </button>
+      <div class="header-actions">
+        <span class="portfolio-signal"><i></i>{{ datasetCatalog.length }} governed datasets</span>
+        <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-raised-button color="primary" routerLink="/import/new">
+          <mat-icon>add</mat-icon> New annual submission
+        </button>
+      </div>
     </div>
 
     <mat-card class="pilot-scope-card">
-      <div>
+      <span class="scope-symbol"><mat-icon>location_on</mat-icon></span>
+      <div class="scope-copy">
         <div class="eyebrow">Pilot scope</div>
-        <h2>{{ pilotScope.site }} - {{ pilotScope.productFamily }}</h2>
+        <h2>{{ pilotScope.site }} <span>/</span> {{ pilotScope.productFamily }}</h2>
         <p>
-          Two logical datasets are in scope: {{ pilotScope.dataDomains.join(' + ') }}.
-          The process stays focused on one annual full snapshot, one category, and a required currency.
+          One connected commercial data model. Article identity and pricing move through the same annual governance path.
         </p>
       </div>
       <div class="pilot-scope-badges">
@@ -41,12 +45,13 @@ import { AuthFacade } from '../../core/auth/auth.facade';
     </mat-card>
 
     <section class="portfolio-grid">
-      <mat-card class="dataset-card" *ngFor="let dataset of datasetCatalog">
+      <mat-card class="dataset-card" *ngFor="let dataset of datasetCatalog; let index = index" [attr.data-dataset]="dataset.key">
         <div class="dataset-top">
           <div class="dataset-icon">
             <mat-icon>{{ dataset.icon }}</mat-icon>
           </div>
           <div class="dataset-copy">
+            <div class="dataset-kicker"><span class="dataset-order">0{{ index + 1 }}</span>Governed dataset</div>
             <div class="dataset-name">{{ dataset.name }}</div>
             <div class="dataset-description">{{ dataset.description }}</div>
           </div>
@@ -124,6 +129,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
           </div>
         </details>
       </mat-card>
+    </section>
     </section>
   `,
   styles: [`
@@ -494,6 +500,23 @@ import { AuthFacade } from '../../core/auth/auth.facade';
         justify-content: flex-start;
       }
     }
+  `, `
+    :host{display:block;color:var(--app-text)}
+    .datasets-page{display:grid;gap:18px}
+    .page-header{position:relative;overflow:hidden;align-items:center;margin:0;padding:34px 36px;border:1px solid color-mix(in srgb,#0f8f87 26%,var(--app-border));border-radius:25px;background:linear-gradient(125deg,color-mix(in srgb,var(--app-surface) 96%,#0f766e),color-mix(in srgb,var(--app-surface) 87%,#dbeafe));box-shadow:var(--app-shadow-soft)}
+    .page-header:after{content:'';position:absolute;right:22%;bottom:-150px;width:285px;height:285px;border:58px solid color-mix(in srgb,#0f8f87 7%,transparent);border-radius:50%;pointer-events:none}
+    .header-copy,.header-actions{position:relative;z-index:1}.header-copy{max-width:800px}.eyebrow{display:flex;align-items:center;gap:6px;margin:0 0 9px;color:#0f8f87;font-size:10px;font-weight:900;letter-spacing:.09em}.eyebrow mat-icon{width:17px;height:17px;font-size:17px}
+    h1{margin:0;color:var(--app-text);font-size:clamp(36px,4.7vw,58px);font-weight:760;letter-spacing:-.055em;line-height:.98}.page-intro{max-width:760px;margin:16px 0 0;color:var(--app-text-muted);font-size:15px;line-height:1.6}
+    .header-actions{display:grid;justify-items:end;gap:14px}.header-actions button{min-height:46px;padding:0 19px;border-radius:13px;font-weight:850}.portfolio-signal{display:inline-flex;align-items:center;gap:7px;color:#0f766e;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.portfolio-signal i{width:8px;height:8px;border-radius:50%;background:#14b8a6;box-shadow:0 0 0 5px color-mix(in srgb,#14b8a6 14%,transparent)}
+    .pilot-scope-card{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:15px;margin:0;padding:16px 18px;border-color:color-mix(in srgb,#0f8f87 22%,var(--app-border));border-radius:19px;background:color-mix(in srgb,#0f8f87 4%,var(--app-surface-elevated));box-shadow:none}.scope-symbol{display:grid;place-items:center;width:48px;height:48px;color:#0f8f87;border-radius:15px;background:color-mix(in srgb,#14b8a6 14%,transparent)}.scope-symbol mat-icon{width:25px;height:25px;font-size:25px}.scope-copy .eyebrow{margin-bottom:3px}.pilot-scope-card h2{margin:0;color:var(--app-text);font-size:19px;letter-spacing:-.025em}.pilot-scope-card h2 span{color:#0f8f87}.pilot-scope-card p{max-width:700px;margin:4px 0 0;color:var(--app-text-muted);font-size:11px}.pilot-scope-badges{max-width:480px}.pilot-chip{padding:5px 9px;border-color:var(--app-border);color:#0f766e;background:var(--app-surface);font-size:9px;font-weight:850}
+    .portfolio-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.dataset-card{--dataset-accent:#0f8f87;position:relative;overflow:hidden;gap:16px;margin:0;padding:23px;border:1px solid var(--app-border);border-radius:21px;background:var(--app-surface-elevated);box-shadow:var(--app-shadow-soft);transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}.dataset-card:before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:var(--dataset-accent)}.dataset-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--dataset-accent) 42%,var(--app-border));box-shadow:var(--app-shadow-raised)}.dataset-card[data-dataset="Article"]{--dataset-accent:#0f8f87}.dataset-card[data-dataset="PriceList"]{--dataset-accent:#2563eb}.dataset-card[data-dataset="Description"]{--dataset-accent:#b45309}.dataset-card[data-dataset="CurrencyRate"]{--dataset-accent:#15803d}.dataset-order{display:inline-flex;align-items:center;margin-right:6px;padding-right:6px;border-right:1px solid color-mix(in srgb,var(--dataset-accent) 30%,var(--app-border));color:var(--dataset-accent);font-size:9px;font-weight:950;letter-spacing:0}
+    .dataset-top{position:relative;z-index:1;grid-template-columns:52px minmax(0,1fr) auto;gap:14px}.dataset-icon{width:52px;height:52px;color:var(--dataset-accent);border-radius:16px;background:color-mix(in srgb,var(--dataset-accent) 12%,transparent)}.dataset-icon mat-icon{width:27px;height:27px;font-size:27px}.dataset-copy{min-width:0}.dataset-kicker{margin-bottom:3px;color:var(--dataset-accent);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.dataset-name{margin:0;color:var(--app-text);font-size:21px;font-weight:780;letter-spacing:-.03em}.dataset-description{max-width:420px;color:var(--app-text-muted);font-size:12px}.dataset-status{position:relative;z-index:1;padding:5px 9px;border-color:color-mix(in srgb,#22c55e 26%,var(--app-border));color:#047857;background:color-mix(in srgb,#22c55e 10%,var(--app-surface));font-size:8px}
+    .dataset-meta{gap:7px;margin:0}.dataset-meta-item{padding:11px;border-color:var(--app-border);border-radius:11px;background:var(--app-soft-surface)}.dataset-meta-item span{margin-bottom:4px;color:var(--app-text-muted);font-size:8px}.dataset-meta-item strong{color:var(--app-text);font-size:11px}.dataset-actions{gap:7px}.dataset-actions button{min-height:39px;border-radius:10px;font-size:11px;font-weight:850}.dataset-actions button:first-child{color:var(--dataset-accent);border-color:color-mix(in srgb,var(--dataset-accent) 38%,var(--app-border))}
+    .dataset-details{border-color:var(--app-border);border-radius:13px;background:var(--app-surface)}.dataset-details[open]{box-shadow:none}.dataset-details summary{min-height:44px;padding:0 13px;color:var(--dataset-accent);background:color-mix(in srgb,var(--dataset-accent) 7%,var(--app-surface));font-size:11px}.dataset-details-copy{padding:12px 13px;color:var(--app-text-muted);font-size:11px}.dataset-field-list{padding:9px;border-color:var(--app-border)}.dataset-field-card{padding:11px;border-color:var(--app-border);border-radius:11px;background:var(--app-soft-surface)}.dataset-field-name{color:var(--app-text);font-size:11px}.dataset-field-body-item{border-color:var(--app-border)}.dataset-field-label{color:var(--app-text-muted);font-size:8px}.dataset-example,.dataset-meta-text{color:var(--app-text-muted);font-size:10px}.dataset-type,.badge{border-color:color-mix(in srgb,var(--dataset-accent) 25%,var(--app-border));color:var(--dataset-accent);background:color-mix(in srgb,var(--dataset-accent) 9%,var(--app-surface));font-size:8px}.badge-optional{border-color:var(--app-border);color:var(--app-text-muted);background:var(--app-surface)}.badge-warning{color:#b45309;border-color:color-mix(in srgb,#f59e0b 35%,var(--app-border));background:color-mix(in srgb,#f59e0b 9%,var(--app-surface))}
+    :host-context(html.theme-dark) .portfolio-signal,:host-context(html.theme-dark) .pilot-chip{color:#5eead4}:host-context(html.theme-dark) .dataset-status{color:#86efac}
+    @media(max-width:1050px){.page-header{align-items:flex-start;flex-direction:column}.header-actions{width:100%;justify-items:start;grid-auto-flow:column;justify-content:space-between;align-items:center}.pilot-scope-card{grid-template-columns:48px minmax(0,1fr)}.pilot-scope-badges{grid-column:1/-1;justify-content:flex-start;max-width:none}}
+    @media(max-width:760px){.datasets-page{gap:12px}.page-header{padding:25px 20px;border-radius:21px}.page-header:after{display:none}.header-actions{grid-auto-flow:row;justify-content:stretch}.header-actions button{width:100%}h1{font-size:38px}.page-intro{font-size:13px}.pilot-scope-card{grid-template-columns:40px minmax(0,1fr);padding:14px}.scope-symbol{width:40px;height:40px}.pilot-scope-badges{display:flex;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}.portfolio-grid{grid-template-columns:1fr}.dataset-card{padding:19px 16px}.dataset-top{grid-template-columns:45px minmax(0,1fr)}.dataset-icon{width:45px;height:45px}.dataset-status{grid-column:2;justify-self:start}.dataset-meta{grid-template-columns:1fr 1fr}.dataset-meta-item:last-child{grid-column:1/-1}.dataset-actions{display:grid;grid-template-columns:1fr 1fr}.dataset-actions button{width:100%}.dataset-field-body{grid-template-columns:1fr}}
+    @media(max-width:430px){h1{font-size:34px}.dataset-actions{grid-template-columns:1fr}.dataset-field-card-head{flex-direction:column}.dataset-field-pills{justify-content:flex-start}}
   `]
 })
 export class DatasetsComponent implements OnInit {

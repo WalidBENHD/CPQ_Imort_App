@@ -140,7 +140,7 @@ public class ControlledPublicationTests
             PriceRow(priceJob.Id, 2, "A-1"),
             PriceRow(priceJob.Id, 3, "A-2")
         ]);
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var result = await service.ApplyDependencyAnchorAsync(priceJob.Id, master.Id, "contributor-id", "Cara Contributor");
 
@@ -161,7 +161,7 @@ public class ControlledPublicationTests
         repository.AdditionalJobs.Add(master);
         repository.ArticleNumbers[master.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
         repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var package = await service.CreateReleasePackageAsync(
             priceJob.Id, master.Id, "Annual 2027", "contributor-id", "Cara Contributor");
@@ -196,7 +196,7 @@ public class ControlledPublicationTests
         priceRow.Status = RowStatus.Error;
         priceRow.ValidationMessages = "[{\"field\":\"ArticleNumber\",\"message\":\"No Article Master was available when this row was checked.\",\"severity\":2}]";
         repository.Rows.Add(priceRow);
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var package = await service.CreateReleasePackageFromArticleAsync(
             articleJob.Id, priceJob.Id, "Annual 2027", "contributor-id", "Cara Contributor");
@@ -225,7 +225,7 @@ public class ControlledPublicationTests
         priceRow.Status = RowStatus.Error;
         priceRow.ValidationMessages = "[{\"field\":\"UnitPrice\",\"message\":\"'UnitPrice' is required.\",\"severity\":2}]";
         repository.Rows.Add(priceRow);
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var candidates = await service.GetPriceListCandidatesAsync(articleJob.Id, "contributor-id");
 
@@ -270,7 +270,7 @@ public class ControlledPublicationTests
             CreatedBy = "contributor-id",
             CreatedByDisplayName = "Cara Contributor"
         });
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         await service.GetStagingRowsAsync(articleJob.Id, 1, 50);
 
@@ -334,7 +334,7 @@ public class ControlledPublicationTests
             RawData = "{\"ArticleNumber\":\"A-1\",\"Name\":\"Article\",\"Category\":\"Standard\",\"Unit\":\"PC\"}"
         });
         repository.Rows.Add(PriceRow(priceJob.Id, 2, "A-1"));
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var package = await service.CreateReleasePackageAsync(
             priceJob.Id, publishedMaster.Id, "Annual 2027", "contributor-id", "Cara Contributor");
@@ -385,7 +385,7 @@ public class ControlledPublicationTests
             RawData = ArticleRow("A-1")
         };
         repository.Rows.Add(candidateArticleRow);
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         await service.DissolveReleasePackageAsync(
             packageId, "contributor-id", "Cara Contributor");
@@ -577,7 +577,7 @@ public class ControlledPublicationTests
             CreatedBy = "contributor-id",
             CreatedByDisplayName = "Cara Contributor"
         });
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var result = await service.ReturnReleasePackageForCorrectionAsync(
             packageId, "approver-id", "Anne Approver", "Complete the missing commercial description.");
@@ -651,7 +651,7 @@ public class ControlledPublicationTests
             CreatedBy = "contributor-id",
             CreatedByDisplayName = "Cara Contributor"
         });
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         await service.DeletePrivateDraftAsync(
             priceJob.Id, "contributor-id", "Cara Contributor");
@@ -721,7 +721,7 @@ public class ControlledPublicationTests
         repository.AdditionalJobs.Add(activeMaster);
         repository.ArticleNumbers[activeMaster.Id] = new HashSet<string>(["A-1", "A-2"], StringComparer.OrdinalIgnoreCase);
         repository.Rows.Add(PriceRow(priceJob.Id, 1, "A-1"));
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.SubmitForReviewAsync(priceJob.Id, priceJob.CreatedBy, priceJob.CreatedByDisplayName));
@@ -899,7 +899,7 @@ public class ControlledPublicationTests
     }
 
     [Fact]
-    public async Task CreateMaintenanceDraftAsync_ForPortfolioDataset_CopiesAndPairsBothActiveBaselines()
+    public async Task CreateMaintenanceDraftAsync_ForPortfolioDataset_SeedsAndPairsBothActiveDatasets()
     {
         var articleBaseline = CreateJob(ImportStatus.Committed);
         articleBaseline.WorkflowStage = ImportWorkflowStage.Published;
@@ -923,7 +923,23 @@ public class ControlledPublicationTests
             RowNumber = 2,
             RawData = "{\"ArticleNumber\":\"A-1\",\"UnitPrice\":\"0\",\"Currency\":\"EUR\",\"ValidFrom\":\"2026-01-01\"}"
         });
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var activeData = new FakeActiveDatasetReader([
+            new ActiveDatasetRecord(EntityType.Article, "A-1", new Dictionary<string, string?>
+            {
+                ["ArticleNumber"] = "A-1",
+                ["Name"] = "Maintained article",
+                ["Category"] = "Standard",
+                ["Unit"] = "PC"
+            }),
+            new ActiveDatasetRecord(EntityType.PriceList, "A-1|EUR|2026-01-01", new Dictionary<string, string?>
+            {
+                ["ArticleNumber"] = "A-1",
+                ["UnitPrice"] = "12.50",
+                ["Currency"] = "EUR",
+                ["ValidFrom"] = "2026-01-01"
+            })
+        ]);
+        var service = CreateService(repository, activeDatasetReader: activeData);
 
         var result = await service.CreateMaintenanceDraftAsync(
             EntityType.Article, "January maintenance", "contributor-id", "Cara Contributor");
@@ -951,7 +967,7 @@ public class ControlledPublicationTests
         var repository = new FakeImportRepository(priceDraft, CreateComparison(articleBaseline.Id, true));
         repository.AdditionalJobs.Add(articleBaseline);
         repository.ArticleNumbers[articleBaseline.Id] = new HashSet<string>(["A-1"], StringComparer.OrdinalIgnoreCase);
-        var service = new ImportService(repository, [new ArticleParser(), new PriceListParser()], [new FakeCommitStrategy()]);
+        var service = CreateService(repository);
 
         await service.AddStagingRowAsync(priceDraft.Id, new Dictionary<string, string?>
         {
@@ -1043,8 +1059,15 @@ public class ControlledPublicationTests
         Assert.EndsWith("_working-copy.xlsx", workingCopy.FileName);
     }
 
-    private static ImportService CreateService(FakeImportRepository repository, FakeCommitStrategy strategy)
-        => new(repository, [new ArticleParser()], [strategy]);
+    private static ImportService CreateService(
+        FakeImportRepository repository,
+        FakeCommitStrategy? strategy = null,
+        IActiveDatasetReader? activeDatasetReader = null)
+        => new(
+            repository,
+            [new ArticleParser(), new PriceListParser()],
+            [strategy ?? new FakeCommitStrategy()],
+            activeDatasetReader ?? new FakeActiveDatasetReader([]));
 
     private static ImportJob CreateJob(ImportStatus status) => new()
     {
@@ -1138,6 +1161,15 @@ public class ControlledPublicationTests
             RemovedKeys = removedKeys.ToArray();
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeActiveDatasetReader(IReadOnlyList<ActiveDatasetRecord> records) : IActiveDatasetReader
+    {
+        public Task<IReadOnlyList<ActiveDatasetRecord>> GetRecordsAsync(
+            EntityType entityType,
+            CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ActiveDatasetRecord>>(
+                records.Where(record => record.EntityType == entityType).ToList());
     }
 
     private sealed class FakeImportRepository(ImportJob job, ImportComparisonResult comparison) : IImportRepository

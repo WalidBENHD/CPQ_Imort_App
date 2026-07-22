@@ -17,7 +17,8 @@ namespace CPQ_Import_App.Infrastructure.Services;
 public class ImportService(
     IImportRepository repository,
     IEnumerable<IFileParser> parsers,
-    IEnumerable<ICpqCommitStrategy> commitStrategies) : IImportService
+    IEnumerable<ICpqCommitStrategy> commitStrategies,
+    IActiveDatasetReader activeDatasetReader) : IImportService
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -105,9 +106,7 @@ public class ImportService(
             throw new InvalidDataException($"A draft named '{name}' already exists. Choose another name.");
 
         var baseline = await repository.GetLatestCommittedJobAsync(entityType, ct);
-        var sourceRows = baseline is null
-            ? []
-            : await repository.GetStagingRowsByJobAsync(baseline.Id, ct);
+        var activeRecords = await activeDatasetReader.GetRecordsAsync(entityType, ct);
         var now = DateTime.UtcNow;
         var job = new ImportJob
         {
@@ -120,10 +119,10 @@ public class ImportService(
             CreatedByDisplayName = userDisplayName,
             CreatedAt = now,
             ProcessedAt = now,
-            TotalRows = sourceRows.Count,
-            ValidRows = sourceRows.Count(row => row.Status == RowStatus.Valid),
-            WarningRows = sourceRows.Count(row => row.Status == RowStatus.Warning),
-            ErrorRows = sourceRows.Count(row => row.Status == RowStatus.Error)
+            TotalRows = activeRecords.Count,
+            ValidRows = activeRecords.Count,
+            WarningRows = 0,
+            ErrorRows = 0
         };
 
         if (IsDependentDataset(entityType))
@@ -137,14 +136,12 @@ public class ImportService(
             }
         }
 
-        var rows = sourceRows.Select(row => new StagingRow
+        var rows = activeRecords.Select((record, index) => new StagingRow
         {
             ImportJobId = job.Id,
-            RowNumber = row.RowNumber,
-            Status = row.Status,
-            RawData = row.RawData,
-            ValidationMessages = row.ValidationMessages,
-            IsSelected = row.IsSelected
+            RowNumber = index + 2,
+            Status = RowStatus.Valid,
+            RawData = JsonSerializer.Serialize(record.Fields, JsonOpts)
         }).ToList();
         return await repository.CreateDraftSnapshotAsync(job, rows, new AuditLog
         {
@@ -153,8 +150,8 @@ public class ImportService(
             PerformedBy = userId,
             PerformedByDisplayName = userDisplayName,
             Details = baseline is null
-                ? "Created an empty HMI maintenance candidate because no published baseline exists."
-                : $"Created an HMI maintenance candidate from published baseline '{baseline.OriginalFileName}' ({baseline.Id:D}) with {rows.Count} active rows."
+                ? $"Created an HMI maintenance candidate from the active {DatasetCatalog.Get(entityType).DisplayName} dataset with {rows.Count} records and no prior publication snapshot."
+                : $"Created an HMI maintenance candidate from the active {DatasetCatalog.Get(entityType).DisplayName} dataset with {rows.Count} records. Publication evidence: '{baseline.OriginalFileName}' ({baseline.Id:D})."
         }, ct);
     }
 

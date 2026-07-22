@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
-  ApprovedComparisonSnapshot, BusinessTraceResult, BusinessTraceSuggestion, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, MaintenanceDraft, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
+  ActiveDatasetRecord, ApprovedComparisonSnapshot, BusinessTraceResult, BusinessTraceSuggestion, ComparisonRow, ComparisonStatus, DashboardOverview, DatasetRequirement, DependencyContext, DependencyImpact, EntityType, ImportComparison, ImportJob, MaintenanceDraft, PagedResult, PortfolioReadiness, PriceListCandidateSummary, PublicationResult, ReleasePackage, RowStatus, StagingRow
 } from '../models/import.models';
 import { NotificationService } from './notification.service';
 
@@ -34,6 +34,10 @@ export class ImportService {
 
   getJob(id: string): Observable<ImportJob> {
     return this.http.get<ImportJob>(`${this.base}/${id}`);
+  }
+
+  getActiveRecords(entityType: EntityType): Observable<ActiveDatasetRecord[]> {
+    return this.http.get<ActiveDatasetRecord[]>(`${environment.apiUrl}/active-data/${entityType}`);
   }
 
   getRows(jobId: string, page = 1, pageSize = 50, search?: string | null, status?: RowStatus, comparisonStatus?: ComparisonStatus): Observable<PagedResult<StagingRow>> {
