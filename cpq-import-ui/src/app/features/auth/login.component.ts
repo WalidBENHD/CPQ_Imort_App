@@ -8,6 +8,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { LocalAuthService } from '../../core/auth/local-auth.service';
+import { CreatorVisionComponent } from './creator-vision.component';
+
+type LandingSectionId = 'business-case' | 'operating-model' | 'governance' | 'creator-vision';
 
 @Component({
   selector: 'app-login',
@@ -20,21 +23,26 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
-    MatIconModule
+    MatIconModule,
+    CreatorVisionComponent
   ],
   template: `
     <section class="landing-shell">
-      <header class="public-header">
+      <header class="public-header" [class.public-header--scrolled]="isHeaderScrolled">
         <a class="public-brand" href="#top" (click)="scrollToSection($event, 'top')" aria-label="CPQ Platform home">
           <span class="public-brand__mark"><mat-icon>cloud_upload</mat-icon></span>
           <span><strong>CPQ Platform</strong><small>Governed data operations</small></span>
         </a>
 
-        <nav aria-label="Landing page navigation">
-          <a href="#business-case" (click)="scrollToSection($event, 'business-case')">Why it matters</a>
-          <a href="#operating-model" (click)="scrollToSection($event, 'operating-model')">How it works</a>
-          <a href="#governance" (click)="scrollToSection($event, 'governance')">Governance</a>
-          <a href="#creator-vision" (click)="scrollToSection($event, 'creator-vision')">The vision</a>
+        <nav class="section-nav" aria-label="Landing page navigation">
+          <a
+            *ngFor="let item of landingSections"
+            [href]="'#' + item.id"
+            [class.is-active]="activeLandingSection === item.id"
+            [attr.aria-current]="activeLandingSection === item.id ? 'location' : null"
+            (click)="scrollToSection($event, item.id)"
+          >{{ item.label }}</a>
+          <span class="section-nav__indicator" [style.transform]="'translateX(' + (activeLandingSectionIndex * 100) + '%)'" aria-hidden="true"></span>
         </nav>
 
         <a class="header-access" href="#account-access" (click)="scrollToSection($event, 'account-access')">
@@ -199,46 +207,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
         </section>
 
-        <section id="creator-vision" class="builder-section reveal-section" aria-labelledby="builder-title">
-          <div class="builder-section__glow"></div>
-
-          <figure class="builder-portrait">
-            <img src="assets/walid-benhamed.png" alt="Portrait of Walid Benhamed" loading="lazy">
-            <figcaption>
-              <span class="builder-monogram">WB</span>
-              <span><strong>Walid Benhamed</strong><small>CPQ Specialist &middot; Legrand</small></span>
-            </figcaption>
-          </figure>
-
-          <div class="builder-story">
-            <span class="builder-kicker">The conviction behind the platform</span>
-            <h2 id="builder-title">Clean data is where every transformation begins.</h2>
-            <p class="builder-lead">
-              I did not build this platform because governance needed another dashboard. I built it because every faster
-              quote, safer automation and better customer decision begins long before the screen, with data people can trust.
-            </p>
-            <blockquote>
-              <span>&ldquo;</span>
-              <p>When data is governed with clarity, improvement stops being a promise and becomes a repeatable capability.</p>
-            </blockquote>
-            <p>
-              My experience as a CPQ specialist at Legrand made one truth impossible to ignore: the quality of a commercial
-              process is inseparable from the quality of the data beneath it. An article without a price, a change without
-              context, or a publication without ownership is never just a data issue. It becomes a business issue.
-            </p>
-            <p>
-              This pilot is my answer to that reality: governance that enables people instead of slowing them down, evidence
-              instead of assumptions, and one trusted path from preparation to publication.
-            </p>
-
-            <div class="builder-footer">
-              <div><small>Personal product vision</small><strong>Built from real CPQ experience.</strong></div>
-              <a href="https://www.linkedin.com/in/walid-benhamed-26214914b/" target="_blank" rel="noopener noreferrer">
-                Connect on LinkedIn <mat-icon>north_east</mat-icon>
-              </a>
-            </div>
-          </div>
-        </section>
+        <app-creator-vision />
 
         <section class="closing-section reveal-section">
           <span class="closing-section__mark"><mat-icon>cloud_done</mat-icon></span>
@@ -263,10 +232,12 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     :host { display: block; color: #14213b; font-family: "Aptos", "Trebuchet MS", sans-serif; }
     * { box-sizing: border-box; }
     .landing-shell {
+      --page-gutter: max(24px, calc((100vw - 1420px) / 2 + 24px));
       position: relative;
       isolation: isolate;
       min-height: 100vh;
-      overflow: hidden;
+      padding-top: 74px;
+      overflow: visible;
       background:
         radial-gradient(circle at 8% 5%, rgba(30, 117, 111, .11), transparent 25%),
         radial-gradient(circle at 92% 10%, rgba(47, 85, 200, .12), transparent 28%),
@@ -299,17 +270,26 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       animation: ambient-drift 20s 2s ease-in-out infinite alternate-reverse;
     }
     .public-header {
-      position: relative;
-      z-index: 5;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 30;
       min-height: 74px;
-      width: min(1420px, calc(100% - 48px));
-      margin: 0 auto;
+      width: 100%;
+      margin: 0;
+      padding: 0 max(24px, calc((100vw - 1420px) / 2 + 24px));
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      border-bottom: 1px solid rgba(20, 33, 59, .12);
+      border: 1px solid transparent;
+      border-top: 0;
+      border-radius: 0;
+      background: rgba(247,246,241,.76);
+      backdrop-filter: blur(18px) saturate(135%);
+      transition: width 240ms ease, background-color 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
       animation: header-arrive 520ms cubic-bezier(.22, 1, .36, 1) both;
     }
+    .public-header--scrolled { width: 100%; border-color: rgba(20,33,59,.1); background: rgba(250,249,245,.93); box-shadow: 0 14px 38px rgba(20,33,59,.12); }
     .public-brand { display: inline-flex; align-items: center; gap: 11px; color: #12213b; text-decoration: none; width: max-content; }
     .public-brand__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: #173b8f; color: #fff; box-shadow: 0 8px 20px rgba(23, 59, 143, .2); transition: transform 220ms ease, box-shadow 220ms ease; }
     .public-brand:hover .public-brand__mark { transform: translateY(-2px) rotate(-3deg); box-shadow: 0 12px 25px rgba(23, 59, 143, .28); }
@@ -317,15 +297,18 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .public-brand > span:last-child { display: flex; flex-direction: column; }
     .public-brand strong { font-family: "Bahnschrift", "Trebuchet MS", sans-serif; font-size: 15px; }
     .public-brand small { margin-top: 1px; color: #68758a; font-size: 10px; }
-    .public-header nav { display: flex; gap: 30px; }
-    .public-header nav a { position: relative; color: #526078; font-size: 12px; font-weight: 700; text-decoration: none; }
-    .public-header nav a::after { content: ''; position: absolute; left: 0; right: 100%; bottom: -8px; height: 2px; background: #0f8e84; transition: right 160ms ease; }
-    .public-header nav a:hover::after { right: 0; }
+    .section-nav { position: relative; min-width: 470px; display: grid; grid-template-columns: repeat(4, 1fr); align-self: stretch; }
+    .section-nav a { display: grid; place-items: center; padding: 0 12px; color: #68758a; font-size: 11px; font-weight: 750; text-align: center; text-decoration: none; transition: color 220ms ease; }
+    .section-nav a:hover,.section-nav a.is-active { color: #0b625d; }
+    .section-nav a:focus-visible { outline: 1px solid rgba(15,142,132,.42); outline-offset: -5px; border-radius: 9px; background: rgba(15,142,132,.045); }
+    .section-nav__indicator { position: absolute; left: 0; bottom: 0; width: 25%; height: 2px; transition: transform 480ms cubic-bezier(.22,1,.36,1); }
+    .section-nav__indicator::after { content: ''; position: absolute; inset: 0 22%; border-radius: 99px 99px 0 0; background: linear-gradient(90deg,#0f8e84,#2854c5); box-shadow: 0 -2px 12px rgba(15,142,132,.3); }
     .header-access { justify-self: end; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border: 1px solid #c9d1df; border-radius: 999px; color: #173b8f; font-size: 12px; font-weight: 800; text-decoration: none; background: rgba(255,255,255,.52); transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease; }
     .header-access:hover { transform: translateY(-1px); border-color: #91a3c5; background: rgba(255,255,255,.82); }
     .header-access mat-icon { width: 16px; height: 16px; font-size: 16px; transition: transform 180ms ease; }
     .header-access:hover mat-icon { transform: translateX(3px); }
     main { width: min(1420px, calc(100% - 48px)); margin: 0 auto; }
+    #business-case,#operating-model,#governance { scroll-margin-top: 112px; }
     .hero-section { min-height: 690px; display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(340px, 430px); gap: clamp(48px, 8vw, 120px); align-items: center; padding: 72px 0 76px; }
     .hero-story { max-width: 820px; }
     .hero-kicker { animation: hero-arrive 620ms 80ms cubic-bezier(.22, 1, .36, 1) both; }
@@ -455,34 +438,6 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .governance-proof article span { display: flex; flex-direction: column; gap: 3px; }
     .governance-proof strong { color: #17253e; font-size: 13px; }
     .governance-proof small { color: #6c7788; font-size: 11px; line-height: 1.4; }
-    .builder-section { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(340px, .72fr) minmax(0, 1.28fr); gap: clamp(44px, 7vw, 110px); align-items: stretch; min-height: 680px; margin-bottom: 88px; padding: 24px; border: 1px solid rgba(94, 234, 212, .2); border-radius: 30px; color: #f8fafc; background: linear-gradient(125deg, #07111f 0%, #101d32 52%, #081316 100%); box-shadow: 0 30px 80px rgba(2, 6, 23, .24); }
-    .builder-section::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: .18; background-image: linear-gradient(rgba(148,163,184,.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.15) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(90deg, transparent, #000 45%, transparent); }
-    .builder-section__glow { position: absolute; z-index: -1; right: 5%; bottom: -300px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.28), transparent 68%); }
-    .builder-portrait { position: relative; overflow: hidden; min-height: 620px; margin: 0; border: 1px solid rgba(255,255,255,.14); border-radius: 22px; background: #111; }
-    .builder-portrait::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 52%, rgba(2,6,23,.72)); }
-    .builder-portrait img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 28%; filter: saturate(.92) contrast(1.03); transition: transform 900ms cubic-bezier(.22,1,.36,1); }
-    .builder-section.is-visible .builder-portrait img { transform: scale(1.025); }
-    .builder-portrait figcaption { position: absolute; z-index: 1; right: 20px; bottom: 20px; left: 20px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; padding: 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 15px; background: rgba(8,17,31,.75); backdrop-filter: blur(16px); }
-    .builder-portrait figcaption > span:last-child { display: grid; gap: 2px; }
-    .builder-portrait figcaption strong { font-size: 13px; }
-    .builder-portrait figcaption small { color: #94a3b8; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .builder-monogram { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #042f2e; background: #5eead4; font-size: 12px; font-weight: 950; }
-    .builder-story { align-self: center; max-width: 790px; padding: 54px 54px 54px 0; }
-    .builder-kicker { color: #5eead4; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
-    .builder-story h2 { max-width: 780px; margin: 20px 0 24px; color: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(43px, 4.4vw, 67px); font-weight: 500; letter-spacing: -.045em; line-height: 1; }
-    .builder-story > p { max-width: 740px; margin: 0; color: #aebbd0; font-size: 14px; line-height: 1.75; }
-    .builder-story > p + p { margin-top: 14px; }
-    .builder-story .builder-lead { color: #d7e0ec; font-size: 17px; }
-    .builder-story blockquote { display: grid; grid-template-columns: auto 1fr; gap: 13px; max-width: 700px; margin: 28px 0; padding: 18px 20px; border-left: 3px solid #2dd4bf; border-radius: 0 14px 14px 0; background: rgba(15,118,110,.13); }
-    .builder-story blockquote > span { color: #5eead4; font-family: Georgia, serif; font-size: 42px; line-height: .8; }
-    .builder-story blockquote p { margin: 0; color: #f1f5f9; font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-style: italic; line-height: 1.55; }
-    .builder-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 32px; padding-top: 22px; border-top: 1px solid rgba(148,163,184,.2); }
-    .builder-footer > div { display: grid; gap: 3px; }
-    .builder-footer small { color: #5eead4; font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-    .builder-footer strong { color: #f8fafc; font-size: 12px; }
-    .builder-footer a { min-height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 15px; border: 1px solid rgba(226,232,240,.28); border-radius: 11px; color: #e2e8f0; font-size: 11px; font-weight: 850; text-decoration: none; transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease; }
-    .builder-footer a:hover { transform: translateY(-2px); border-color: #5eead4; background: rgba(45,212,191,.08); }
-    .builder-footer mat-icon { width: 17px; height: 17px; font-size: 17px; }
     .closing-section { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 20px; align-items: center; margin-bottom: 80px; padding: 32px; border-top: 1px solid #cdd3dd; border-bottom: 1px solid #cdd3dd; }
     .closing-section__mark { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 17px; color: #fff; background: #0f8e84; }
     .closing-section small { color: #0b7a72; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
@@ -500,8 +455,10 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     @keyframes status-breathe { 0%, 100% { box-shadow: 0 0 0 5px rgba(24,183,168,.12); } 50% { box-shadow: 0 0 0 9px rgba(24,183,168,.05), 0 0 18px rgba(24,183,168,.3); } }
     @keyframes ambient-drift { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(-32px,28px,0) scale(1.06); } }
     @media (max-width: 1050px) {
-      .public-header { grid-template-columns: 1fr auto; }
-      .public-header nav { display: none; }
+      .landing-shell { padding-top: 108px; }
+      .public-header { grid-template-columns: 1fr auto; padding: 9px 14px 7px; }
+      .section-nav { grid-column: 1 / -1; min-width: 0; min-height: 36px; margin-top: 4px; }
+      .section-nav a { padding: 0 7px; }
       .hero-section { grid-template-columns: 1fr; min-height: 0; gap: 48px; padding-top: 54px; }
       .access-panel { max-width: 560px; }
       .release-track { grid-template-columns: 1fr 1fr; }
@@ -510,13 +467,16 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .release-track__arrow { display: none; }
       .outcome-grid { grid-template-columns: 1fr 1fr; }
       .governance-section { grid-template-columns: 1fr; gap: 42px; padding: 48px; }
-      .builder-section { grid-template-columns: minmax(300px, .8fr) minmax(0, 1.2fr); gap: 42px; }
-      .builder-story { padding-right: 28px; }
     }
     @media (max-width: 720px) {
-      .public-header, main, .public-footer { width: min(100% - 28px, 1420px); }
-      .public-header { min-height: 64px; }
+      .landing-shell { --page-gutter: 14px; padding-top: 98px; }
+      main, .public-footer { width: min(100% - 28px, 1420px); }
+      .public-header,.public-header--scrolled { width: 100%; min-height: 0; padding: 8px 14px 6px; border-radius: 0; }
       .public-brand small, .header-access { display: none; }
+      .public-brand__mark { width: 34px; height: 34px; border-radius: 10px; }
+      .section-nav { min-height: 34px; margin-top: 5px; }
+      .section-nav a { padding: 0 2px; font-size: 9px; }
+      #business-case,#operating-model,#governance { scroll-margin-top: 126px; }
       .hero-section { padding: 44px 0 56px; }
       h1 { font-size: clamp(43px, 13vw, 60px); }
       .hero-copy { font-size: 17px; }
@@ -530,7 +490,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .release-track { grid-template-columns: 1fr; }
       .release-track article { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.1); }
       .release-track article:last-child { border-bottom: 0; }
-      .business-case, .outcome-section, .audience-section { padding-bottom: 82px; }
+      .business-case, .outcome-section, .audience-section { padding: 0 0 82px; }
       .comparison-board__headings { grid-template-columns: 1fr; }
       .comparison-row { grid-template-columns: 1fr; border-top: 1px solid #e5e8ee; }
       .comparison-row + .comparison-row { margin-top: 8px; }
@@ -542,13 +502,6 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
       .audience-card { min-height: 0; padding: 28px 23px; }
       .governance-section { padding: 30px 22px; margin-bottom: 64px; }
       .governance-copy h2 { font-size: 35px; }
-      .builder-section { grid-template-columns: 1fr; min-height: 0; padding: 14px; border-radius: 22px; }
-      .builder-portrait { min-height: 520px; }
-      .builder-story { padding: 20px 9px 26px; }
-      .builder-story h2 { font-size: 42px; }
-      .builder-story .builder-lead { font-size: 15px; }
-      .builder-footer { align-items: stretch; flex-direction: column; }
-      .builder-footer a { justify-content: center; }
       .closing-section { grid-template-columns: 48px 1fr; padding: 24px 6px; margin-bottom: 66px; }
       .closing-section__mark { width: 48px; height: 48px; }
       .closing-section a { grid-column: 1 / -1; width: 100%; justify-content: center; }
@@ -562,7 +515,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     }
     @media (prefers-reduced-motion: reduce) {
       .landing-shell::before, .landing-shell::after, .public-header, .hero-kicker, .hero-story h1, .hero-copy, .hero-actions, .pilot-card, .pilot-card__status i, .access-panel { animation: none; }
-      .reveal-section, .release-track article, .comparison-row, .outcome-grid article, .governance-proof article, .builder-portrait img { opacity: 1; transform: none; transition: none; }
+      .reveal-section, .release-track article, .comparison-row, .outcome-grid article, .governance-proof article { opacity: 1; transform: none; transition: none; }
       .release-track::after { width: 100%; transition: none; }
       * { scroll-behavior: auto !important; }
     }
@@ -574,6 +527,22 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   private revealObserver?: IntersectionObserver;
+  private scrollFrame?: number;
+
+  readonly landingSections = [
+    { id: 'business-case', label: 'Why it matters' },
+    { id: 'operating-model', label: 'How it works' },
+    { id: 'governance', label: 'Governance' },
+    { id: 'creator-vision', label: 'The vision' }
+  ] as const;
+
+  activeLandingSection: LandingSectionId = this.landingSections[0].id;
+  isHeaderScrolled = false;
+
+  get activeLandingSectionIndex(): number {
+    const index = this.landingSections.findIndex((section) => section.id === this.activeLandingSection);
+    return index < 0 ? 0 : index;
+  }
 
   readonly form = this.fb.nonNullable.group({
     userName: ['', Validators.required],
@@ -611,27 +580,56 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
 
     if (reduceMotion || !('IntersectionObserver' in window)) {
       revealElements.forEach((element) => element.classList.add('is-visible'));
-      return;
+    } else {
+      this.revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add('is-visible');
+          this.revealObserver?.unobserve(entry.target);
+        });
+      }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
+
+      revealElements.forEach((element) => this.revealObserver?.observe(element));
     }
 
-    this.revealObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('is-visible');
-        this.revealObserver?.unobserve(entry.target);
-      });
-    }, { threshold: 0.14, rootMargin: '0px 0px -8% 0px' });
-
-    revealElements.forEach((element) => this.revealObserver?.observe(element));
+    window.addEventListener('scroll', this.handleLandingScroll, { passive: true });
+    this.updateLandingPosition();
   }
 
   ngOnDestroy(): void {
     this.revealObserver?.disconnect();
+    window.removeEventListener('scroll', this.handleLandingScroll);
+    if (this.scrollFrame !== undefined) cancelAnimationFrame(this.scrollFrame);
   }
 
   scrollToSection(event: Event, sectionId: string): void {
     event.preventDefault();
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (this.landingSections.some((section) => section.id === sectionId)) {
+      this.activeLandingSection = sectionId as LandingSectionId;
+    }
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  private readonly handleLandingScroll = (): void => {
+    if (this.scrollFrame !== undefined) return;
+    this.scrollFrame = requestAnimationFrame(() => {
+      this.scrollFrame = undefined;
+      this.updateLandingPosition();
+    });
+  };
+
+  private updateLandingPosition(): void {
+    this.isHeaderScrolled = window.scrollY > 18;
+    const marker = Math.max(118, window.innerHeight * 0.28);
+    let active: LandingSectionId = this.landingSections[0].id;
+
+    for (const section of this.landingSections) {
+      const element = document.getElementById(section.id);
+      if (!element || element.getBoundingClientRect().top > marker) break;
+      active = section.id;
+    }
+
+    this.activeLandingSection = active;
   }
 
   submit(): void {
