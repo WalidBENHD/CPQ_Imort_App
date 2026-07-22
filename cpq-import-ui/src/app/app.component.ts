@@ -15,6 +15,15 @@ import { NotificationCenterComponent } from './shared/notification-center/notifi
 import { ActivityMonitorService } from './core/services/activity-monitor.service';
 import { ThemeService } from './core/services/theme.service';
 
+type NavItem = {
+  route: string;
+  label: string;
+  description: string;
+  icon: string;
+  capabilities?: string[];
+  exact?: boolean;
+};
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -94,8 +103,17 @@ import { ThemeService } from './core/services/theme.service';
       <div class="shell-body" [class.shell-body--collapsed]="!isSidebarOpen" [class.shell-body--mobile-open]="isMobileSidebarOpen">
         <aside class="side-nav" *ngIf="auth.isAuthenticated" aria-label="Primary navigation">
           <div class="side-nav__content">
+          <div class="side-nav__identity" [class.side-nav__identity--compact]="!showSidebarLabels">
+            <span class="side-nav__identity-mark"><mat-icon>hub</mat-icon></span>
+            <span class="side-nav__identity-copy" *ngIf="showSidebarLabels">
+              <small>Governed workspace</small>
+              <strong>Saint-Marcellin PDU</strong>
+            </span>
+            <span class="side-nav__identity-status" *ngIf="showSidebarLabels"><i></i> Live</span>
+          </div>
+
           <ng-container *ngIf="visibleWorkNavItems.length">
-            <div class="nav-group-label" *ngIf="isSidebarOpen">Work</div>
+            <div class="nav-group-label" *ngIf="showSidebarLabels"><span>Workspace</span><i></i></div>
 
             <a
               mat-button
@@ -104,18 +122,18 @@ import { ThemeService } from './core/services/theme.service';
               [routerLink]="item.route"
               routerLinkActive="side-link--active"
               [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-              [class.side-link--compact]="!isSidebarOpen"
+              [class.side-link--compact]="!showSidebarLabels"
               [attr.aria-label]="item.label"
-              [matTooltip]="!isSidebarOpen ? item.label : ''"
+              [matTooltip]="!showSidebarLabels ? item.label : ''"
               (click)="onNavItemClick()"
             >
-              <mat-icon>{{ item.icon }}</mat-icon>
-              <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+              <span class="side-link__icon"><mat-icon>{{ item.icon }}</mat-icon></span>
+              <span class="side-link__copy" *ngIf="showSidebarLabels"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
             </a>
           </ng-container>
 
           <ng-container *ngIf="auth.isInternalTools">
-            <div class="nav-group-label" *ngIf="isSidebarOpen">Tools</div>
+            <div class="nav-group-label" *ngIf="showSidebarLabels"><span>Specialist tools</span><i></i></div>
 
             <a
               mat-button
@@ -123,18 +141,18 @@ import { ThemeService } from './core/services/theme.service';
               *ngFor="let item of internalToolsNavItems"
               [routerLink]="item.route"
               routerLinkActive="side-link--active"
-              [class.side-link--compact]="!isSidebarOpen"
+              [class.side-link--compact]="!showSidebarLabels"
               [attr.aria-label]="item.label"
-              [matTooltip]="!isSidebarOpen ? item.label : ''"
+              [matTooltip]="!showSidebarLabels ? item.label : ''"
               (click)="onNavItemClick()"
             >
-              <mat-icon>{{ item.icon }}</mat-icon>
-              <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+              <span class="side-link__icon"><mat-icon>{{ item.icon }}</mat-icon></span>
+              <span class="side-link__copy" *ngIf="showSidebarLabels"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
             </a>
           </ng-container>
 
           <ng-container *ngIf="visibleAdminNavItems.length">
-            <div class="nav-group-label" *ngIf="isSidebarOpen">Administration</div>
+            <div class="nav-group-label" *ngIf="showSidebarLabels"><span>Administration</span><i></i></div>
 
             <a
               mat-button
@@ -142,28 +160,28 @@ import { ThemeService } from './core/services/theme.service';
               *ngFor="let item of visibleAdminNavItems"
               [routerLink]="item.route"
               routerLinkActive="side-link--active"
-              [class.side-link--compact]="!isSidebarOpen"
+              [class.side-link--compact]="!showSidebarLabels"
               [attr.aria-label]="item.label"
-              [matTooltip]="!isSidebarOpen ? item.label : ''"
+              [matTooltip]="!showSidebarLabels ? item.label : ''"
               (click)="onNavItemClick()"
             >
-              <mat-icon>{{ item.icon }}</mat-icon>
-              <span *ngIf="isSidebarOpen">{{ item.label }}</span>
+              <span class="side-link__icon"><mat-icon>{{ item.icon }}</mat-icon></span>
+              <span class="side-link__copy" *ngIf="showSidebarLabels"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
             </a>
           </ng-container>
           </div>
 
           <div class="side-nav__footer">
-          <div class="theme-toggle-row" [class.theme-toggle-row--compact]="!isSidebarOpen">
-            <mat-icon *ngIf="isSidebarOpen">{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon>
-            <span *ngIf="isSidebarOpen" class="theme-toggle-row__label">{{ themeLabel }}</span>
+          <div class="theme-toggle-row" [class.theme-toggle-row--compact]="!showSidebarLabels">
+            <span class="theme-toggle-row__icon" *ngIf="showSidebarLabels"><mat-icon>{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon></span>
+            <span *ngIf="showSidebarLabels" class="theme-toggle-row__label"><strong>{{ themeLabel }}</strong><small>Interface appearance</small></span>
 
             <button
               class="theme-toggle-row__switch"
               type="button"
               [attr.aria-label]="themeSwitchAriaLabel"
               [attr.aria-pressed]="isDarkTheme"
-              [matTooltip]="!isSidebarOpen ? themeSwitchAriaLabel : ''"
+              [matTooltip]="!showSidebarLabels ? themeSwitchAriaLabel : ''"
               (click)="toggleTheme()"
             >
               <span class="theme-toggle-row__track" [class.theme-toggle-row__track--dark]="isDarkTheme">
@@ -175,11 +193,11 @@ import { ThemeService } from './core/services/theme.service';
 
           <a
             class="sidebar-credit"
-            [class.sidebar-credit--compact]="!isSidebarOpen"
+            [class.sidebar-credit--compact]="!showSidebarLabels"
             href="https://www.linkedin.com/in/walid-benhamed-26214914b/"
             target="_blank"
             rel="noopener noreferrer"
-            [matTooltip]="!isSidebarOpen ? 'Designed and built by Walid Benhamed' : ''"
+            [matTooltip]="!showSidebarLabels ? 'Designed and built by Walid Benhamed' : ''"
           >Designed by Walid Benhamed</a>
           </div>
         </aside>
@@ -289,13 +307,13 @@ import { ThemeService } from './core/services/theme.service';
 
     .shell-body {
       display: grid;
-      grid-template-columns: 260px minmax(0, 1fr);
+      grid-template-columns: 276px minmax(0, 1fr);
       align-items: start;
       min-height: calc(100vh - 58px);
       transition: grid-template-columns 180ms ease;
     }
     .shell-body--collapsed {
-      grid-template-columns: 76px minmax(0, 1fr);
+      grid-template-columns: 80px minmax(0, 1fr);
     }
 
     .side-nav {
@@ -303,14 +321,16 @@ import { ThemeService } from './core/services/theme.service';
       top: 58px;
       height: calc(100vh - 58px);
       border-right: 1px solid var(--app-border);
-      background: var(--app-sidebar-bg);
-      padding: 14px 12px 10px;
+      background:
+        radial-gradient(circle at 0 0, color-mix(in srgb, var(--app-accent) 9%, transparent), transparent 34%),
+        linear-gradient(180deg, var(--app-sidebar-bg), color-mix(in srgb, var(--app-sidebar-bg) 92%, var(--app-background)));
+      padding: 12px 11px 10px;
       display: flex;
       flex-direction: column;
       align-items: stretch;
       overflow: hidden;
       z-index: 110;
-      box-shadow: 10px 0 32px rgba(15, 23, 42, 0.025);
+      box-shadow: 12px 0 34px rgba(15, 23, 42, 0.04);
     }
 
     .side-nav__content {
@@ -322,79 +342,166 @@ import { ThemeService } from './core/services/theme.service';
       padding: 0 2px 12px;
     }
 
+    .side-nav__identity {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 62px;
+      margin: 0 0 12px;
+      padding: 10px;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 18%, var(--app-border));
+      border-radius: 16px;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--app-accent) 9%, var(--app-surface-elevated)), var(--app-surface-elevated));
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055);
+    }
+
+    .side-nav__identity--compact {
+      display: flex;
+      justify-content: center;
+      min-height: 52px;
+      padding: 6px 0;
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .side-nav__identity-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      color: #fff;
+      background: linear-gradient(145deg, #0f9f96, #1967d2);
+      box-shadow: 0 7px 16px rgba(15, 159, 150, 0.22);
+    }
+
+    .side-nav__identity-mark mat-icon { width: 20px; height: 20px; font-size: 20px; }
+    .side-nav__identity-copy { min-width: 0; display: grid; gap: 2px; }
+    .side-nav__identity-copy small { color: var(--app-text-muted); font-size: 9px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+    .side-nav__identity-copy strong { overflow: hidden; color: var(--app-text); font-size: 12px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+    .side-nav__identity-status { display: inline-flex; align-items: center; gap: 5px; color: #087e78; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+    .side-nav__identity-status i { width: 6px; height: 6px; border-radius: 50%; background: #14b8a6; box-shadow: 0 0 0 4px rgba(20, 184, 166, .12); }
+
     .nav-group-label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
       font-size: 10px;
       letter-spacing: 0.11em;
       text-transform: uppercase;
       color: var(--app-text-muted);
       font-weight: 800;
-      margin: 13px 10px 5px;
+      margin: 16px 9px 6px;
     }
+
+    .nav-group-label i { flex: 1; height: 1px; background: linear-gradient(90deg, var(--app-border), transparent); }
 
     .nav-group-label:first-child { margin-top: 2px; }
 
     .side-link {
       position: relative;
-      min-height: 42px;
+      min-height: 54px;
       justify-content: flex-start;
       align-items: center;
-      border-radius: 10px;
+      border: 1px solid transparent;
+      border-radius: 14px;
       color: var(--app-text);
       display: inline-flex;
-      gap: 12px;
-      padding: 0 13px;
-      margin: 2px 0;
-      font-weight: 650;
-      font-size: 14px;
+      gap: 10px;
+      padding: 6px 9px;
+      margin: 3px 0;
       width: 100%;
-      transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+      transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     }
 
-    .side-link:hover { background: color-mix(in srgb, var(--app-accent) 7%, transparent); transform: translateX(2px); }
+    .side-link:hover { border-color: color-mix(in srgb, var(--app-accent) 15%, var(--app-border)); background: color-mix(in srgb, var(--app-accent) 6%, var(--app-surface)); transform: translateX(2px); }
     .side-link--compact:hover { transform: none; }
 
-    .side-link mat-icon {
+    :host ::ng-deep .side-link .mdc-button__label {
+      width: 100%;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    :host ::ng-deep .side-link--compact .mdc-button__label { justify-content: center; }
+
+    .side-link__icon {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid color-mix(in srgb, var(--app-text-muted) 12%, var(--app-border));
+      border-radius: 11px;
+      background: color-mix(in srgb, var(--app-soft-surface) 82%, transparent);
+      transition: transform var(--motion-fast) var(--ease-out), border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+    }
+
+    .side-link__icon mat-icon {
       margin: 0;
       color: var(--app-text-muted);
       flex: 0 0 auto;
-      width: 21px;
-      height: 21px;
-      font-size: 21px;
+      width: 19px;
+      height: 19px;
+      font-size: 19px;
       transition: transform var(--motion-fast) var(--ease-out), color var(--motion-fast) ease;
     }
-    .side-link:hover mat-icon { transform: scale(1.07); }
+    .side-link:hover .side-link__icon { transform: scale(1.04); }
+
+    .side-link__copy { min-width: 0; display: grid; flex: 1; gap: 2px; text-align: left; }
+    .side-link__copy strong { overflow: hidden; font-size: 13px; font-weight: 800; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+    .side-link__copy small { overflow: hidden; color: var(--app-text-muted); font-size: 9px; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 
     .side-link--compact {
       justify-content: center;
-      padding: 0;
+      min-height: 50px;
+      padding: 6px 0;
     }
 
-    .side-link--compact mat-icon {
-      margin: 0;
-    }
+    .side-link--compact .side-link__icon { width: 38px; height: 38px; }
 
     .theme-toggle-row {
       display: flex;
       align-items: center;
       justify-content: flex-start;
       gap: 10px;
-      min-height: 40px;
-      padding: 0 10px;
+      min-height: 54px;
+      padding: 7px 9px;
+      border: 1px solid var(--app-border);
+      border-radius: 14px;
+      background: var(--app-surface-elevated);
       color: var(--app-text);
-      font-size: 13px;
-      font-weight: 700;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, .04);
     }
+
+    .theme-toggle-row__icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 9%, var(--app-soft-surface)); }
+    .theme-toggle-row__icon mat-icon { width: 18px; height: 18px; font-size: 18px; }
 
     .theme-toggle-row--compact {
       justify-content: center;
       gap: 0;
-      padding: 0;
+      min-height: 48px;
+      padding: 5px 0;
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
     }
 
     .theme-toggle-row__label {
       min-width: 0;
+      display: grid;
+      flex: 1;
+      gap: 2px;
       white-space: nowrap;
     }
+
+    .theme-toggle-row__label strong { font-size: 12px; font-weight: 800; }
+    .theme-toggle-row__label small { color: var(--app-text-muted); font-size: 9px; }
 
     .theme-toggle-row__switch {
       margin-left: auto;
@@ -481,257 +588,54 @@ import { ThemeService } from './core/services/theme.service';
     }
 
     .side-link--active {
-      background: color-mix(in srgb, #0f9f96 12%, var(--app-surface));
+      border-color: color-mix(in srgb, #0f9f96 28%, var(--app-border));
+      background: linear-gradient(100deg, color-mix(in srgb, #0f9f96 13%, var(--app-surface)), color-mix(in srgb, #2563eb 6%, var(--app-surface)));
       color: color-mix(in srgb, #087e78 88%, var(--app-text));
+      box-shadow: 0 7px 18px rgba(15, 159, 150, .09);
     }
 
-    .side-link--active mat-icon {
+    .side-link--active .side-link__icon {
+      border-color: color-mix(in srgb, #0f9f96 32%, var(--app-border));
+      background: color-mix(in srgb, #0f9f96 14%, var(--app-surface));
+    }
+
+    .side-link--active .side-link__icon mat-icon {
       color: #0f9f96;
     }
+
+    .side-link--active .side-link__copy small { color: color-mix(in srgb, #087e78 58%, var(--app-text-muted)); }
+
+    :host ::ng-deep .side-link--active .mdc-button__label::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      margin: 0 3px 0 auto;
+      border-right: 2px solid #0f9f96;
+      border-bottom: 2px solid #0f9f96;
+      transform: rotate(-45deg);
+    }
+
+    :host ::ng-deep .side-link--active.side-link--compact .mdc-button__label::after { display: none; }
 
     .side-link--active::before {
       content: '';
       position: absolute;
-      left: 0;
-      top: 10px;
-      bottom: 10px;
+      left: -4px;
+      top: 14px;
+      bottom: 14px;
       width: 3px;
-      border-radius: 0 4px 4px 0;
+      border-radius: 4px;
       background: #0f9f96;
       box-shadow: 0 0 12px rgba(15, 159, 150, 0.3);
-    }
-
-    .side-nav-footer {
-      margin-top: auto;
-      padding: 14px 4px 4px;
-    }
-
-    .signature-card {
-      display: grid;
-      grid-template-columns: 44px minmax(0, 1fr) 30px;
-      grid-template-areas: "mark copy link";
-      gap: 11px;
-      align-items: center;
-      padding: 13px;
-      border: 1px solid color-mix(in srgb, var(--app-accent) 16%, var(--app-border));
-      border-radius: 16px;
-      background:
-        radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--app-accent) 11%, transparent), transparent 48%),
-        var(--app-surface-elevated);
-      color: var(--app-text);
-      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
-    }
-
-    .signature-card--collapsed {
-      display: flex;
-      justify-content: center;
-      padding: 8px 4px;
-      border-color: transparent;
-      background: transparent;
-      box-shadow: none;
-    }
-
-    .signature-mark {
-      grid-area: mark;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);
-      border-radius: 14px;
-      background: linear-gradient(145deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 70%, #172554));
-      color: #fff;
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-decoration: none;
-      flex: 0 0 auto;
-      box-shadow: 0 6px 14px color-mix(in srgb, var(--app-accent) 24%, transparent);
-      transition: transform 160ms ease, box-shadow 160ms ease;
-    }
-
-    .signature-mark:hover,
-    .signature-mark:focus-visible {
-      transform: translateY(-1px);
-      outline: 2px solid color-mix(in srgb, var(--app-accent) 38%, transparent);
-      outline-offset: 2px;
-    }
-
-    .signature-copy {
-      grid-area: copy;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      min-width: 0;
-      flex: 1;
-    }
-
-    .signature-label {
-      color: var(--app-text-muted);
-      font-size: 9px;
-      font-weight: 850;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      line-height: 1;
-    }
-
-    .signature-name {
-      color: var(--app-text);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.15;
-      white-space: normal;
-      overflow: visible;
-      text-overflow: clip;
-    }
-
-    .signature-role {
-      color: var(--app-text-muted);
-      font-size: 10px;
-      line-height: 1.25;
-    }
-
-    .signature-profile-link {
-      grid-area: link;
-      display: grid;
-      place-items: center;
-      align-items: center;
-      width: 30px;
-      height: 30px;
-      border: 1px solid color-mix(in srgb, var(--app-accent) 20%, var(--app-border));
-      border-radius: 10px;
-      background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface));
-      color: var(--app-accent);
-      text-decoration: none;
-      flex-shrink: 0;
-      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-    }
-
-    .signature-profile-link:hover,
-    .signature-profile-link:focus-visible {
-      background: var(--app-accent);
-      color: #fff;
-      transform: translateY(-1px);
-      outline: none;
-    }
-
-    .signature-card--collapsed .signature-profile-link {
-      display: none;
-    }
-
-    .signature-card .linkedin-logo {
-      width: 17px;
-      height: 17px;
-      fill: currentColor;
-      flex: 0 0 auto;
-    }
-
-    html.theme-dark .signature-card {
-      border-color: rgba(126, 162, 255, 0.2);
-      background:
-        radial-gradient(circle at 8% 0%, rgba(59, 130, 246, 0.16), transparent 48%),
-        #111a2f;
-      box-shadow: 0 12px 28px rgba(2, 6, 23, 0.3);
-    }
-
-    html.theme-dark .signature-card--collapsed {
-      border-color: transparent;
-      background: transparent;
-      box-shadow: none;
-    }
-
-    html.theme-dark .signature-label,
-    html.theme-dark .signature-role {
-      color: #94a3b8;
-    }
-
-    html.theme-dark .signature-name {
-      color: #e2e8f0;
-    }
-
-    html.theme-dark .signature-profile-link {
-      border-color: rgba(147, 197, 253, 0.2);
-      background: rgba(59, 130, 246, 0.1);
-      color: #93c5fd;
-    }
-
-    html.theme-dark .signature-profile-link:hover,
-    html.theme-dark .signature-profile-link:focus-visible {
-      color: #bfdbfe;
     }
 
     .side-nav__footer {
       flex: 0 0 auto;
       display: grid;
-      gap: 5px;
+      gap: 6px;
       margin-top: auto;
       padding: 8px 2px 0;
-      border-top: 1px solid var(--app-border);
-      background: var(--app-sidebar-bg);
-    }
-
-    .sidebar-account {
-      width: 100%;
-      min-height: 52px;
-      display: grid;
-      grid-template-columns: 34px minmax(0, 1fr) 20px;
-      align-items: center;
-      gap: 10px;
-      padding: 9px;
-      border: 1px solid var(--app-border);
-      border-radius: 13px;
-      background: var(--app-surface-elevated);
-      color: var(--app-text);
-      text-align: left;
-      cursor: pointer;
-      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-    }
-
-    .sidebar-account:hover {
-      border-color: color-mix(in srgb, #0f9f96 42%, var(--app-border));
-      background: color-mix(in srgb, #0f9f96 6%, var(--app-surface-elevated));
-      transform: translateY(-1px);
-    }
-
-    .sidebar-account__avatar {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border-radius: 11px;
-      background: linear-gradient(145deg, #1467df, #2345c7);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      box-shadow: 0 5px 13px rgba(37, 99, 235, 0.22);
-    }
-
-    .sidebar-account__identity {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .sidebar-account__identity strong,
-    .sidebar-account__identity small {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .sidebar-account__identity strong { font-size: 13px; line-height: 1.2; }
-    .sidebar-account__identity small { color: var(--app-text-muted); font-size: 10px; line-height: 1.3; }
-    .sidebar-account > mat-icon { color: var(--app-text-muted); font-size: 19px; width: 19px; height: 19px; }
-
-    .sidebar-account--compact {
-      display: flex;
-      justify-content: center;
-      min-height: 50px;
-      padding: 6px 0;
-      border-color: transparent;
+      border-top: 0;
       background: transparent;
     }
 
@@ -767,32 +671,28 @@ import { ThemeService } from './core/services/theme.service';
       letter-spacing: 0.04em;
     }
 
-    html.theme-dark .side-link--active {
-      background: rgba(20, 184, 166, 0.12);
-      color: #99f6e4;
-    }
-
-    html.theme-dark .sidebar-account {
-      background: rgba(17, 26, 47, 0.88);
-      border-color: rgba(148, 163, 184, 0.18);
-    }
-
     :host-context(.theme-dark) .side-link { color: #e2e8f0; }
-    :host-context(.theme-dark) .side-link mat-icon { color: #94a3b8; }
+    :host-context(.theme-dark) .side-nav__identity {
+      border-color: rgba(45, 212, 191, .18);
+      background: linear-gradient(145deg, rgba(13, 148, 136, .12), rgba(17, 26, 47, .9));
+      box-shadow: 0 10px 24px rgba(2, 6, 23, .22);
+    }
+    :host-context(.theme-dark) .side-nav__identity--compact { border-color: transparent; background: transparent; box-shadow: none; }
+    :host-context(.theme-dark) .side-nav__identity-status { color: #5eead4; }
+    :host-context(.theme-dark) .side-link__icon mat-icon { color: #94a3b8; }
+    :host-context(.theme-dark) .side-link__icon { border-color: rgba(148, 163, 184, .14); background: rgba(15, 23, 42, .48); }
     :host-context(.theme-dark) .nav-group-label { color: #8fa2bd; }
     :host-context(.theme-dark) .theme-toggle-row { color: #e2e8f0; }
     :host-context(.theme-dark) .side-link--active {
+      border-color: rgba(45, 212, 191, .25);
       background: rgba(20, 184, 166, 0.16);
       color: #ccfbf1;
     }
-    :host-context(.theme-dark) .side-link--active mat-icon { color: #2dd4bf; }
-    :host-context(.theme-dark) .sidebar-account {
-      background: rgba(17, 26, 47, 0.94);
-      border-color: rgba(148, 163, 184, 0.22);
-      color: #e2e8f0;
-    }
-    :host-context(.theme-dark) .sidebar-account__identity small,
-    :host-context(.theme-dark) .sidebar-account > mat-icon,
+    :host-context(.theme-dark) .side-link--active .side-link__icon { border-color: rgba(45, 212, 191, .28); background: rgba(13, 148, 136, .18); }
+    :host-context(.theme-dark) .side-link--active .side-link__icon mat-icon { color: #2dd4bf; }
+    :host-context(.theme-dark) .side-link--active .side-link__copy small { color: #99c8c6; }
+    :host-context(.theme-dark) .theme-toggle-row { border-color: rgba(148, 163, 184, .18); background: rgba(17, 26, 47, .88); box-shadow: 0 8px 20px rgba(2, 6, 23, .2); }
+    :host-context(.theme-dark) .theme-toggle-row--compact { border-color: transparent; background: transparent; box-shadow: none; }
     :host-context(.theme-dark) .sidebar-credit { color: #94a3b8; }
 
     .page-content {
@@ -850,8 +750,11 @@ import { ThemeService } from './core/services/theme.service';
         top: 56px;
         left: 0;
         height: calc(100vh - 56px);
-        width: min(88vw, 300px);
+        width: min(90vw, 320px);
         padding: 14px 12px 10px;
+        background:
+          radial-gradient(circle at 0 0, color-mix(in srgb, var(--app-accent) 9%, transparent), transparent 34%),
+          var(--app-surface);
         transform: translateX(-110%);
         transition: transform 0.24s ease;
         box-shadow: 0 8px 26px rgba(15, 23, 42, 0.2);
@@ -874,7 +777,7 @@ import { ThemeService } from './core/services/theme.service';
       .page-content { margin: 14px auto 78px; padding: 0 10px; }
 
       .side-nav__footer { padding-top: 10px; }
-      .sidebar-account { min-height: 54px; }
+      .side-link { min-height: 56px; }
     }
     @media (prefers-reduced-motion: reduce) {
       .scope-chip i, .page-content > router-outlet + * { animation: none; }
@@ -883,24 +786,24 @@ import { ThemeService } from './core/services/theme.service';
   `]
 })
 export class AppComponent implements OnInit, OnDestroy {
-  readonly navItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[]; exact?: boolean }> = [
-    { route: '/dashboard', label: 'Dashboard', icon: 'space_dashboard', capabilities: ['imports.view'] },
-    { route: '/datasets', label: 'Datasets', icon: 'dataset', capabilities: ['imports.view'] },
-    { route: '/business-trace', label: 'Business trace', icon: 'manage_search', capabilities: ['imports.view'] },
-    { route: '/uploads', label: 'List publications', icon: 'upload_file', capabilities: ['imports.view'] },
-    { route: '/maintenance', label: 'Data maintenance', icon: 'edit_square', capabilities: ['users.manage'], exact: true },
-    { route: '/maintenance/requests', label: 'Maintenance requests', icon: 'fact_check', capabilities: ['users.manage'] }
+  readonly navItems: ReadonlyArray<NavItem> = [
+    { route: '/dashboard', label: 'Dashboard', description: 'Operational overview', icon: 'space_dashboard', capabilities: ['imports.view'] },
+    { route: '/datasets', label: 'Datasets', description: 'Governed data catalogue', icon: 'dataset', capabilities: ['imports.view'] },
+    { route: '/business-trace', label: 'Business trace', description: 'Published decision history', icon: 'manage_search', capabilities: ['imports.view'] },
+    { route: '/uploads', label: 'Publications', description: 'Uploads and release records', icon: 'upload_file', capabilities: ['imports.view'] },
+    { route: '/maintenance', label: 'Data maintenance', description: 'Correct governed records', icon: 'edit_square', capabilities: ['users.manage'], exact: true },
+    { route: '/maintenance/requests', label: 'Maintenance requests', description: 'Review correction workflow', icon: 'fact_check', capabilities: ['users.manage'] }
   ];
 
-  readonly adminNavItems: ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> = [
-    { route: '/admin/users', label: 'People', icon: 'group', capabilities: ['users.manage', 'users.assign_roles'] },
-    { route: '/admin/access-studio', label: 'Roles & access', icon: 'admin_panel_settings', capabilities: ['roles.manage'] },
-    { route: '/admin/activity', label: 'Activity', icon: 'timeline', capabilities: ['audit.view'] },
-    { route: '/admin/maintenance', label: 'System', icon: 'settings_suggest', capabilities: ['system.maintenance'] }
+  readonly adminNavItems: ReadonlyArray<NavItem> = [
+    { route: '/admin/users', label: 'People', description: 'Accounts and assignments', icon: 'group', capabilities: ['users.manage', 'users.assign_roles'] },
+    { route: '/admin/access-studio', label: 'Roles & access', description: 'Capabilities and controls', icon: 'admin_panel_settings', capabilities: ['roles.manage'] },
+    { route: '/admin/activity', label: 'Activity', description: 'Audit and platform events', icon: 'timeline', capabilities: ['audit.view'] },
+    { route: '/admin/maintenance', label: 'System', description: 'Platform health and tasks', icon: 'settings_suggest', capabilities: ['system.maintenance'] }
   ];
 
-  readonly internalToolsNavItems: ReadonlyArray<{ route: string; label: string; icon: string }> = [
-    { route: '/internal-tools/evolis-decryptor', label: 'Evolis Decryptor', icon: 'lock_open' }
+  readonly internalToolsNavItems: ReadonlyArray<NavItem> = [
+    { route: '/internal-tools/evolis-decryptor', label: 'Evolis Decryptor', description: 'Secure internal utility', icon: 'lock_open' }
   ];
 
   readonly auth = inject(AuthFacade);
@@ -912,12 +815,16 @@ export class AppComponent implements OnInit, OnDestroy {
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
 
-  get visibleWorkNavItems(): ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[]; exact?: boolean }> {
-    return this.navItems.filter(item => item.capabilities.every(capability => this.auth.hasCapability(capability)));
+  get visibleWorkNavItems(): ReadonlyArray<NavItem> {
+    return this.navItems.filter(item => item.capabilities?.every(capability => this.auth.hasCapability(capability)) ?? true);
   }
 
-  get visibleAdminNavItems(): ReadonlyArray<{ route: string; label: string; icon: string; capabilities: string[] }> {
-    return this.adminNavItems.filter(item => item.capabilities.every(capability => this.auth.hasCapability(capability)));
+  get visibleAdminNavItems(): ReadonlyArray<NavItem> {
+    return this.adminNavItems.filter(item => item.capabilities?.every(capability => this.auth.hasCapability(capability)) ?? true);
+  }
+
+  get showSidebarLabels(): boolean {
+    return this.isSidebarOpen || this.isMobile;
   }
 
   get themeIcon(): string {
