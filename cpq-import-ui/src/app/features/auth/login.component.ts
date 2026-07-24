@@ -373,11 +373,11 @@ type LandingSectionId = 'business-case' | 'operating-model' | 'governance' | 'cr
     }
     :host ::ng-deep .access-panel .mat-mdc-text-field-wrapper {
       background: #fcfdfd;
-      transition: background-color 180ms ease, box-shadow 180ms ease;
+      transition: background-color 180ms ease;
     }
     :host ::ng-deep .access-panel mat-form-field:focus-within .mat-mdc-text-field-wrapper {
       background: #f8fcfb;
-      box-shadow: 0 0 0 4px rgba(15,142,132,.1);
+      box-shadow: none !important;
     }
     :host ::ng-deep .access-panel .mdc-notched-outline__leading,
     :host ::ng-deep .access-panel .mdc-notched-outline__notch,

@@ -192,11 +192,11 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     }
     :host ::ng-deep .form-panel .mat-mdc-text-field-wrapper {
       background: #fcfdfd;
-      transition: background-color 180ms ease, box-shadow 180ms ease;
+      transition: background-color 180ms ease;
     }
     :host ::ng-deep .form-panel mat-form-field:focus-within .mat-mdc-text-field-wrapper {
       background: #f8fcfb;
-      box-shadow: 0 0 0 4px rgba(15,142,132,.1);
+      box-shadow: none !important;
     }
     :host ::ng-deep .form-panel .mdc-notched-outline__leading,
     :host ::ng-deep .form-panel .mdc-notched-outline__notch,
