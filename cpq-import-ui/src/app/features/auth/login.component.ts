@@ -91,11 +91,19 @@ type LandingSectionId = 'business-case' | 'operating-model' | 'governance' | 'cr
               <mat-form-field appearance="outline">
                 <mat-label>Username</mat-label>
                 <input matInput formControlName="userName" autocomplete="username" />
+                <mat-error *ngIf="form.controls.userName.hasError('required')">
+                  <mat-icon>info</mat-icon>
+                  Enter your username
+                </mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
                 <mat-label>Password</mat-label>
                 <input matInput type="password" formControlName="password" autocomplete="current-password" />
+                <mat-error *ngIf="form.controls.password.hasError('required')">
+                  <mat-icon>info</mat-icon>
+                  Enter your password
+                </mat-error>
               </mat-form-field>
 
               <p *ngIf="error" class="form-message form-message--error">{{ error }}</p>
@@ -347,7 +355,62 @@ type LandingSectionId = 'business-case' | 'operating-model' | 'governance' | 'cr
     .access-panel h2 { margin: 22px 0 10px; color: #0b1731; font-size: 31px; line-height: 1.05; }
     .access-panel > p { margin: 0; color: #657188; font-size: 14px; line-height: 1.55; }
     form { display: grid; gap: 10px; margin-top: 24px; }
-    mat-form-field { width: 100%; }
+    mat-form-field {
+      width: 100%;
+      --mdc-outlined-text-field-container-shape: 13px;
+      --mdc-outlined-text-field-outline-color: #cbd4df;
+      --mdc-outlined-text-field-hover-outline-color: #82aaa6;
+      --mdc-outlined-text-field-focus-outline-color: #0f8e84;
+      --mdc-outlined-text-field-focus-label-text-color: #0b7a72;
+      --mdc-outlined-text-field-caret-color: #0f8e84;
+      --mdc-outlined-text-field-input-text-color: #17253e;
+      --mdc-outlined-text-field-input-text-placeholder-color: #7b8798;
+      --mdc-outlined-text-field-error-outline-color: #9da9b8;
+      --mdc-outlined-text-field-error-hover-outline-color: #748298;
+      --mdc-outlined-text-field-error-focus-outline-color: #0f8e84;
+      --mdc-outlined-text-field-error-label-text-color: #5f6d82;
+      --mat-form-field-error-text-color: #5f6d82;
+    }
+    :host ::ng-deep .access-panel .mat-mdc-text-field-wrapper {
+      background: #fcfdfd;
+      transition: background-color 180ms ease, box-shadow 180ms ease;
+    }
+    :host ::ng-deep .access-panel mat-form-field:focus-within .mat-mdc-text-field-wrapper {
+      background: #f8fcfb;
+      box-shadow: 0 0 0 4px rgba(15,142,132,.1);
+    }
+    :host ::ng-deep .access-panel .mdc-notched-outline__leading,
+    :host ::ng-deep .access-panel .mdc-notched-outline__notch,
+    :host ::ng-deep .access-panel .mdc-notched-outline__trailing {
+      transition: border-color 180ms ease, border-width 180ms ease;
+    }
+    :host ::ng-deep .access-panel input:focus {
+      outline: none !important;
+      outline-offset: 0 !important;
+    }
+    :host ::ng-deep .access-panel input:-webkit-autofill,
+    :host ::ng-deep .access-panel input:-webkit-autofill:hover,
+    :host ::ng-deep .access-panel input:-webkit-autofill:focus {
+      -webkit-text-fill-color: #17253e;
+      -webkit-box-shadow: 0 0 0 1000px #f8fcfb inset;
+      outline: none !important;
+      caret-color: #0f8e84;
+      transition: background-color 9999s ease-out;
+    }
+    :host ::ng-deep .access-panel mat-error {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+    :host ::ng-deep .access-panel mat-error mat-icon {
+      width: 14px;
+      height: 14px;
+      color: #0f8e84;
+      font-size: 14px;
+    }
     form button { min-height: 48px; border-radius: 11px; background: #173b8f !important; color: #fff !important; font-weight: 850; }
     form button mat-icon { margin-left: 8px; }
     .form-message { margin: -2px 0 4px; font-size: 12px; }
