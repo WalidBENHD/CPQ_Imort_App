@@ -63,17 +63,33 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
               <mat-label>Full display name</mat-label>
               <input matInput formControlName="displayName" autocomplete="name" />
               <mat-hint>The name colleagues will see in approvals</mat-hint>
+              <mat-error *ngIf="form.controls.displayName.hasError('required')">
+                <mat-icon>info</mat-icon>
+                Enter your display name
+              </mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>Username</mat-label>
               <input matInput formControlName="userName" autocomplete="username" />
+              <mat-error *ngIf="form.controls.userName.hasError('required')">
+                <mat-icon>info</mat-icon>
+                Enter a username
+              </mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>Password</mat-label>
               <input matInput type="password" formControlName="password" autocomplete="new-password" />
               <mat-hint>Use at least 8 characters</mat-hint>
+              <mat-error *ngIf="form.controls.password.hasError('required')">
+                <mat-icon>info</mat-icon>
+                Enter a password
+              </mat-error>
+              <mat-error *ngIf="form.controls.password.hasError('minlength')">
+                <mat-icon>info</mat-icon>
+                Use at least 8 characters
+              </mat-error>
             </mat-form-field>
 
             <p *ngIf="message" class="form-message form-message--success"><mat-icon>check_circle</mat-icon>{{ message }}</p>
@@ -158,7 +174,62 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
     .form-panel h2 { margin: 18px 0 9px; color: #0b1731; font-size: 30px; line-height: 1.05; }
     .form-panel > p { margin: 0; color: #657188; font-size: 13px; line-height: 1.55; }
     form { display: grid; gap: 8px; margin-top: 22px; }
-    mat-form-field { width: 100%; }
+    mat-form-field {
+      width: 100%;
+      --mdc-outlined-text-field-container-shape: 13px;
+      --mdc-outlined-text-field-outline-color: #cbd4df;
+      --mdc-outlined-text-field-hover-outline-color: #82aaa6;
+      --mdc-outlined-text-field-focus-outline-color: #0f8e84;
+      --mdc-outlined-text-field-focus-label-text-color: #0b7a72;
+      --mdc-outlined-text-field-caret-color: #0f8e84;
+      --mdc-outlined-text-field-input-text-color: #17253e;
+      --mdc-outlined-text-field-input-text-placeholder-color: #7b8798;
+      --mdc-outlined-text-field-error-outline-color: #9da9b8;
+      --mdc-outlined-text-field-error-hover-outline-color: #748298;
+      --mdc-outlined-text-field-error-focus-outline-color: #0f8e84;
+      --mdc-outlined-text-field-error-label-text-color: #5f6d82;
+      --mat-form-field-error-text-color: #5f6d82;
+    }
+    :host ::ng-deep .form-panel .mat-mdc-text-field-wrapper {
+      background: #fcfdfd;
+      transition: background-color 180ms ease, box-shadow 180ms ease;
+    }
+    :host ::ng-deep .form-panel mat-form-field:focus-within .mat-mdc-text-field-wrapper {
+      background: #f8fcfb;
+      box-shadow: 0 0 0 4px rgba(15,142,132,.1);
+    }
+    :host ::ng-deep .form-panel .mdc-notched-outline__leading,
+    :host ::ng-deep .form-panel .mdc-notched-outline__notch,
+    :host ::ng-deep .form-panel .mdc-notched-outline__trailing {
+      transition: border-color 180ms ease, border-width 180ms ease;
+    }
+    :host ::ng-deep .form-panel input:focus {
+      outline: none !important;
+      outline-offset: 0 !important;
+    }
+    :host ::ng-deep .form-panel input:-webkit-autofill,
+    :host ::ng-deep .form-panel input:-webkit-autofill:hover,
+    :host ::ng-deep .form-panel input:-webkit-autofill:focus {
+      -webkit-text-fill-color: #17253e;
+      -webkit-box-shadow: 0 0 0 1000px #f8fcfb inset;
+      outline: none !important;
+      caret-color: #0f8e84;
+      transition: background-color 9999s ease-out;
+    }
+    :host ::ng-deep .form-panel mat-error {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+    :host ::ng-deep .form-panel mat-error mat-icon {
+      width: 14px;
+      height: 14px;
+      color: #0f8e84;
+      font-size: 14px;
+    }
     form button { min-height: 48px; border-radius: 11px; color: #fff !important; background: #173b8f !important; font-weight: 850; }
     form button mat-icon { margin-left: 8px; }
     .form-message { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 4px; padding: 10px; border-radius: 9px; font-size: 11px; line-height: 1.4; }
