@@ -30,6 +30,7 @@ type NavItem = {
   imports: [NgIf, NgFor, RouterOutlet, RouterLink, RouterLinkActive,
     MatToolbarModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, NotificationCenterComponent],
   template: `
+    <ng-container *ngIf="navigationReady; else appBooting">
     <div class="app-shell" *ngIf="showAppChrome; else landingLayout">
       <mat-toolbar class="top-toolbar">
         <button
@@ -220,9 +221,73 @@ type NavItem = {
         <router-outlet />
       </main>
     </ng-template>
+    </ng-container>
+
+    <ng-template #appBooting>
+      <main class="app-boot" aria-label="Loading CPQ Platform">
+        <section class="app-boot__brand">
+          <span class="app-boot__mark"><mat-icon>cloud_upload</mat-icon></span>
+          <span>
+            <strong>CPQ Platform</strong>
+            <small>Preparing your governed workspace</small>
+          </span>
+        </section>
+        <span class="app-boot__progress" aria-hidden="true"><i></i></span>
+      </main>
+    </ng-template>
 
   `,
   styles: [`
+    .app-boot {
+      min-height: 100vh;
+      display: grid;
+      place-content: center;
+      gap: 22px;
+      padding: 24px;
+      color: #0f1f3d;
+      background:
+        radial-gradient(circle at 14% 18%, rgba(15, 159, 150, .11), transparent 32%),
+        radial-gradient(circle at 88% 72%, rgba(45, 82, 204, .10), transparent 34%),
+        #f5f6f2;
+    }
+    .app-boot__brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .app-boot__mark {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #fff;
+      background: linear-gradient(145deg, #0f9f96, #2549a7);
+      box-shadow: 0 12px 28px rgba(37, 73, 167, .2);
+    }
+    .app-boot__mark mat-icon { width: 24px; height: 24px; font-size: 24px; }
+    .app-boot__brand span:last-child { display: grid; gap: 2px; }
+    .app-boot__brand strong { font-size: 18px; letter-spacing: -.02em; }
+    .app-boot__brand small { color: #64748b; font-size: 12px; }
+    .app-boot__progress {
+      width: 100%;
+      height: 3px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(37, 73, 167, .1);
+    }
+    .app-boot__progress i {
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0f9f96, #3156cb);
+      animation: app-boot-progress 1.15s ease-in-out infinite;
+    }
+    @keyframes app-boot-progress {
+      from { transform: translateX(-110%); }
+      to { transform: translateX(245%); }
+    }
     .app-shell {
       min-height: 100vh;
       background: var(--app-background);
@@ -782,6 +847,7 @@ type NavItem = {
     @media (prefers-reduced-motion: reduce) {
       .scope-chip i, .page-content > router-outlet + * { animation: none; }
       .brand__mark, .profile-trigger span, .side-link, .side-link mat-icon { transition: none; }
+      .app-boot__progress i { animation: none; width: 100%; }
     }
   `]
 })
@@ -811,6 +877,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly activityMonitorService = inject(ActivityMonitorService);
   private readonly themeService = inject(ThemeService);
   private routeSub: Subscription | null = null;
+  navigationReady = false;
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
 
@@ -880,6 +947,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.navigationReady = this.router.navigated;
     this.themeService.initialize();
     this.syncThemeForRoute();
 
@@ -896,6 +964,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routeSub = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event) => {
+        this.navigationReady = true;
         this.syncThemeForRoute();
 
         if (this.isMobile) {
