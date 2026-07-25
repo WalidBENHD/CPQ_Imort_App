@@ -71,17 +71,15 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
         </div>
       </div>
       <div class="header-actions" *ngIf="job">
-        <button mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download original file">
+        <button *ngIf="job.hasOriginalFile" mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download the original uploaded file">
           <mat-icon>download</mat-icon> Original
         </button>
         <button
           mat-stroked-button
-          class="header-action-btn action-working-copy"
-          *ngIf="isPrivateWorkspace"
-          [disabled]="!hasDraftChanges"
-          (click)="downloadWorkingCopy()"
-          [matTooltip]="hasDraftChanges ? 'Download the original file with your draft changes applied' : 'Make a draft change to enable this export'">
-          <mat-icon>file_download</mat-icon> Working copy
+          class="header-action-btn action-download"
+          (click)="downloadCurrentVersion()"
+          matTooltip="Download the current version as Excel">
+          <mat-icon>file_download</mat-icon> Download
         </button>
         <button mat-stroked-button class="header-action-btn action-error" *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
           <mat-icon>error_outline</mat-icon> Error Report
@@ -967,13 +965,12 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
       background: #eff6ff;
     }
     .action-original:hover { background: #dbeafe; }
-    .action-working-copy {
+    .action-download {
       border-color: #99f6e4 !important;
       color: #0f766e !important;
       background: #f0fdfa;
     }
-    .action-working-copy:hover:not(:disabled) { background: #ccfbf1; }
-    .action-working-copy:disabled { opacity: .48; }
+    .action-download:hover:not(:disabled) { background: #ccfbf1; }
     .action-comparison {
       border-color: #bbf7d0 !important;
       color: #166534 !important;
@@ -1377,8 +1374,8 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
     .msg-warning { color: #f57f17; }
     .msg-info { color: #1565c0; }
 
-    :host-context(html.theme-dark) .action-working-copy { color: #5eead4 !important; border-color: rgba(45,212,191,.38) !important; background: rgba(15,118,110,.16); }
-    :host-context(html.theme-dark) .action-working-copy:hover:not(:disabled) { background: rgba(15,118,110,.26); }
+    :host-context(html.theme-dark) .action-download { color: #5eead4 !important; border-color: rgba(45,212,191,.38) !important; background: rgba(15,118,110,.16); }
+    :host-context(html.theme-dark) .action-download:hover:not(:disabled) { background: rgba(15,118,110,.26); }
     :host-context(html.theme-dark) .editor-eyebrow { color: #5eead4; }
     :host-context(html.theme-dark) .delete-selection:not(:disabled) { color: #fca5a5; }
     :host-context(html.theme-dark) .mobile-row-card { border-color: var(--app-border); background: var(--app-surface); }
@@ -1970,19 +1967,28 @@ export class ImportPreviewComponent implements OnInit {
     return primary || `Row ${row.rowNumber}`;
   }
 
-  downloadWorkingCopy(): void {
-    if (!this.job || !this.hasDraftChanges) return;
-    this.importService.downloadWorkingCopy(this.job.id).subscribe({
+  downloadCurrentVersion(): void {
+    if (!this.job) return;
+    const preparingNotice = this.snackBar.open('Preparing the current Excel version...');
+    this.importService.downloadCurrentVersion(this.job.id).subscribe({
       next: blob => {
-        const extension = this.job!.fileExtension || '.xlsx';
+        preparingNotice.dismiss();
         const stem = this.job!.originalFileName;
         const anchor = document.createElement('a');
-        anchor.href = URL.createObjectURL(blob);
-        anchor.download = `${stem}_working-copy${extension}`;
+        const url = URL.createObjectURL(blob);
+        anchor.href = url;
+        anchor.download = `${stem}.xlsx`;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
         anchor.click();
-        URL.revokeObjectURL(anchor.href);
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.snackBar.open('Download started.', 'Close', { duration: 3000 });
       },
-      error: error => this.snackBar.open(error?.error?.error ?? 'The working copy could not be generated.', 'Close', { duration: 7000 })
+      error: error => {
+        preparingNotice.dismiss();
+        this.snackBar.open(error?.error?.error ?? 'The current version could not be downloaded.', 'Close', { duration: 7000 });
+      }
     });
   }
 
@@ -2642,4 +2648,3 @@ export class ImportPreviewComponent implements OnInit {
     this.activeDraftEditorMode = 'edit';
   }
 }
-

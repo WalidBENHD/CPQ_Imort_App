@@ -1029,7 +1029,7 @@ public class ControlledPublicationTests
     }
 
     [Fact]
-    public async Task GenerateWorkingCopyAsync_AppliesActiveRowsAndExcludesDeletedRows()
+    public async Task GenerateCurrentVersionAsync_AppliesActiveRowsAndExcludesDeletedRows()
     {
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var sourcePackage = new ExcelPackage();
@@ -1049,14 +1049,40 @@ public class ControlledPublicationTests
         repository.Rows.Add(new StagingRow { ImportJobId = job.Id, RowNumber = 4, IsDeleted = true, RawData = "{\"ArticleNumber\":\"A-DELETED\",\"Name\":\"Deleted value\"}" });
         var service = CreateService(repository, new FakeCommitStrategy());
 
-        var workingCopy = await service.GenerateWorkingCopyAsync(job.Id, "contributor-id");
+        var currentVersion = await service.GenerateCurrentVersionAsync(job.Id);
 
-        using var exportedPackage = new ExcelPackage(new MemoryStream(workingCopy.Content));
+        using var exportedPackage = new ExcelPackage(new MemoryStream(currentVersion.Content));
         var exportedSheet = exportedPackage.Workbook.Worksheets.First();
         Assert.Equal("A-EDITED", exportedSheet.Cells[2, 1].Text);
         Assert.Equal("A-ADDED", exportedSheet.Cells[3, 1].Text);
         Assert.NotEqual("A-DELETED", exportedSheet.Cells[4, 1].Text);
-        Assert.EndsWith("_working-copy.xlsx", workingCopy.FileName);
+        Assert.Equal("annual-articles.xlsx", currentVersion.FileName);
+    }
+
+    [Fact]
+    public async Task GenerateCurrentVersionAsync_CreatesWorkbookWhenNoOriginalFileExists()
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        var job = CreateJob(ImportStatus.Committed);
+        job.FileName = $"{Guid.NewGuid()}.hmi";
+        job.OriginalFileName = "maintenance-update.hmi";
+        job.WorkflowStage = ImportWorkflowStage.Published;
+        var repository = new FakeImportRepository(job, CreateComparison(Guid.NewGuid(), true));
+        repository.Rows.Add(new StagingRow
+        {
+            ImportJobId = job.Id,
+            RowNumber = 2,
+            RawData = "{\"ArticleNumber\":\"A-100\",\"Name\":\"Current article\",\"Category\":\"Standard\",\"Unit\":\"PC\"}"
+        });
+        var service = CreateService(repository, new FakeCommitStrategy());
+
+        var currentVersion = await service.GenerateCurrentVersionAsync(job.Id);
+
+        using var exportedPackage = new ExcelPackage(new MemoryStream(currentVersion.Content));
+        var exportedSheet = exportedPackage.Workbook.Worksheets.First();
+        Assert.Equal("ArticleNumber", exportedSheet.Cells[1, 1].Text);
+        Assert.Equal("A-100", exportedSheet.Cells[2, 1].Text);
+        Assert.Equal("maintenance-update.xlsx", currentVersion.FileName);
     }
 
     private static ImportService CreateService(

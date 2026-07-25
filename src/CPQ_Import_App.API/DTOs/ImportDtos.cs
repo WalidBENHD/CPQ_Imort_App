@@ -6,6 +6,7 @@ public record ImportJobDto(
     Guid Id,
     string OriginalFileName,
     string FileExtension,
+    bool HasOriginalFile,
     EntityType EntityType,
     string EntityTypeLabel,
     ImportStatus Status,

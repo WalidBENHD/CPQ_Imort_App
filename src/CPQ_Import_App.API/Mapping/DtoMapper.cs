@@ -35,6 +35,7 @@ public static class DtoMapper
         string.IsNullOrWhiteSpace(Path.GetExtension(job.FileName))
             ? Path.GetExtension(job.OriginalFileName)
             : Path.GetExtension(job.FileName),
+        !string.Equals(Path.GetExtension(job.FileName), ".hmi", StringComparison.OrdinalIgnoreCase),
         job.EntityType,
         DatasetCatalog.Get(job.EntityType).DisplayName,
         job.Status,

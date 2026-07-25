@@ -61,7 +61,7 @@ public interface IImportService
     Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default);
     Task<byte[]> GenerateErrorReportAsync(Guid jobId, CancellationToken ct = default);
     Task<byte[]> GenerateComparisonReportAsync(Guid jobId, CancellationToken ct = default);
-    Task<DraftWorkingCopy> GenerateWorkingCopyAsync(Guid jobId, string userId, CancellationToken ct = default);
+    Task<CurrentVersionExport> GenerateCurrentVersionAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public interface IEvolisDecryptorService

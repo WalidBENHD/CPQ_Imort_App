@@ -316,23 +316,30 @@ export class UploadsComponent implements OnInit {
     this.router.navigate(['/import', job.id]);
   }
 
-  downloadOriginal(job: ImportJob, event?: Event): void {
+  downloadCurrentVersion(job: ImportJob, event?: Event): void {
     event?.stopPropagation();
     if (this.actionJobId === job.id) return;
     this.actionJobId = job.id;
-    this.importService.downloadOriginal(job.id).subscribe({
+    const preparingNotice = this.snackBar.open('Preparing the current Excel version...');
+    this.importService.downloadCurrentVersion(job.id).subscribe({
       next: blob => {
+        preparingNotice.dismiss();
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.href = url;
-        link.download = `${job.originalFileName}${job.fileExtension}`;
+        link.download = `${job.originalFileName}.xlsx`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
         link.click();
+        link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
         this.actionJobId = null;
+        this.snackBar.open('Download started.', 'Close', { duration: 3000 });
       },
       error: () => {
+        preparingNotice.dismiss();
         this.actionJobId = null;
-        this.snackBar.open('The original file could not be downloaded.', 'Close', { duration: 5000 });
+        this.snackBar.open('The current version could not be downloaded.', 'Close', { duration: 5000 });
       }
     });
   }

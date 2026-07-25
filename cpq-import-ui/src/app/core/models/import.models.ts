@@ -63,6 +63,7 @@ export interface ImportJob {
   id: string;
   originalFileName: string;
   fileExtension: string;
+  hasOriginalFile: boolean;
   entityType: number;
   entityTypeLabel: string;
   status: number;

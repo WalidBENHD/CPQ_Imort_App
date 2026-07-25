@@ -1006,21 +1006,22 @@ public class ImportsController(
         return File(bytes, "application/octet-stream", job.OriginalFileName);
     }
 
-    /// <summary>Download the current private working copy with all draft edits applied.</summary>
-    [HttpGet("{id:guid}/working-copy")]
-    [Authorize(Policy = Capabilities.ImportsCorrectOwn)]
-    public async Task<IActionResult> DownloadWorkingCopy(Guid id, CancellationToken ct)
+    /// <summary>Download the current represented version of any visible upload as Excel.</summary>
+    [HttpGet("{id:guid}/current-version")]
+    public async Task<IActionResult> DownloadCurrentVersion(Guid id, CancellationToken ct)
     {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
+
         try
         {
-            var file = await importService.GenerateWorkingCopyAsync(id, UserId, ct);
+            var file = await importService.GenerateCurrentVersionAsync(id, ct);
             await activityService.LogAsync(new ActivityWriteRequest(
-                ActivityCategory.Import, "DownloadWorkingCopy", $"Exported the private working copy for import {id}.",
+                ActivityCategory.Import, "DownloadCurrentVersion", $"Exported the current represented version of import {id}.",
                 TargetType: "ImportJob", TargetId: id.ToString(), StatusCode: StatusCodes.Status200OK), ct);
             return File(file.Content, file.ContentType, file.FileName);
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
-        catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
     }
 

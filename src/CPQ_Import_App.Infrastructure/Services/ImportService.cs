@@ -1603,78 +1603,123 @@ public class ImportService(
     public Task<byte[]?> GetOriginalFileAsync(Guid jobId, CancellationToken ct = default)
         => repository.GetUploadedFileAsync(jobId, ct);
 
-    public async Task<DraftWorkingCopy> GenerateWorkingCopyAsync(Guid jobId, string userId, CancellationToken ct = default)
+    public async Task<CurrentVersionExport> GenerateCurrentVersionAsync(Guid jobId, CancellationToken ct = default)
     {
-        var job = await GetEditablePrivateJobAsync(jobId, userId, "export", ct);
-        var original = await repository.GetUploadedFileAsync(jobId, ct)
-            ?? throw new KeyNotFoundException("The original uploaded file is not available.");
+        var job = await repository.GetJobAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Import job '{jobId}' not found.");
+        var original = await repository.GetUploadedFileAsync(jobId, ct);
         var rows = await repository.GetStagingRowsByJobAsync(jobId, ct);
         var dictionaries = rows.Select(row => DeserializeFields(row.RawData)).ToList();
+        var originalHeaders = new List<string>();
 
-        await using var source = new MemoryStream(original, writable: false);
-        var (originalHeaders, _) = await RawFileReader.ReadAsync(source, job.OriginalFileName, ct);
-        var headers = originalHeaders
+        if (original is not null)
+        {
+            try
+            {
+                await using var source = new MemoryStream(original, writable: false);
+                var (sourceHeaders, _) = await RawFileReader.ReadAsync(source, job.OriginalFileName, ct);
+                originalHeaders.AddRange(sourceHeaders);
+            }
+            catch (InvalidDataException)
+            {
+                // The current rows remain exportable even when the source layout cannot be read.
+            }
+        }
+
+        var preferredHeaders = originalHeaders.Count > 0
+            ? originalHeaders
+            : DatasetCatalog.Get(job.EntityType).Columns.Select(column => column.Name);
+        var headers = preferredHeaders
             .Concat(dictionaries.SelectMany(fields => fields.Keys))
             .Where(header => !string.IsNullOrWhiteSpace(header))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var stem = Path.GetFileNameWithoutExtension(job.OriginalFileName);
-
-        if (Path.GetExtension(job.OriginalFileName).Equals(".csv", StringComparison.OrdinalIgnoreCase))
+        if (headers.Count == 0)
         {
-            using var writer = new StringWriter(CultureInfo.InvariantCulture);
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
-            {
-                foreach (var header in headers) csv.WriteField(header);
-                await csv.NextRecordAsync();
-                foreach (var fields in dictionaries)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    foreach (var header in headers) csv.WriteField(fields.GetValueOrDefault(header));
-                    await csv.NextRecordAsync();
-                }
-            }
-
-            return new DraftWorkingCopy(
-                Encoding.UTF8.GetBytes(writer.ToString()),
-                $"{stem}_working-copy.csv",
-                "text/csv");
+            throw new InvalidOperationException("The current upload has no columns to export.");
         }
 
         ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-        using var package = new ExcelPackage(new MemoryStream(original));
-        var worksheet = package.Workbook.Worksheets.First();
-        var columnCount = Math.Max(headers.Count, worksheet.Dimension?.Columns ?? 0);
-        var previousRowCount = worksheet.Dimension?.Rows ?? 1;
+        var preserveSourceLayout = original is not null
+            && Path.GetExtension(job.OriginalFileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase);
+        ExcelPackage package;
 
-        for (var column = 1; column <= headers.Count; column++)
+        if (preserveSourceLayout)
         {
-            worksheet.Cells[1, column].Value = headers[column - 1];
-        }
-
-        for (var rowIndex = 0; rowIndex < dictionaries.Count; rowIndex++)
-        {
-            var excelRow = rowIndex + 2;
-            if (excelRow > previousRowCount && previousRowCount >= 2)
+            try
             {
-                worksheet.Cells[2, 1, 2, columnCount].Copy(worksheet.Cells[excelRow, 1, excelRow, columnCount]);
+                package = new ExcelPackage(new MemoryStream(original!));
             }
-
-            for (var column = 0; column < headers.Count; column++)
+            catch (InvalidDataException)
             {
-                worksheet.Cells[excelRow, column + 1].Value = dictionaries[rowIndex].GetValueOrDefault(headers[column]);
+                package = new ExcelPackage();
+                preserveSourceLayout = false;
             }
         }
-
-        for (var excelRow = dictionaries.Count + 2; excelRow <= previousRowCount; excelRow++)
+        else
         {
-            for (var column = 1; column <= columnCount; column++) worksheet.Cells[excelRow, column].Value = null;
+            package = new ExcelPackage();
         }
 
-        return new DraftWorkingCopy(
-            package.GetAsByteArray(),
-            $"{stem}_working-copy.xlsx",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        using (package)
+        {
+            var worksheet = package.Workbook.Worksheets.FirstOrDefault()
+                ?? package.Workbook.Worksheets.Add(DatasetCatalog.Get(job.EntityType).FileNameFragment);
+            var columnCount = Math.Max(headers.Count, worksheet.Dimension?.Columns ?? 0);
+            var previousRowCount = worksheet.Dimension?.Rows ?? 1;
+
+            for (var column = 1; column <= headers.Count; column++)
+            {
+                worksheet.Cells[1, column].Value = headers[column - 1];
+            }
+
+            for (var rowIndex = 0; rowIndex < dictionaries.Count; rowIndex++)
+            {
+                var excelRow = rowIndex + 2;
+                if (excelRow > previousRowCount && previousRowCount >= 2)
+                {
+                    worksheet.Cells[2, 1, 2, columnCount].Copy(worksheet.Cells[excelRow, 1, excelRow, columnCount]);
+                }
+
+                for (var column = 0; column < headers.Count; column++)
+                {
+                    worksheet.Cells[excelRow, column + 1].Value = dictionaries[rowIndex].GetValueOrDefault(headers[column]);
+                }
+            }
+
+            for (var excelRow = dictionaries.Count + 2; excelRow <= previousRowCount; excelRow++)
+            {
+                for (var column = 1; column <= columnCount; column++)
+                {
+                    worksheet.Cells[excelRow, column].Value = null;
+                }
+            }
+
+            if (!preserveSourceLayout)
+            {
+                using var headerRange = worksheet.Cells[1, 1, 1, headers.Count];
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Font.Color.SetColor(Color.FromArgb(20, 33, 59));
+                headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                headerRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(221, 244, 240));
+                worksheet.View.FreezePanes(2, 1);
+                var populatedRange = worksheet.Dimension;
+                if (populatedRange is not null)
+                {
+                    worksheet.Cells[populatedRange.Address].AutoFitColumns();
+                }
+                for (var column = 1; column <= headers.Count; column++)
+                {
+                    worksheet.Column(column).Width = Math.Min(worksheet.Column(column).Width, 42);
+                }
+            }
+
+            return new CurrentVersionExport(
+                package.GetAsByteArray(),
+                $"{stem}.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
     }
 
     public Task<byte[]> GenerateTemplateAsync(EntityType entityType, CancellationToken ct = default)

@@ -244,8 +244,8 @@ export class ImportService {
     return this.http.get(`${this.base}/${jobId}/download`, { responseType: 'blob' });
   }
 
-  downloadWorkingCopy(jobId: string): Observable<Blob> {
-    return this.http.get(`${this.base}/${jobId}/working-copy`, { responseType: 'blob' });
+  downloadCurrentVersion(jobId: string): Observable<Blob> {
+    return this.http.get(`${this.base}/${jobId}/current-version`, { responseType: 'blob' });
   }
 
   downloadErrorReport(jobId: string): Observable<Blob> {
