@@ -19,6 +19,7 @@ import { ImportService } from '../../core/services/import.service';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
 import { ReleaseWithdrawDialogComponent } from '../../shared/release-withdraw-dialog/release-withdraw-dialog.component';
+import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
 
 type UploadSpace = 'workspace' | 'review' | 'history';
 type UploadViewMode = 'detailed' | 'compact';
@@ -57,7 +58,8 @@ interface UploadDisplayGroup {
     MatSelectModule,
     MatSnackBarModule,
     MatTooltipModule,
-    StatusBadgeComponent
+    StatusBadgeComponent,
+    DownloadActionComponent
   ],
   templateUrl: './uploads.component.html',
   styleUrl: './uploads.component.scss'
@@ -320,10 +322,8 @@ export class UploadsComponent implements OnInit {
     event?.stopPropagation();
     if (this.actionJobId === job.id) return;
     this.actionJobId = job.id;
-    const preparingNotice = this.snackBar.open('Preparing the current Excel version...');
     this.importService.downloadCurrentVersion(job.id).subscribe({
       next: blob => {
-        preparingNotice.dismiss();
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.href = url;
@@ -337,7 +337,6 @@ export class UploadsComponent implements OnInit {
         this.snackBar.open('Download started.', 'Close', { duration: 3000 });
       },
       error: () => {
-        preparingNotice.dismiss();
         this.actionJobId = null;
         this.snackBar.open('The current version could not be downloaded.', 'Close', { duration: 5000 });
       }

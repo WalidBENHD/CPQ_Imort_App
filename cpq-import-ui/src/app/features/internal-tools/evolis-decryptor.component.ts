@@ -10,6 +10,7 @@ import { EvolisDecryptResponse, EvolisDecryptionMetrics, EvolisDecryptionRun, Ev
 import { parseEvolisPresentation } from './evolis-parser';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { forkJoin } from 'rxjs';
+import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
 
 type HistoryScope = 'mine' | 'all';
 type DecryptionStatus = 'Successful' | 'Failed';
@@ -17,7 +18,7 @@ type DecryptionStatus = 'Successful' | 'Failed';
 @Component({
   selector: 'app-evolis-decryptor',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatIconModule, DownloadActionComponent],
   template: `
     <section class="page-shell evolis-decryptor-page">
       <header class="page-header decryptor-hero">
@@ -159,9 +160,8 @@ type DecryptionStatus = 'Successful' | 'Failed';
               <div class="eyebrow">Result</div>
               <h2>Decrypted output</h2>
             </div>
-            <button mat-raised-button color="primary" type="button" [disabled]="!result" (click)="downloadResult()">
-              <mat-icon>picture_as_pdf</mat-icon>
-              Download PDF
+            <button mat-raised-button color="primary" type="button" [disabled]="!result || resultDownloading" [attr.aria-busy]="resultDownloading" (click)="downloadResult()">
+              <app-download-action [loading]="resultDownloading" icon="picture_as_pdf" label="Download PDF" />
             </button>
           </div>
 
@@ -1286,6 +1286,7 @@ export class EvolisDecryptorComponent implements OnInit {
   selectedFile: File | null = null;
   dragActive = false;
   processing = false;
+  resultDownloading = false;
   errorMessage = '';
   result: EvolisDecryptResponse | null = null;
   presentation: EvolisPresentation | null = null;
@@ -1395,12 +1396,14 @@ export class EvolisDecryptorComponent implements OnInit {
   }
 
   downloadResult(): void {
-    if (!this.result) {
+    if (!this.result || this.resultDownloading) {
       return;
     }
 
+    this.resultDownloading = true;
     this.decryptorService.downloadPdf(this.selectedFile!).subscribe({
       next: (blob) => {
+        this.resultDownloading = false;
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
@@ -1409,6 +1412,7 @@ export class EvolisDecryptorComponent implements OnInit {
         URL.revokeObjectURL(url);
       },
       error: (error) => {
+        this.resultDownloading = false;
         const status = error?.status as number | undefined;
         const backendMessage = error?.error?.error ?? error?.error?.message ?? error?.message;
 

@@ -1,4 +1,4 @@
-﻿import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, FormsModule } from '@angular/forms';
@@ -33,6 +33,7 @@ import { DependencyContextPrototypeComponent } from './dependency-context.compon
 import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
 import { PortfolioReadinessComponent } from './portfolio-readiness.component';
 import { ArticleReleaseBuilderComponent } from './article-release-builder.component';
+import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
 
 @Component({
   selector: 'app-import-preview',
@@ -44,7 +45,8 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
     MatFormFieldModule, MatInputModule, MatSelectModule, MatDividerModule, MatCheckboxModule,
     StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent,
     PublicationReadinessComponent, PublicationConfirmDialogComponent, DraftRowEditorComponent,
-    DependencyContextPrototypeComponent, PortfolioReadinessComponent, ArticleReleaseBuilderComponent],
+    DependencyContextPrototypeComponent, PortfolioReadinessComponent, ArticleReleaseBuilderComponent,
+    DownloadActionComponent],
   template: `
     <div class="page-header">
       <div>
@@ -71,26 +73,32 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
         </div>
       </div>
       <div class="header-actions" *ngIf="job">
-        <button *ngIf="job.hasOriginalFile" mat-stroked-button class="header-action-btn action-original" (click)="downloadOriginal()" matTooltip="Download the original uploaded file">
-          <mat-icon>download</mat-icon> Original
+        <button *ngIf="job.hasOriginalFile" mat-stroked-button class="header-action-btn action-original" [class.action-download--loading]="activeDownload === 'original'" [disabled]="activeDownload !== null" [attr.aria-busy]="activeDownload === 'original'" (click)="downloadOriginal()" matTooltip="Download the original uploaded file">
+          <app-download-action [loading]="activeDownload === 'original'" label="Original" />
         </button>
         <button
           mat-stroked-button
           class="header-action-btn action-download"
+          [class.action-download--loading]="activeDownload === 'current'"
+          [disabled]="activeDownload !== null"
+          [attr.aria-busy]="activeDownload === 'current'"
           (click)="downloadCurrentVersion()"
-          matTooltip="Download the current version as Excel">
-          <mat-icon>file_download</mat-icon> Download
+          [matTooltip]="activeDownload === 'current' ? 'Generating Excel file' : 'Download the current version as Excel'">
+          <app-download-action [loading]="activeDownload === 'current'" icon="file_download" label="Download" />
         </button>
-        <button mat-stroked-button class="header-action-btn action-error" *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
-          <mat-icon>error_outline</mat-icon> Error Report
+        <button mat-stroked-button class="header-action-btn action-error" [class.action-download--loading]="activeDownload === 'errors'" [disabled]="activeDownload !== null" [attr.aria-busy]="activeDownload === 'errors'" *ngIf="job.errorRows > 0" (click)="downloadErrors()" matTooltip="Download error report">
+          <app-download-action [loading]="activeDownload === 'errors'" icon="error_outline" label="Error Report" />
         </button>
         <button
           mat-stroked-button
           class="header-action-btn action-comparison"
+          [class.action-download--loading]="activeDownload === 'comparison'"
+          [disabled]="activeDownload !== null"
+          [attr.aria-busy]="activeDownload === 'comparison'"
           *ngIf="canDownloadComparisonReport()"
           (click)="downloadComparisonReport()"
           matTooltip="Download comparison report for detected differences">
-          <mat-icon>difference</mat-icon> Comparison Report
+          <app-download-action [loading]="activeDownload === 'comparison'" icon="difference" label="Comparison Report" />
         </button>
         <button
           mat-stroked-button
@@ -489,7 +497,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
           <div class="workspace-gate__actions">
             <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="showErrorRows()"><mat-icon>build</mat-icon> Review and fix errors</button>
             <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0" mat-raised-button color="primary" class="submit-review-btn" [disabled]="workflowActionRunning || !canSubmitProjectedState" (click)="submitForReview()"><mat-icon>send</mat-icon> {{ workflowActionRunning ? 'Submitting...' : (canSubmitProjectedState ? 'Submit for review' : 'Release required') }}</button>
-            <button *ngIf="canDownloadComparisonReport()" mat-stroked-button (click)="downloadComparisonReport()"><mat-icon>download</mat-icon> Comparison report</button>
+            <button *ngIf="canDownloadComparisonReport()" mat-stroked-button [class.action-download--loading]="activeDownload === 'comparison'" [disabled]="activeDownload !== null" [attr.aria-busy]="activeDownload === 'comparison'" (click)="downloadComparisonReport()"><app-download-action [loading]="activeDownload === 'comparison'" label="Comparison report" /></button>
             <button *ngIf="canCancelJob()" mat-button class="discard-draft-btn" (click)="cancelImport()"><mat-icon>delete_outline</mat-icon> Discard private draft</button>
           </div>
         </mat-card-content>
@@ -602,6 +610,7 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
         </mat-card-content>
       </mat-card>
         </section>
+
 
       <!-- Rows table -->
       <mat-card class="rows-card" id="data-workbench">
@@ -971,6 +980,29 @@ import { ArticleReleaseBuilderComponent } from './article-release-builder.compon
       background: #f0fdfa;
     }
     .action-download:hover:not(:disabled) { background: #ccfbf1; }
+    .action-download--loading {
+      position: relative;
+      overflow: hidden;
+      opacity: 1 !important;
+      color: #0f766e !important;
+      border-color: #5eead4 !important;
+      background: #ecfdf5 !important;
+      cursor: wait;
+    }
+    .action-download--loading::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 22%, rgba(20,184,166,.14) 47%, transparent 72%);
+      transform: translateX(-130%);
+      animation: download-button-scan 1.35s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .action-download--loading > span:last-child { position: relative; z-index: 1; }
+    @keyframes download-button-scan {
+      0% { transform: translateX(-130%); }
+      65%, 100% { transform: translateX(130%); }
+    }
     .action-comparison {
       border-color: #bbf7d0 !important;
       color: #166534 !important;
@@ -1680,6 +1712,7 @@ export class ImportPreviewComponent implements OnInit {
   showRejectPanel = false;
   rejectionReason = '';
   workflowActionRunning = false;
+  activeDownload: 'original' | 'current' | 'errors' | 'comparison' | null = null;
   publicationApproval: PublicationApprovalDraft | null = null;
   activeDraftEditorMode: DraftEditorMode | null = null;
   activeDraftEditorRow: StagingRow | null = null;
@@ -1968,11 +2001,11 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   downloadCurrentVersion(): void {
-    if (!this.job) return;
-    const preparingNotice = this.snackBar.open('Preparing the current Excel version...');
+    if (!this.job || this.activeDownload) return;
+    this.activeDownload = 'current';
     this.importService.downloadCurrentVersion(this.job.id).subscribe({
       next: blob => {
-        preparingNotice.dismiss();
+        this.activeDownload = null;
         const stem = this.job!.originalFileName;
         const anchor = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -1986,7 +2019,7 @@ export class ImportPreviewComponent implements OnInit {
         this.snackBar.open('Download started.', 'Close', { duration: 3000 });
       },
       error: error => {
-        preparingNotice.dismiss();
+        this.activeDownload = null;
         this.snackBar.open(error?.error?.error ?? 'The current version could not be downloaded.', 'Close', { duration: 7000 });
       }
     });
@@ -2034,6 +2067,7 @@ export class ImportPreviewComponent implements OnInit {
       && this.job.createdBy === this.auth.userId
       && this.job.workflowStageLabel === 'Private';
   }
+
 
   canRenameUpload(): boolean {
     return this.isPrivateWorkspace && this.auth.hasCapability('imports.correct_own');
@@ -2581,24 +2615,36 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   downloadOriginal() {
-    if (!this.job) return;
-    this.importService.downloadOriginal(this.job.id).subscribe(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${this.job!.originalFileName}${this.job!.fileExtension}`;
-      a.click();
+    if (!this.job || this.activeDownload) return;
+    this.activeDownload = 'original';
+    this.importService.downloadOriginal(this.job.id).subscribe({
+      next: blob => {
+        this.activeDownload = null;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${this.job!.originalFileName}${this.job!.fileExtension}`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      },
+      error: () => {
+        this.activeDownload = null;
+        this.snackBar.open('The original file could not be downloaded.', 'Close', { duration: 7000 });
+      }
     });
   }
 
   downloadErrors() {
-    if (!this.job) return;
+    if (!this.job || this.activeDownload) return;
+    this.activeDownload = 'errors';
     this.importService.downloadErrorReport(this.job.id).subscribe(blob => {
+      this.activeDownload = null;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `errors_${this.job!.id}.xlsx`;
       a.click();
       URL.revokeObjectURL(a.href);
     }, async (err) => {
+      this.activeDownload = null;
       let message = 'Failed to download the error report.';
 
       if (err?.error instanceof Blob) {
@@ -2617,14 +2663,17 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   downloadComparisonReport(): void {
-    if (!this.job || !this.canDownloadComparisonReport()) return;
+    if (!this.job || !this.canDownloadComparisonReport() || this.activeDownload) return;
+    this.activeDownload = 'comparison';
     this.importService.downloadComparisonReport(this.job.id).subscribe(blob => {
+      this.activeDownload = null;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `comparison_${this.job!.id}.xlsx`;
       a.click();
       URL.revokeObjectURL(a.href);
     }, async (err) => {
+      this.activeDownload = null;
       let message = 'Failed to download the comparison report.';
 
       if (err?.error instanceof Blob) {

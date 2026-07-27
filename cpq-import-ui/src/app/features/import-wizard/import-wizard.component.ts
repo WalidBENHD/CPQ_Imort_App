@@ -9,13 +9,14 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { DATASET_CATALOG, DatasetRequirement, ENTITY_TYPE_OPTIONS, EntityType, getDatasetDefinition, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
+import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
 
 @Component({
   selector: 'app-import-wizard',
   standalone: true,
   imports: [CommonModule, RouterLink,
     MatCardModule, MatButtonModule, MatIconModule, MatStepperModule,
-    MatProgressBarModule, MatSnackBarModule],
+    MatProgressBarModule, MatSnackBarModule, DownloadActionComponent],
   template: `
     <section class="submission-page">
     <div class="page-header">
@@ -97,9 +98,8 @@ import { ImportService } from '../../core/services/import.service';
                     <h3>Template Requirements</h3>
                     <p>Review the governed field dictionary and validation expectations before uploading your file.</p>
                   </div>
-                  <button mat-stroked-button (click)="downloadTemplate()">
-                    <mat-icon>download</mat-icon>
-                    Download Template
+                  <button mat-stroked-button [disabled]="templateDownloading" [attr.aria-busy]="templateDownloading" (click)="downloadTemplate()">
+                    <app-download-action [loading]="templateDownloading" label="Download Template" />
                   </button>
                 </div>
 
@@ -137,8 +137,8 @@ import { ImportService } from '../../core/services/import.service';
                 <button mat-raised-button color="primary" matStepperNext [disabled]="!selectedType">
                   Continue <mat-icon>chevron_right</mat-icon>
                 </button>
-                <button mat-stroked-button (click)="downloadTemplate()" [disabled]="!selectedType" class="ml-8">
-                  <mat-icon>download</mat-icon> Download Dataset Template
+                <button mat-stroked-button (click)="downloadTemplate()" [disabled]="!selectedType || templateDownloading" [attr.aria-busy]="templateDownloading" class="ml-8">
+                  <app-download-action [loading]="templateDownloading" label="Download Dataset Template" />
                 </button>
               </div>
             </div>
@@ -598,6 +598,7 @@ import { ImportService } from '../../core/services/import.service';
   `]
 })
 export class ImportWizardComponent {
+  templateDownloading = false;
   private readonly importService = inject(ImportService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -762,12 +763,21 @@ export class ImportWizardComponent {
 
   downloadTemplate() {
     const selectedType = this.selectedType;
-    if (!selectedType) return;
-    this.importService.downloadTemplate(selectedType).subscribe(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `CPQ_Dataset_Template_${getDatasetDefinition(selectedType).fileNameFragment}.xlsx`;
-      a.click();
+    if (!selectedType || this.templateDownloading) return;
+    this.templateDownloading = true;
+    this.importService.downloadTemplate(selectedType).subscribe({
+      next: blob => {
+        this.templateDownloading = false;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `CPQ_Dataset_Template_${getDatasetDefinition(selectedType).fileNameFragment}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      },
+      error: () => {
+        this.templateDownloading = false;
+        this.snackBar.open('The dataset template could not be downloaded.', 'Close', { duration: 5000 });
+      }
     });
   }
 

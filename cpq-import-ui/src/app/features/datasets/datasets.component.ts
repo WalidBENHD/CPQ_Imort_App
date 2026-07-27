@@ -7,11 +7,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { DATASET_CATALOG, DatasetDefinition, DatasetRequirement, EntityType, ImportJob, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
 import { AuthFacade } from '../../core/auth/auth.facade';
+import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
 
 @Component({
   selector: 'app-datasets',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, MatIconModule, DownloadActionComponent],
   template: `
     <section class="datasets-page">
     <div class="page-header">
@@ -112,8 +113,8 @@ import { AuthFacade } from '../../core/auth/auth.facade';
           <button *ngIf="auth.hasCapability('imports.upload') && auth.hasCapability('imports.submit')" mat-stroked-button (click)="startImport(dataset)">
             <mat-icon>publish</mat-icon> Import version
           </button>
-          <button mat-button color="primary" (click)="downloadTemplate(dataset)">
-            <mat-icon>download</mat-icon> Download template
+          <button mat-button color="primary" [disabled]="templateDownloadType !== null" [attr.aria-busy]="templateDownloadType === dataset.key" (click)="downloadTemplate(dataset)">
+            <app-download-action [loading]="templateDownloadType === dataset.key" label="Download template" />
           </button>
         </div>
 
@@ -597,6 +598,7 @@ import { AuthFacade } from '../../core/auth/auth.facade';
   `]
 })
 export class DatasetsComponent implements OnInit {
+  templateDownloadType: EntityType | null = null;
   readonly auth = inject(AuthFacade);
   private readonly router = inject(Router);
   private readonly importService = inject(ImportService);
@@ -735,11 +737,20 @@ export class DatasetsComponent implements OnInit {
   }
 
   downloadTemplate(dataset: DatasetDefinition) {
-    this.importService.downloadTemplate(dataset.key).subscribe(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `CPQ_Dataset_Template_${dataset.fileNameFragment}.xlsx`;
-      a.click();
+    if (this.templateDownloadType) return;
+    this.templateDownloadType = dataset.key;
+    this.importService.downloadTemplate(dataset.key).subscribe({
+      next: blob => {
+        this.templateDownloadType = null;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `CPQ_Dataset_Template_${dataset.fileNameFragment}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      },
+      error: () => {
+        this.templateDownloadType = null;
+      }
     });
   }
 }
