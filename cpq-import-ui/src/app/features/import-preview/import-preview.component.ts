@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, HostBinding, HostListener, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, FormsModule } from '@angular/forms';
@@ -48,7 +48,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     DependencyContextPrototypeComponent, PortfolioReadinessComponent, ArticleReleaseBuilderComponent,
     DownloadActionComponent],
   template: `
-    <div class="page-header">
+    <div class="page-header" [class.page-header--active]="job?.isActiveBaseline">
       <div>
         <a mat-button routerLink="/uploads" class="back-btn">
           <mat-icon>arrow_back</mat-icon> Uploads
@@ -65,6 +65,14 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
             (click)="renameUpload()">
             <mat-icon>edit</mat-icon>
           </button>
+          <span
+            *ngIf="job.isActiveBaseline"
+            class="active-baseline-signal"
+            matTooltip="This approved version is currently powering CPQ">
+            <i></i>
+            <mat-icon>verified</mat-icon>
+            <span>Active in CPQ</span>
+          </span>
         </div>
         <div class="page-context" *ngIf="job">
           <span>{{ job.entityTypeLabel }}</span><i></i>
@@ -73,6 +81,16 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
         </div>
       </div>
       <div class="header-actions" *ngIf="job">
+        <button
+          mat-stroked-button
+          type="button"
+          class="header-action-btn focus-mode-toggle"
+          [matTooltip]="focusMode ? 'Return to the complete upload view' : 'Maximize the data workbench'"
+          [attr.aria-pressed]="focusMode"
+          (click)="toggleFocusMode()">
+          <mat-icon>{{ focusMode ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+          <span>{{ focusMode ? 'Exit focus' : 'Focus mode' }}</span>
+        </button>
         <button *ngIf="job.hasOriginalFile" mat-stroked-button class="header-action-btn action-original" [class.action-download--loading]="activeDownload === 'original'" [disabled]="activeDownload !== null" [attr.aria-busy]="activeDownload === 'original'" (click)="downloadOriginal()" matTooltip="Download the original uploaded file">
           <app-download-action [loading]="activeDownload === 'original'" label="Original" />
         </button>
@@ -109,9 +127,29 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
           matTooltip="Recheck against the latest master data">
           <mat-icon *ngIf="!refreshingValidation">refresh</mat-icon>
           <mat-spinner *ngIf="refreshingValidation" diameter="16"></mat-spinner>
-          Refresh validation
+          <span>Refresh validation</span>
         </button>
       </div>
+      <svg
+        *ngIf="job?.isActiveBaseline"
+        class="active-baseline-heartline"
+        width="100%"
+        height="18"
+        viewBox="0 0 1000 18"
+        preserveAspectRatio="none"
+        aria-hidden="true">
+        <defs>
+          <linearGradient id="activeBaselineStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#14b8a6" stop-opacity=".42" />
+            <stop offset="12%" stop-color="#14b8a6" />
+            <stop offset="68%" stop-color="#2563eb" />
+            <stop offset="100%" stop-color="#2563eb" />
+          </linearGradient>
+        </defs>
+        <path
+          class="active-baseline-heartline__path"
+          d="M0 9 H445 L466 9 L476 6 L486 12 L498 2 L512 16 L525 7 L538 9 H1000" />
+      </svg>
     </div>
 
     <div class="loading-container" *ngIf="loading && !job">
@@ -119,73 +157,129 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     </div>
 
     <ng-container *ngIf="job">
-      <div class="workbench-grid">
-        <div class="workbench-rail">
-        <section class="workbench-health" aria-label="Dataset workbench status">
-          <div class="workbench-health__intro">
-            <span class="workbench-live"><i></i>{{ isPrivateWorkspace ? 'Private working session' : 'Governed dataset review' }}</span>
-            <strong>{{ isPrivateWorkspace ? 'Work directly on the data' : 'Inspect the exact submitted version' }}</strong>
-            <small>Use the health indicators to focus the table without losing the current impact.</small>
+      <div class="workbench-grid" [class.workbench-grid--context-open]="contextExpanded">
+        <section
+          class="focus-session-dock"
+          [class.focus-session-dock--active]="job.isActiveBaseline"
+          *ngIf="focusMode"
+          aria-label="Focused working session controls">
+          <div class="focus-session-dock__identity">
+            <i [class.focus-session-dock__ready]="job.errorRows === 0"></i>
+            <div>
+              <small>{{ job.isActiveBaseline ? 'Active CPQ baseline' : (isPrivateWorkspace ? 'Private working session' : 'Governed dataset review') }}</small>
+              <strong>{{ job.originalFileName }}</strong>
+              <span>{{ job.validRows }}/{{ job.totalRows }} valid<span *ngIf="job.errorRows"> · {{ job.errorRows }} errors</span></span>
+            </div>
           </div>
-          <div class="health-metrics">
-            <button type="button" class="health-metric health-metric--total" (click)="focusRows()">
-              <span>Total</span><strong>{{ job.totalRows }}</strong><small>All rows</small>
+
+          <span *ngIf="job.isActiveBaseline" class="focus-active-badge">
+            <mat-icon>verified</mat-icon>
+            Active in CPQ
+          </span>
+
+          <div class="focus-session-dock__actions">
+            <button
+              *ngIf="job.hasOriginalFile"
+              mat-icon-button
+              type="button"
+              class="focus-dock-action action-original"
+              [class.action-download--loading]="activeDownload === 'original'"
+              [disabled]="activeDownload !== null"
+              [attr.aria-busy]="activeDownload === 'original'"
+              (click)="downloadOriginal()"
+              matTooltip="Download original file"
+              aria-label="Download original file">
+              <app-download-action [loading]="activeDownload === 'original'" />
             </button>
-            <button type="button" class="health-metric health-metric--valid" (click)="focusRows('Valid')">
-              <span>Valid</span><strong>{{ job.validRows }}</strong><small>Ready</small>
+            <button
+              mat-icon-button
+              type="button"
+              class="focus-dock-action action-download"
+              [class.action-download--loading]="activeDownload === 'current'"
+              [disabled]="activeDownload !== null"
+              [attr.aria-busy]="activeDownload === 'current'"
+              (click)="downloadCurrentVersion()"
+              matTooltip="Download current version"
+              aria-label="Download current version">
+              <app-download-action [loading]="activeDownload === 'current'" icon="file_download" />
             </button>
-            <button type="button" class="health-metric health-metric--warning" (click)="focusRows('Warning')">
-              <span>Warnings</span><strong>{{ job.warningRows }}</strong><small>Review</small>
+            <button
+              *ngIf="job.errorRows > 0"
+              mat-icon-button
+              type="button"
+              class="focus-dock-action action-error"
+              [class.action-download--loading]="activeDownload === 'errors'"
+              [disabled]="activeDownload !== null"
+              [attr.aria-busy]="activeDownload === 'errors'"
+              (click)="downloadErrors()"
+              matTooltip="Download error report"
+              aria-label="Download error report">
+              <app-download-action [loading]="activeDownload === 'errors'" icon="error_outline" />
             </button>
-            <button type="button" class="health-metric health-metric--error" [class.health-metric--urgent]="job.errorRows > 0" (click)="focusRows('Error')">
-              <span>Errors</span><strong>{{ job.errorRows }}</strong><small>{{ job.errorRows ? 'Blocking' : 'Clear' }}</small>
+            <button
+              *ngIf="canDownloadComparisonReport()"
+              mat-icon-button
+              type="button"
+              class="focus-dock-action action-comparison"
+              [class.action-download--loading]="activeDownload === 'comparison'"
+              [disabled]="activeDownload !== null"
+              [attr.aria-busy]="activeDownload === 'comparison'"
+              (click)="downloadComparisonReport()"
+              matTooltip="Download comparison report"
+              aria-label="Download comparison report">
+              <app-download-action [loading]="activeDownload === 'comparison'" icon="difference" />
             </button>
-            <button type="button" class="health-metric health-metric--change" *ngIf="comparison" (click)="focusRows('', 'Modified')">
-              <span>Modified</span><strong>{{ comparison.modifiedRows }}</strong><small>Changed</small>
+            <button
+              *ngIf="canRefreshValidation()"
+              mat-icon-button
+              type="button"
+              class="focus-dock-action action-refresh"
+              [disabled]="refreshingValidation"
+              (click)="refreshValidation(true)"
+              matTooltip="Refresh validation"
+              aria-label="Refresh validation">
+              <mat-icon *ngIf="!refreshingValidation">refresh</mat-icon>
+              <mat-spinner *ngIf="refreshingValidation" diameter="17"></mat-spinner>
+            </button>
+            <span class="focus-dock-divider"></span>
+            <button
+              mat-icon-button
+              type="button"
+              class="focus-dock-action focus-dock-exit"
+              (click)="toggleFocusMode()"
+              matTooltip="Exit focus mode"
+              aria-label="Exit focus mode">
+              <mat-icon>fullscreen_exit</mat-icon>
             </button>
           </div>
-          <button mat-stroked-button type="button" class="evidence-toggle" [class.evidence-toggle--open]="contextExpanded" (click)="toggleContext()">
-            <mat-icon>{{ contextExpanded ? 'close' : 'verified_user' }}</mat-icon>
-            {{ contextExpanded ? 'Close evidence' : 'Details & evidence' }}
-          </button>
         </section>
 
         <aside class="impact-rail" [class.impact-rail--mobile-open]="mobileImpactOpen" aria-label="Live dataset impact">
           <header class="impact-rail__header">
             <span><mat-icon>insights</mat-icon></span>
-            <div><small>Live impact</small><strong>{{ job.errorRows > 0 ? 'Work remains' : 'Dataset is healthy' }}</strong></div>
+            <div>
+              <small>{{ isPrivateWorkspace ? 'Private working session' : 'Governed dataset review' }}</small>
+              <strong>{{ job.errorRows > 0 ? job.errorRows + ' blocking rows' : (portfolioReadiness?.requiresCoordinatedRelease ? 'Data ready - release required' : 'Ready to move forward') }}</strong>
+            </div>
             <i [class.impact-ready]="job.errorRows === 0"></i>
             <button mat-icon-button type="button" class="impact-mobile-close" aria-label="Close live impact" (click)="mobileImpactOpen = false"><mat-icon>close</mat-icon></button>
           </header>
 
-          <section class="impact-section">
-            <div class="impact-section__title"><span>Validation</span><strong>{{ job.errorRows > 0 ? job.errorRows + ' blocking' : 'Ready' }}</strong></div>
+          <section class="impact-section impact-section--validation">
+            <div class="impact-section__title"><span>Validation</span><strong>{{ job.validRows }}/{{ job.totalRows }} valid</strong></div>
             <div class="impact-progress"><i [style.width.%]="validationReadinessPercent"></i></div>
-            <p>{{ job.validRows }} of {{ job.totalRows }} rows are valid<span *ngIf="job.warningRows">; {{ job.warningRows }} need review</span>.</p>
-            <button *ngIf="job.errorRows > 0" type="button" class="impact-link impact-link--danger" (click)="focusRows('Error')"><mat-icon>arrow_forward</mat-icon> Open blocking rows</button>
-          </section>
-
-          <section class="impact-section" *ngIf="comparison as cmp">
-            <div class="impact-section__title"><span>Baseline impact</span><strong>{{ cmp.newRows + cmp.modifiedRows + cmp.missingBaselineRows }} changes</strong></div>
-            <div class="impact-change-grid">
-              <button type="button" (click)="focusRows('', 'New')"><strong>{{ cmp.newRows }}</strong><span>New</span></button>
-              <button type="button" (click)="focusRows('', 'Modified')"><strong>{{ cmp.modifiedRows }}</strong><span>Modified</span></button>
-              <button type="button" (click)="openEvidence()"><strong>{{ cmp.missingBaselineRows }}</strong><span>Missing</span></button>
+            <div class="impact-signals">
+              <button type="button" [class.impact-signal--alert]="job.errorRows > 0" (click)="focusRows('Error')"><strong>{{ job.errorRows }}</strong><span>Errors</span></button>
+              <button type="button" [class.impact-signal--warning]="job.warningRows > 0" (click)="focusRows('Warning')"><strong>{{ job.warningRows }}</strong><span>Warnings</span></button>
+              <button type="button" class="impact-signal--change" *ngIf="comparison as cmp" (click)="openEvidence()"><strong>{{ cmp.newRows + cmp.modifiedRows + cmp.missingBaselineRows }}</strong><span>Changes</span></button>
             </div>
-            <p>Compared with {{ cmp.hasBaseline ? 'the approved baseline' : 'the initial submission context' }}.</p>
-          </section>
-
-          <section class="impact-section" *ngIf="isPortfolioDataset && portfolioReadiness">
-            <div class="impact-section__title"><span>Portfolio consistency</span><strong [class.impact-alert]="portfolioReadiness.requiresCoordinatedRelease">{{ portfolioReadiness.isConsistent ? 'Aligned' : 'Release required' }}</strong></div>
-            <p *ngIf="portfolioReadiness.isConsistent">The projected Article Master and Price List remain aligned.</p>
-            <p *ngIf="!portfolioReadiness.isConsistent">Related datasets must be coordinated before this version can be submitted.</p>
-            <button *ngIf="portfolioReadiness.requiresCoordinatedRelease" type="button" class="impact-link" (click)="focusReleaseWorkflow()"><mat-icon>account_tree</mat-icon> Prepare coordinated release</button>
           </section>
 
           <section class="impact-action">
             <ng-container *ngIf="isPrivateWorkspace">
               <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="focusRows('Error')"><mat-icon>build</mat-icon> Fix {{ job.errorRows }} blocking rows</button>
-              <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId" mat-raised-button color="primary" [disabled]="workflowActionRunning || !canSubmitProjectedState" (click)="submitForReview()"><mat-icon>send</mat-icon>{{ canSubmitProjectedState ? 'Submit for review' : 'Release required' }}</button>
+              <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId && canSubmitProjectedState" mat-raised-button color="primary" [disabled]="workflowActionRunning" (click)="submitForReview()"><mat-icon>send</mat-icon>Submit for review</button>
+              <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId && !canSubmitProjectedState" mat-raised-button color="primary" (click)="focusReleaseWorkflow()"><mat-icon>account_tree</mat-icon>Prepare coordinated release</button>
               <button *ngIf="job.releasePackageId" mat-raised-button color="primary" (click)="openEvidence('dependency-workflow')"><mat-icon>account_tree</mat-icon> Open release controls</button>
             </ng-container>
             <button *ngIf="isSubmittedOwner && !job.releasePackageId" mat-stroked-button [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> Withdraw submission</button>
@@ -193,16 +287,32 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
               <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" [disabled]="approving" (click)="approveForPublication()"><mat-icon>verified</mat-icon> Approve for publication</button>
               <button *ngIf="auth.hasCapability('imports.reject')" mat-stroked-button color="warn" (click)="openDecisionPanel()"><mat-icon>close</mat-icon> Return for correction</button>
             </ng-container>
-            <button mat-button type="button" class="impact-evidence-link" (click)="openEvidence()"><mat-icon>fact_check</mat-icon> View full context and evidence</button>
+            <button mat-button type="button" class="impact-evidence-link" (click)="toggleContext()"><mat-icon>{{ contextExpanded ? 'close' : 'fact_check' }}</mat-icon> {{ contextExpanded ? 'Close details' : 'Details & evidence' }}</button>
           </section>
         </aside>
-        </div>
 
         <section class="context-zone" [class.context-zone--open]="contextExpanded">
           <header class="context-zone__header">
             <div><span>Governance context</span><strong>Details, dependencies and decision evidence</strong></div>
             <button mat-icon-button type="button" aria-label="Close details and evidence" (click)="toggleContext()"><mat-icon>close</mat-icon></button>
           </header>
+
+          <section class="inspector-overview">
+            <div class="inspector-block" *ngIf="comparison as cmp">
+              <div class="impact-section__title"><span>Baseline impact</span><strong>{{ cmp.hasBaseline ? 'Approved baseline' : 'Initial submission' }}</strong></div>
+              <div class="impact-change-grid">
+                <button type="button" (click)="focusRows('', 'New')"><strong>{{ cmp.newRows }}</strong><span>New</span></button>
+                <button type="button" (click)="focusRows('', 'Modified')"><strong>{{ cmp.modifiedRows }}</strong><span>Modified</span></button>
+                <button type="button" (click)="openEvidence()"><strong>{{ cmp.missingBaselineRows }}</strong><span>Missing</span></button>
+              </div>
+            </div>
+
+            <div class="inspector-block" *ngIf="isPortfolioDataset && portfolioReadiness">
+              <div class="impact-section__title"><span>Portfolio consistency</span><strong [class.impact-alert]="portfolioReadiness.requiresCoordinatedRelease">{{ portfolioReadiness.isConsistent ? 'Aligned' : 'Release required' }}</strong></div>
+              <p *ngIf="portfolioReadiness.isConsistent">The projected Article Master and Price List remain aligned.</p>
+              <p *ngIf="!portfolioReadiness.isConsistent">Related datasets must be coordinated before this version can be submitted.</p>
+            </div>
+          </section>
       <!-- Job summary -->
       <mat-card class="summary-card">
         <mat-card-content>
@@ -615,7 +725,6 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
       <!-- Rows table -->
       <mat-card class="rows-card" id="data-workbench">
         <mat-card-content>
-          <div class="rows-controls-sticky">
           <mat-card-header class="rows-header">
             <div>
               <div class="editor-eyebrow" *ngIf="isPrivateWorkspace">Private working copy</div>
@@ -625,72 +734,8 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
             <div class="list-meta">{{ rows?.total ?? job.totalRows }} matching rows</div>
           </mat-card-header>
 
-          <section class="draft-editor-toolbar" *ngIf="isPrivateWorkspace">
-            <div class="draft-change-summary">
-              <div class="draft-change-heading">
-                <span class="draft-live-dot"></span>
-                <div><strong>Working draft</strong><small>Changes are local to your private workspace</small></div>
-              </div>
-              <div class="draft-change-counts">
-                <span class="change-added"><strong>{{ job.draftAddedRows }}</strong> added</span>
-                <span class="change-modified"><strong>{{ job.draftModifiedRows }}</strong> modified</span>
-                <button type="button" class="change-removed" (click)="showRemovedRows = !showRemovedRows">
-                  <strong>{{ job.draftRemovedRows }}</strong> removed
-                  <mat-icon>{{ showRemovedRows ? 'expand_less' : 'expand_more' }}</mat-icon>
-                </button>
-              </div>
-            </div>
-
-            <div class="draft-command-bar" [class.draft-command-bar--selection]="selectedRowIds.size > 0">
-              <div class="selection-copy" *ngIf="selectedRowIds.size; else defaultDraftActions">
-                <span>{{ selectedRowIds.size }}</span>
-                <div><strong>row{{ selectedRowIds.size === 1 ? '' : 's' }} selected</strong><small>Choose an action for this selection</small></div>
-              </div>
-              <ng-template #defaultDraftActions>
-                <div class="selection-copy selection-copy--quiet">
-                  <mat-icon>edit_note</mat-icon>
-                  <div><strong>Edit the working data</strong><small>Select rows for batch actions</small></div>
-                </div>
-              </ng-template>
-
-              <div class="draft-actions">
-                <button mat-stroked-button type="button" [disabled]="draftMutationRunning" (click)="openAddRowEditor()">
-                  <mat-icon>add</mat-icon> Add row
-                </button>
-                <button mat-stroked-button type="button" [disabled]="draftMutationRunning || selectedRowIds.size !== 1" (click)="duplicateSelectedRow()">
-                  <mat-icon>content_copy</mat-icon> Duplicate
-                </button>
-                <button mat-stroked-button type="button" class="delete-selection" [disabled]="draftMutationRunning || !selectedRowIds.size" (click)="removeSelectedRows()">
-                  <mat-icon>delete_outline</mat-icon> Delete
-                </button>
-                <button mat-button type="button" *ngIf="selectedRowIds.size" (click)="clearRowSelection()">Clear</button>
-              </div>
-            </div>
-
-            <div class="removed-rows-tray" *ngIf="showRemovedRows">
-              <div class="removed-tray-heading">
-                <div><mat-icon>restore_from_trash</mat-icon><span><strong>Removed from this draft</strong><small>These rows can be restored before submission.</small></span></div>
-                <div class="removed-tray-actions">
-                  <button mat-stroked-button type="button" class="restore-all" *ngIf="removedRows.length" [disabled]="draftMutationRunning" (click)="restoreAllDraftRows()">
-                    <mat-icon>settings_backup_restore</mat-icon>
-                    Restore all <span>({{ removedRows.length }})</span>
-                  </button>
-                  <button mat-icon-button type="button" (click)="showRemovedRows = false" aria-label="Close removed rows"><mat-icon>close</mat-icon></button>
-                </div>
-              </div>
-              <div class="removed-row-list" *ngIf="removedRows.length; else noRemovedRows">
-                <div *ngFor="let row of removedRows">
-                  <span class="removed-row-number">#{{ row.rowNumber }}</span>
-                  <strong>{{ primaryRowValue(row) }}</strong>
-                  <span>{{ row.statusLabel }}</span>
-                  <button mat-button type="button" [disabled]="draftMutationRunning" (click)="restoreDraftRow(row)"><mat-icon>undo</mat-icon> Restore</button>
-                </div>
-              </div>
-              <ng-template #noRemovedRows><div class="removed-empty">No rows have been removed from this working draft.</div></ng-template>
-            </div>
-          </section>
-
-          <mat-card class="filters-card">
+          <div class="rows-controls-sticky">
+          <ng-template #rowFilters>
             <form class="filters-toolbar" [formGroup]="filtersForm">
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
                 <mat-label>Search</mat-label>
@@ -718,13 +763,70 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
                 </mat-select>
               </mat-form-field>
 
-              <div class="filter-actions">
-                <button mat-button type="button" (click)="clearFilters()">
-                  <mat-icon>filter_alt_off</mat-icon>
-                  Clear
+              <button mat-button type="button" class="filter-clear" (click)="clearFilters()">
+                <mat-icon>filter_alt_off</mat-icon><span>Clear</span>
+              </button>
+            </form>
+          </ng-template>
+
+          <section class="draft-editor-toolbar" *ngIf="isPrivateWorkspace">
+            <div class="draft-workbar" [class.draft-workbar--selection]="selectedRowIds.size > 0">
+              <div class="draft-change-summary">
+              <div class="draft-change-heading">
+                <span class="draft-live-dot"></span>
+                <div><strong>{{ selectedRowIds.size ? selectedRowIds.size + ' selected' : 'Working draft' }}</strong><small>{{ selectedRowIds.size ? 'Batch actions ready' : 'Private workspace' }}</small></div>
+              </div>
+              <div class="draft-change-counts">
+                <span class="change-added"><strong>{{ job.draftAddedRows }}</strong> added</span>
+                <span class="change-modified"><strong>{{ job.draftModifiedRows }}</strong> modified</span>
+                <button type="button" class="change-removed" (click)="showRemovedRows = !showRemovedRows">
+                  <strong>{{ job.draftRemovedRows }}</strong> removed
+                  <mat-icon>{{ showRemovedRows ? 'expand_less' : 'expand_more' }}</mat-icon>
                 </button>
               </div>
-            </form>
+              </div>
+
+              <ng-container *ngTemplateOutlet="rowFilters"></ng-container>
+
+              <div class="draft-actions">
+                <button mat-stroked-button type="button" [disabled]="draftMutationRunning" (click)="openAddRowEditor()">
+                  <mat-icon>add</mat-icon><span>Add row</span>
+                </button>
+                <button mat-stroked-button type="button" [disabled]="draftMutationRunning || selectedRowIds.size !== 1" (click)="duplicateSelectedRow()">
+                  <mat-icon>content_copy</mat-icon><span>Duplicate</span>
+                </button>
+                <button mat-stroked-button type="button" class="delete-selection" [disabled]="draftMutationRunning || !selectedRowIds.size" (click)="removeSelectedRows()">
+                  <mat-icon>delete_outline</mat-icon><span>Delete</span>
+                </button>
+                <button mat-icon-button type="button" *ngIf="selectedRowIds.size" (click)="clearRowSelection()" matTooltip="Clear selection" aria-label="Clear selection"><mat-icon>close</mat-icon></button>
+              </div>
+            </div>
+
+            <div class="removed-rows-tray" *ngIf="showRemovedRows">
+              <div class="removed-tray-heading">
+                <div><mat-icon>restore_from_trash</mat-icon><span><strong>Removed from this draft</strong><small>These rows can be restored before submission.</small></span></div>
+                <div class="removed-tray-actions">
+                  <button mat-stroked-button type="button" class="restore-all" *ngIf="removedRows.length" [disabled]="draftMutationRunning" (click)="restoreAllDraftRows()">
+                    <mat-icon>settings_backup_restore</mat-icon>
+                    Restore all <span>({{ removedRows.length }})</span>
+                  </button>
+                  <button mat-icon-button type="button" (click)="showRemovedRows = false" aria-label="Close removed rows"><mat-icon>close</mat-icon></button>
+                </div>
+              </div>
+              <div class="removed-row-list" *ngIf="removedRows.length; else noRemovedRows">
+                <div *ngFor="let row of removedRows">
+                  <span class="removed-row-number">#{{ row.rowNumber }}</span>
+                  <strong>{{ primaryRowValue(row) }}</strong>
+                  <span>{{ row.statusLabel }}</span>
+                  <button mat-button type="button" [disabled]="draftMutationRunning" (click)="restoreDraftRow(row)"><mat-icon>undo</mat-icon> Restore</button>
+                </div>
+              </div>
+              <ng-template #noRemovedRows><div class="removed-empty">No rows have been removed from this working draft.</div></ng-template>
+            </div>
+          </section>
+
+          <mat-card class="filters-card" *ngIf="!isPrivateWorkspace">
+            <ng-container *ngTemplateOutlet="rowFilters"></ng-container>
           </mat-card>
           </div>
 
@@ -922,7 +1024,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
       </mat-card>
       </div>
 
-      <div class="mobile-impact-backdrop" *ngIf="mobileImpactOpen" (click)="mobileImpactOpen = false"></div>
+      <div class="mobile-impact-backdrop" *ngIf="mobileImpactOpen || contextExpanded" (click)="mobileImpactOpen = false; contextExpanded = false"></div>
       <nav class="mobile-workbench-dock" aria-label="Dataset workbench shortcuts">
         <button type="button" [class.mobile-dock-alert]="job.errorRows > 0" (click)="focusRows(job.errorRows > 0 ? 'Error' : '')">
           <mat-icon>{{ job.errorRows > 0 ? 'error_outline' : 'check_circle' }}</mat-icon>
@@ -949,6 +1051,13 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     </ng-container>
   `,
   styles: [`
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: calc(100dvh - 90px);
+      min-height: 560px;
+      overflow: hidden;
+    }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
     .back-btn { margin-bottom: 4px; }
     h1 { margin: 0; font-size: 20px; font-weight: 400; }
@@ -957,6 +1066,12 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     .rename-upload { flex: none; width: 34px; height: 34px; color: var(--app-accent); }
     .rename-upload mat-icon { width: 18px; height: 18px; font-size: 18px; }
     .header-actions { display: flex; gap: 8px; margin-top: 24px; align-items: center; }
+    .focus-mode-toggle {
+      border-color: color-mix(in srgb, var(--app-accent) 38%, var(--app-border)) !important;
+      color: var(--app-accent) !important;
+      background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface));
+    }
+    .focus-mode-toggle:hover { background: color-mix(in srgb, var(--app-accent) 12%, var(--app-surface)); }
     .header-action-btn {
       border-radius: 999px;
       min-height: 36px;
@@ -1286,11 +1401,21 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     .rows-card .mat-mdc-card-header {
       padding: 12px 16px 8px;
     }
-    .rows-header.mat-mdc-card-header {
+    .rows-card > .mat-mdc-card-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
       min-height: 0;
-      align-items: flex-end;
+      box-sizing: border-box;
+    }
+    .rows-header.mat-mdc-card-header {
+      min-height: 58px;
+      align-items: center;
       row-gap: 10px;
       column-gap: 8px;
+      margin: 0 0 8px;
+      padding: 10px 16px !important;
+      box-sizing: border-box;
     }
     .rows-header .mat-mdc-card-title {
       margin: 0;
@@ -1299,41 +1424,40 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     .rows-header p { margin: 5px 0 0; color: var(--app-text-muted); font-size: 13px; }
     .editor-eyebrow { margin-bottom: 4px; color: #0f766e; font-size: 10px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
     .rows-controls-sticky {
-      position: static;
+      position: relative;
+      z-index: 7;
+      margin-bottom: 10px;
+      padding-bottom: 2px;
       background: var(--app-surface-elevated);
     }
     .rows-header {
-      margin-bottom: 8px;
-      padding-bottom: 6px;
       border-bottom: 1px solid #e2e8f0;
     }
-    .draft-editor-toolbar { display: grid; gap: 10px; margin-bottom: 12px; }
-    .draft-change-summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 15px; border: 1px solid color-mix(in srgb, #14b8a6 25%, var(--app-border)); border-radius: 14px; background: linear-gradient(100deg, color-mix(in srgb, #14b8a6 9%, var(--app-surface-elevated)), var(--app-surface-elevated)); }
-    .draft-change-heading { display: flex; align-items: center; gap: 11px; }
-    .draft-live-dot { width: 10px; height: 10px; border: 2px solid var(--app-surface-elevated); border-radius: 50%; background: #14b8a6; box-shadow: 0 0 0 4px color-mix(in srgb, #14b8a6 18%, transparent); }
+    .draft-editor-toolbar { position: relative; margin-bottom: 0; }
+    .draft-workbar { display: grid; grid-template-columns:auto minmax(420px,1fr) auto; align-items:center; gap:10px; padding:8px 10px; border:1px solid color-mix(in srgb,#0f8f87 24%,var(--app-border)); border-radius:14px; background:linear-gradient(100deg,color-mix(in srgb,#14b8a6 6%,var(--app-surface-elevated)),var(--app-surface-elevated)); box-shadow:0 10px 28px color-mix(in srgb,#0f172a 8%,transparent); }
+    .draft-workbar--selection { border-color:color-mix(in srgb,var(--app-accent) 42%,var(--app-border)); }
+    .draft-change-summary { display:flex; align-items:center; gap:10px; min-width:max-content; }
+    .draft-change-heading { display: flex; align-items: center; gap: 8px; }
+    .draft-live-dot { width: 8px; height: 8px; border: 2px solid var(--app-surface-elevated); border-radius: 50%; background: #14b8a6; box-shadow: 0 0 0 3px color-mix(in srgb, #14b8a6 18%, transparent); }
     .draft-change-heading > div { display: flex; flex-direction: column; gap: 2px; }
-    .draft-change-heading strong { font-size: 14px; }
-    .draft-change-heading small { color: var(--app-text-muted); font-size: 11px; }
-    .draft-change-counts { display: flex; align-items: center; gap: 7px; }
-    .draft-change-counts > span, .draft-change-counts > button { display: inline-flex; align-items: center; gap: 5px; min-height: 31px; padding: 0 10px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: var(--app-surface); font: inherit; font-size: 11px; }
-    .draft-change-counts strong { color: var(--app-text); font-size: 13px; }
+    .draft-change-heading strong { font-size: 12px; }
+    .draft-change-heading small { color: var(--app-text-muted); font-size: 8px; }
+    .draft-change-counts { display: flex; align-items: center; gap: 5px; }
+    .draft-change-counts > span, .draft-change-counts > button { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: var(--app-surface); font: inherit; font-size: 9px; }
+    .draft-change-counts strong { color: var(--app-text); font-size: 11px; }
     .draft-change-counts button { cursor: pointer; }
     .draft-change-counts mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .change-added { border-color: color-mix(in srgb, #22c55e 35%, var(--app-border)) !important; }
     .change-modified { border-color: color-mix(in srgb, #3b82f6 35%, var(--app-border)) !important; }
     .change-removed { border-color: color-mix(in srgb, #ef4444 30%, var(--app-border)) !important; }
-    .draft-command-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 13px; border: 1px solid var(--app-border); border-radius: 14px; background: var(--app-surface); transition: border-color .18s ease, background .18s ease; }
-    .draft-command-bar--selection { border-color: color-mix(in srgb, var(--app-accent) 38%, var(--app-border)); background: color-mix(in srgb, var(--app-accent) 6%, var(--app-surface)); }
-    .selection-copy { display: flex; align-items: center; gap: 10px; }
-    .selection-copy > span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: white; background: var(--app-accent); font-weight: 900; }
-    .selection-copy > mat-icon { display: grid; place-items: center; width: 34px; height: 34px; color: var(--app-accent); }
-    .selection-copy > div { display: flex; flex-direction: column; gap: 1px; }
-    .selection-copy strong { font-size: 13px; }
-    .selection-copy small { color: var(--app-text-muted); font-size: 11px; }
     .draft-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
-    .draft-actions button { min-height: 38px; border-radius: 11px; font-weight: 800; }
+    .draft-actions button { min-height:40px; border-radius:12px; font-weight:800; background:var(--app-surface); }
+    .draft-actions button:not(.mat-mdc-icon-button) { padding-inline:11px; }
+    .draft-actions button mat-icon { width:17px; height:17px; margin-right:4px; font-size:17px; }
+    .draft-actions .mat-mdc-icon-button { width:40px; min-width:40px; padding:0; }
+    .draft-actions .mat-mdc-icon-button mat-icon { margin:0; }
     .delete-selection:not(:disabled) { border-color: color-mix(in srgb, #ef4444 40%, var(--app-border)); color: #dc2626; }
-    .removed-rows-tray { overflow: hidden; border: 1px solid color-mix(in srgb, #ef4444 25%, var(--app-border)); border-radius: 14px; background: color-mix(in srgb, #ef4444 4%, var(--app-surface)); }
+    .removed-rows-tray { position:absolute; z-index:12; top:calc(100% + 6px); right:0; left:0; overflow:hidden; border:1px solid color-mix(in srgb,#ef4444 25%,var(--app-border)); border-radius:14px; background:var(--app-surface-elevated); box-shadow:0 20px 50px rgba(2,6,23,.2); }
     .removed-tray-heading, .removed-tray-heading > div { display: flex; align-items: center; }
     .removed-tray-heading { justify-content: space-between; gap: 14px; padding: 11px 13px; border-bottom: 1px solid var(--app-border); }
     .removed-tray-heading > div { gap: 9px; }
@@ -1353,7 +1477,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     .removed-row-list button { color: var(--app-accent); font-weight: 800; }
     .removed-empty { padding: 18px; color: var(--app-text-muted); text-align: center; font-size: 12px; }
     .table-wrapper { overflow-x: auto; width: 100%; }
-    .desktop-rows { display: block; min-height: 360px; max-height: calc(100dvh - 330px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+    .desktop-rows { display: block; flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
     .mobile-rows { display: none; }
     table { width: 100%; min-width: 980px; }
     .desktop-rows th.mat-mdc-header-cell,
@@ -1574,7 +1698,25 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
       opacity: 1;
     }
 
+    :host.workbench-focus .page-header,
+    :host.workbench-focus .impact-rail {
+      display: none;
+    }
+    :host.workbench-focus .rows-header {
+      display: none;
+    }
+    :host.workbench-focus .rows-controls-sticky {
+      margin-top: 8px;
+    }
+
     @media (max-width: 900px) {
+      :host {
+        display: block;
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+      }
+      .focus-mode-toggle { display: none; }
       .page-header { flex-direction: column; gap: 10px; }
       .header-actions { margin-top: 0; width: 100%; flex-wrap: wrap; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .summary-grid-metadata, .summary-grid-stats { grid-template-columns: repeat(2, 1fr); }
@@ -1587,7 +1729,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
       .workflow-rail > mat-icon { transform:rotate(90deg); margin-left:2px; }
       .workflow-rail__step strong { white-space:normal; }
       .desktop-rows { max-height: 620px; }
-      .rows-controls-sticky { position: static; top: auto; }
+      .rows-controls-sticky { top: auto; }
     }
 
     @media (max-width: 600px) {
@@ -1606,16 +1748,21 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
         padding-bottom: 8px;
       }
       .rows-header.mat-mdc-card-header {
+        min-height: 0;
         align-items: stretch;
         row-gap: 10px;
+        margin-bottom: 6px;
+        padding: 12px 12px 8px !important;
       }
-      .draft-change-summary { align-items: flex-start; flex-direction: column; padding: 12px; }
-      .draft-change-counts { width: 100%; flex-wrap: wrap; }
-      .draft-change-counts > span, .draft-change-counts > button { flex: 1; justify-content: center; min-width: 90px; }
-      .draft-command-bar { align-items: stretch; flex-direction: column; }
-      .draft-actions { display: grid; grid-template-columns: 1fr 1fr; }
-      .draft-actions button { width: 100%; }
-      .draft-actions button:first-child { grid-column: 1 / -1; }
+      .draft-workbar { grid-template-columns:minmax(0,1fr) auto; gap:7px; padding:8px; }
+      .draft-change-summary { min-width:0; overflow-x:auto; scrollbar-width:none; }
+      .draft-change-summary::-webkit-scrollbar { display:none; }
+      .draft-change-heading small { display:none; }
+      .draft-change-counts { flex:0 0 auto; }
+      .draft-actions { gap:5px; }
+      .draft-actions button { min-width:34px; min-height:36px; padding-inline:8px !important; }
+      .draft-actions button span { display:none; }
+      .draft-actions button mat-icon { margin:0; }
       .removed-row-list > div { grid-template-columns: auto minmax(0,1fr) auto; }
       .removed-row-list > div > span:not(.removed-row-number) { display: none; }
       .removed-row-list button { min-width: 0; padding-inline: 7px; }
@@ -1685,6 +1832,8 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
   `]
 })
 export class ImportPreviewComponent implements OnInit {
+  @HostBinding('class.workbench-focus') focusMode = false;
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly importService = inject(ImportService);
@@ -1727,6 +1876,13 @@ export class ImportPreviewComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
 
+  @HostListener('document:keydown.escape')
+  exitFocusMode(): void {
+    if (this.focusMode) {
+      this.focusMode = false;
+    }
+  }
+
   readonly rowStatusOptions: { value: RowStatus; label: string }[] = [
     { value: 'Valid', label: 'Valid' },
     { value: 'Warning', label: 'Warnings' },
@@ -1757,6 +1913,12 @@ export class ImportPreviewComponent implements OnInit {
     return Math.round((this.job.validRows / this.job.totalRows) * 100);
   }
 
+  toggleFocusMode(): void {
+    this.focusMode = !this.focusMode;
+    this.contextExpanded = false;
+    this.mobileImpactOpen = false;
+  }
+
   focusRows(status: RowStatus | '' = '', comparison: ComparisonStatus | '' = ''): void {
     this.mobileImpactOpen = false;
     this.rowPage = 1;
@@ -1765,6 +1927,7 @@ export class ImportPreviewComponent implements OnInit {
   }
 
   toggleContext(): void {
+    this.mobileImpactOpen = false;
     this.contextExpanded = !this.contextExpanded;
     if (this.contextExpanded) {
       window.setTimeout(() => this.scrollToElement(document.querySelector('.context-zone')));

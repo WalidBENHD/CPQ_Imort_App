@@ -19,6 +19,7 @@
   --app-border: #dbe4f0;
   --app-accent: #2563eb;
   --app-soft-surface: #f8fafc;
+  --app-table-header-surface: #f8fafc;
   --app-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.07);
   --app-shadow-raised: 0 18px 48px rgba(15, 23, 42, 0.12);
   --motion-fast: 160ms;
@@ -39,6 +40,7 @@ html.theme-dark {
   --app-border: rgba(148, 163, 184, 0.28);
   --app-accent: #7ea2ff;
   --app-soft-surface: rgba(15, 23, 42, 0.78);
+  --app-table-header-surface: #111c31;
   --app-shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.2);
   --app-shadow-raised: 0 22px 56px rgba(0, 0, 0, 0.34);
   color-scheme: dark;
@@ -2914,7 +2916,7 @@ html.theme-dark app-evolis-decryptor .table-scroll {
 }
 
 html.theme-dark app-evolis-decryptor .result-table thead th {
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.96)) !important;
+  background: linear-gradient(180deg, #1e293b, #0f172a) !important;
   color: #cbd5e1 !important;
 }
 
@@ -3032,17 +3034,40 @@ html.theme-dark app-dashboard .connection-meta {
 /* Material tables render an opaque white surface by default, which left
    themed light text invisible on a white block inside dark cards. */
 html.theme-dark .mat-mdc-table,
-html.theme-dark .mat-mdc-header-row,
 html.theme-dark .mat-mdc-row,
 html.theme-dark .mat-mdc-footer-row {
   background: transparent !important;
   --mat-table-background-color: transparent;
 }
 
+html.theme-dark .mat-mdc-header-row {
+  background: var(--app-table-header-surface) !important;
+  --mat-table-background-color: var(--app-table-header-surface);
+}
+
 html.theme-dark .mat-mdc-header-cell {
-  background: transparent !important;
+  position: relative;
+  z-index: 2;
+  background: var(--app-table-header-surface) !important;
   color: var(--app-text-muted) !important;
   border-bottom-color: var(--app-border) !important;
+}
+
+html.theme-dark .mat-mdc-header-cell.mat-mdc-table-sticky {
+  background: var(--app-table-header-surface) !important;
+  box-shadow: 0 1px 0 var(--app-border);
+}
+
+html.theme-dark table thead,
+html.theme-dark table thead tr,
+html.theme-dark table thead th {
+  background-color: var(--app-table-header-surface) !important;
+}
+
+html.theme-dark .record-table-head,
+html.theme-dark .requirements-table-head,
+html.theme-dark .subtable-head {
+  background: var(--app-table-header-surface) !important;
 }
 
 html.theme-dark .mat-mdc-cell {
@@ -3165,7 +3190,7 @@ html.theme-dark app-import-wizard .requirements-table {
 }
 
 html.theme-dark app-import-wizard .requirements-table-head {
-  background: rgba(30, 41, 59, 0.96) !important;
+  background: var(--app-table-header-surface) !important;
   color: #94a3b8 !important;
   border-bottom-color: var(--app-border) !important;
 }
