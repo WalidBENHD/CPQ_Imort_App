@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, inject } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -24,6 +24,13 @@ type NavItem = {
   exact?: boolean;
 };
 
+type HeaderCommand = {
+  route: string;
+  label: string;
+  description: string;
+  icon: string;
+};
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -33,41 +40,110 @@ type NavItem = {
     <ng-container *ngIf="navigationReady; else appBooting">
     <div class="app-shell" *ngIf="showAppChrome; else landingLayout">
       <mat-toolbar class="top-toolbar">
-        <button
-          mat-icon-button
-          *ngIf="auth.isAuthenticated"
-          (click)="toggleSidebar()"
-          aria-label="Toggle navigation"
+        <div class="toolbar-leading">
+          <button
+            mat-icon-button
+            *ngIf="auth.isAuthenticated"
+            (click)="toggleSidebar()"
+            aria-label="Toggle navigation"
+          >
+            <mat-icon>{{ navToggleIcon }}</mat-icon>
+          </button>
+
+          <span class="brand">
+            <span class="brand__mark"><mat-icon>cloud_upload</mat-icon></span>
+            <span class="brand__name">CPQ Platform</span>
+          </span>
+
+          <span class="toolbar-context" *ngIf="auth.isAuthenticated">
+            <span class="toolbar-context__divider"></span>
+            <span class="toolbar-context__page">{{ currentPageTitle }}</span>
+          </span>
+        </div>
+
+        <div
+          class="header-command"
+          *ngIf="auth.isAuthenticated && auth.hasCapability('imports.view')"
+          [class.header-command--open]="headerCommandOpen"
+          (click)="$event.stopPropagation()"
         >
-          <mat-icon>{{ navToggleIcon }}</mat-icon>
-        </button>
+          <form class="header-command__field" (submit)="runPrimaryHeaderCommand(); $event.preventDefault()">
+            <mat-icon>search</mat-icon>
+            <input
+              type="search"
+              aria-label="Find data or navigate the platform"
+              placeholder="Search CPQ data, uploads and evidence"
+              autocomplete="off"
+              [value]="headerQuery"
+              (input)="setHeaderQuery($any($event.target).value)"
+              (focus)="headerCommandOpen = true"
+              (keydown.escape)="closeHeaderCommand()"
+            />
+            <button type="button" class="header-command__clear" *ngIf="headerQuery" aria-label="Clear search" (click)="clearHeaderQuery()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </form>
 
-        <span class="brand">
-          <span class="brand__mark"><mat-icon>cloud_upload</mat-icon></span>
-          <span class="brand__name">CPQ Platform</span>
-        </span>
+          <section class="header-command__panel" *ngIf="headerCommandOpen">
+            <div class="header-command__heading">
+              <span>{{ headerQuery ? 'Search and navigate' : 'Quick access' }}</span>
+              <small>Saint-Marcellin · PDU</small>
+            </div>
 
-        <span class="toolbar-context" *ngIf="auth.isAuthenticated">
-          <span class="toolbar-context__divider"></span>
-          <span class="toolbar-context__page">{{ currentPageTitle }}</span>
-        </span>
+            <button type="button" class="header-command__result header-command__result--primary" *ngIf="headerQuery" (click)="traceHeaderQuery()">
+              <span class="header-command__result-icon"><mat-icon>manage_search</mat-icon></span>
+              <span>
+                <strong>Trace “{{ headerQuery }}”</strong>
+                <small>Find its current CPQ value and full publication history</small>
+              </span>
+              <span class="header-command__action">Trace <mat-icon>arrow_forward</mat-icon></span>
+            </button>
 
-        <span class="spacer"></span>
+            <button type="button" class="header-command__result" *ngIf="headerQuery" (click)="searchUploadsFromHeader()">
+              <span class="header-command__result-icon"><mat-icon>upload_file</mat-icon></span>
+              <span>
+                <strong>Search publications for “{{ headerQuery }}”</strong>
+                <small>Open uploads with this search already applied</small>
+              </span>
+              <mat-icon class="header-command__arrow">north_east</mat-icon>
+            </button>
 
-        <span class="scope-chip" *ngIf="auth.isAuthenticated && auth.hasCapability('imports.view')">
-          <i></i>
-          Saint-Marcellin · PDU
-        </span>
+            <button type="button" class="header-command__result" *ngFor="let command of filteredHeaderCommands" (click)="navigateHeaderCommand(command.route)">
+              <span class="header-command__result-icon"><mat-icon>{{ command.icon }}</mat-icon></span>
+              <span>
+                <strong>{{ command.label }}</strong>
+                <small>{{ command.description }}</small>
+              </span>
+              <mat-icon class="header-command__arrow">arrow_forward</mat-icon>
+            </button>
 
-        <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
+            <div class="header-command__empty" *ngIf="headerQuery && filteredHeaderCommands.length === 0">
+              <mat-icon>tips_and_updates</mat-icon>
+              Use Trace for an exact business reference, or search the publication archive.
+            </div>
+          </section>
+        </div>
 
-        <button mat-icon-button class="profile-trigger" *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu" aria-label="Open profile menu">
-          <span>{{ auth.userInitials }}</span>
-        </button>
+        <div class="toolbar-actions">
+          <button mat-icon-button class="quick-create" *ngIf="auth.isAuthenticated && canCreateAnything" [matMenuTriggerFor]="createMenu" aria-label="Create new work" matTooltip="Create new work">
+            <mat-icon>add</mat-icon>
+          </button>
 
-        <a mat-button class="sign-in-link" *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
-          <mat-icon>login</mat-icon> Sign in
-        </a>
+          <span class="scope-chip" *ngIf="auth.isAuthenticated && auth.hasCapability('imports.view')">
+            <i></i>
+            Saint-Marcellin · PDU
+          </span>
+
+          <app-notification-center *ngIf="auth.isAuthenticated"></app-notification-center>
+
+          <button mat-icon-button class="profile-trigger" *ngIf="auth.isAuthenticated" [matMenuTriggerFor]="userMenu" aria-label="Open profile menu">
+            <span>{{ auth.userInitials }}</span>
+          </button>
+
+          <a mat-button class="sign-in-link" *ngIf="!auth.isAuthenticated" routerLink="/login" routerLinkActive="active-link">
+            <mat-icon>login</mat-icon> Sign in
+          </a>
+        </div>
 
         <mat-menu #userMenu="matMenu" class="user-menu-panel">
           <section class="profile-menu" (click)="$event.stopPropagation()">
@@ -97,6 +173,52 @@ type NavItem = {
               <mat-icon>logout</mat-icon>
               Sign out
             </button>
+          </section>
+        </mat-menu>
+
+        <mat-menu #createMenu="matMenu" class="create-menu-panel">
+          <section class="create-menu" (click)="$event.stopPropagation()">
+            <header class="create-menu__header">
+              <span class="create-menu__mark"><mat-icon>add</mat-icon></span>
+              <span>
+                <small>Start governed work</small>
+                <strong>What would you like to prepare?</strong>
+              </span>
+            </header>
+
+            <div class="create-menu__actions">
+              <button mat-menu-item class="create-menu__action" routerLink="/import/new" *ngIf="canUploadDataset">
+                <span class="create-menu__icon create-menu__icon--upload"><mat-icon>upload_file</mat-icon></span>
+                <span class="create-menu__copy">
+                  <strong>Upload a dataset</strong>
+                  <small>Import an Excel file into your private workspace</small>
+                </span>
+                <mat-icon class="create-menu__arrow">arrow_forward</mat-icon>
+              </button>
+
+              <button mat-menu-item class="create-menu__action" routerLink="/maintenance/new" *ngIf="canCreateMaintenance">
+                <span class="create-menu__icon create-menu__icon--change"><mat-icon>edit_square</mat-icon></span>
+                <span class="create-menu__copy">
+                  <strong>Prepare a data change</strong>
+                  <small>Change governed records without uploading a file</small>
+                </span>
+                <mat-icon class="create-menu__arrow">arrow_forward</mat-icon>
+              </button>
+
+              <button mat-menu-item class="create-menu__action" [routerLink]="['/uploads']" [queryParams]="{ space: 'workspace' }">
+                <span class="create-menu__icon create-menu__icon--workspace"><mat-icon>workspaces</mat-icon></span>
+                <span class="create-menu__copy">
+                  <strong>Open my workspace</strong>
+                  <small>Continue drafts that are still private to you</small>
+                </span>
+                <mat-icon class="create-menu__arrow">arrow_forward</mat-icon>
+              </button>
+            </div>
+
+            <footer class="create-menu__footer">
+              <span><i></i> Active scope</span>
+              <strong>Saint-Marcellin · PDU</strong>
+            </footer>
           </section>
         </mat-menu>
       </mat-toolbar>
@@ -298,12 +420,24 @@ type NavItem = {
       z-index: 120;
       height: 58px;
       min-height: 58px;
+      display: grid;
+      grid-template-columns: minmax(270px, 1fr) minmax(360px, 680px) minmax(270px, 1fr);
+      align-items: center;
+      gap: 20px;
       padding: 0 18px;
       box-shadow: 0 5px 18px rgba(15, 23, 42, 0.14);
       background: linear-gradient(110deg, #243c9b 0%, #3b59c5 58%, #2948aa 100%);
       color: var(--app-toolbar-text);
       border-bottom: 1px solid rgba(255, 255, 255, 0.16);
     }
+    .toolbar-leading,
+    .toolbar-actions {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+    }
+    .toolbar-leading { justify-content: flex-start; }
+    .toolbar-actions { justify-content: flex-end; gap: 5px; }
     .brand { display: flex; align-items: center; gap: 9px; font-weight: 750; font-size: 16px; letter-spacing: -0.01em; }
     .brand__mark {
       width: 31px;
@@ -321,13 +455,191 @@ type NavItem = {
     .toolbar-context { display: flex; align-items: center; gap: 14px; margin-left: 16px; }
     .toolbar-context__divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.25); }
     .toolbar-context__page { color: rgba(255, 255, 255, 0.82); font-size: 13px; font-weight: 650; }
-    .spacer { flex: 1; }
+    .header-command {
+      position: relative;
+      width: 100%;
+      margin: 0;
+      z-index: 3;
+    }
+    .header-command__field {
+      height: 38px;
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 0 9px 0 11px;
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 13px;
+      background: rgba(8, 24, 78, .24);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+      transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .header-command--open .header-command__field,
+    .header-command__field:focus-within {
+      border-color: rgba(153, 246, 228, .65);
+      background: rgba(7, 24, 72, .42);
+      box-shadow: 0 0 0 3px rgba(45, 212, 191, .1);
+    }
+    .header-command__field > mat-icon {
+      width: 18px;
+      height: 18px;
+      color: rgba(255, 255, 255, .76);
+      font-size: 18px;
+    }
+    .header-command__field input {
+      min-width: 0;
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 560;
+    }
+    .header-command__field input::placeholder { color: rgba(255, 255, 255, .64); }
+    .header-command__field input::-webkit-search-cancel-button { display: none; }
+    .header-command__clear {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: rgba(255, 255, 255, .72);
+      cursor: pointer;
+    }
+    .header-command__clear:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+    .header-command__clear mat-icon { width: 16px; height: 16px; font-size: 16px; }
+    .header-command__panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      width: min(580px, calc(100vw - 32px));
+      max-height: min(620px, calc(100vh - 86px));
+      overflow-y: auto;
+      padding: 10px;
+      border: 1px solid color-mix(in srgb, var(--app-accent) 20%, var(--app-border));
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--app-surface) 96%, transparent);
+      color: var(--app-text);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, .24), 0 4px 16px rgba(15, 23, 42, .1);
+      backdrop-filter: blur(18px);
+      animation: command-panel-enter 160ms var(--ease-out) both;
+    }
+    .header-command__heading {
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px 7px;
+      color: var(--app-muted);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .header-command__heading small {
+      color: color-mix(in srgb, var(--app-accent) 72%, var(--app-muted));
+      font: inherit;
+      letter-spacing: .04em;
+      text-transform: none;
+    }
+    .header-command__result {
+      width: 100%;
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 11px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--app-text);
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 140ms ease, transform 140ms ease;
+    }
+    .header-command__result:hover,
+    .header-command__result:focus-visible {
+      outline: 0;
+      background: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface));
+      transform: translateX(2px);
+    }
+    .header-command__result--primary {
+      margin-bottom: 4px;
+      border: 1px solid color-mix(in srgb, #0f9f96 26%, var(--app-border));
+      background: linear-gradient(110deg, color-mix(in srgb, #0f9f96 10%, var(--app-surface)), var(--app-surface));
+    }
+    .header-command__result-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      background: color-mix(in srgb, var(--app-accent) 10%, var(--app-surface));
+      color: var(--app-accent);
+    }
+    .header-command__result-icon mat-icon { width: 19px; height: 19px; font-size: 19px; }
+    .header-command__result > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+    .header-command__result strong {
+      overflow: hidden;
+      color: var(--app-text);
+      font-size: 12px;
+      font-weight: 760;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .header-command__result small {
+      overflow: hidden;
+      color: var(--app-muted);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .header-command__arrow { width: 17px; height: 17px; color: var(--app-muted); font-size: 17px; }
+    .header-command__action {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #0f8f86;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .header-command__action mat-icon { width: 15px; height: 15px; font-size: 15px; }
+    .header-command__empty {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 5px 4px 0;
+      padding: 10px;
+      border-top: 1px solid var(--app-border);
+      color: var(--app-muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    .header-command__empty mat-icon { width: 17px; height: 17px; color: #ca8a04; font-size: 17px; }
+    .quick-create {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, .25);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .1);
+      color: #fff;
+    }
+    .quick-create:hover { background: rgba(255, 255, 255, .17); }
+    .quick-create mat-icon { width: 18px; height: 18px; margin: 0; font-size: 18px; }
     .scope-chip {
       min-height: 30px;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      margin-right: 12px;
+      margin: 0 4px;
       padding: 0 12px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 999px;
@@ -797,12 +1109,38 @@ type NavItem = {
       0%, 100% { box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.12); }
       50% { box-shadow: 0 0 0 7px rgba(94, 234, 212, 0.04), 0 0 12px rgba(94, 234, 212, .28); }
     }
+    @keyframes command-panel-enter {
+      from { opacity: 0; transform: translateY(-6px) scale(.99); }
+      to { opacity: 1; transform: none; }
+    }
+    @media (max-width: 1240px) {
+      .top-toolbar {
+        grid-template-columns: minmax(220px, auto) minmax(300px, 1fr) minmax(230px, auto);
+        gap: 12px;
+      }
+      .toolbar-context { display: none; }
+    }
+    @media (max-width: 980px) {
+      .top-toolbar {
+        grid-template-columns: minmax(185px, auto) minmax(230px, 1fr) auto;
+        gap: 9px;
+      }
+      .scope-chip { display: none; }
+    }
     @media (max-width: 768px) {
-      .top-toolbar { height: 56px; min-height: 56px; padding: 0 8px; }
+      .top-toolbar {
+        height: 56px;
+        min-height: 56px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px;
+        padding: 0 8px;
+      }
       .brand { font-size: 14px; gap: 6px; }
       .brand__mark { width: 28px; height: 28px; border-radius: 9px; }
       .toolbar-context,
-      .scope-chip { display: none; }
+      .scope-chip,
+      .header-command,
+      .quick-create { display: none; }
 
       .shell-body,
       .shell-body--collapsed {
@@ -848,6 +1186,7 @@ type NavItem = {
       .scope-chip i, .page-content > router-outlet + * { animation: none; }
       .brand__mark, .profile-trigger span, .side-link, .side-link mat-icon { transition: none; }
       .app-boot__progress i { animation: none; width: 100%; }
+      .header-command__panel { animation: none; }
     }
   `]
 })
@@ -880,6 +1219,8 @@ export class AppComponent implements OnInit, OnDestroy {
   navigationReady = false;
   isSidebarOpen = true;
   isMobileSidebarOpen = false;
+  headerCommandOpen = false;
+  headerQuery = '';
 
   get visibleWorkNavItems(): ReadonlyArray<NavItem> {
     return this.navItems.filter(item => item.capabilities?.every(capability => this.auth.hasCapability(capability)) ?? true);
@@ -887,6 +1228,39 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get visibleAdminNavItems(): ReadonlyArray<NavItem> {
     return this.adminNavItems.filter(item => item.capabilities?.every(capability => this.auth.hasCapability(capability)) ?? true);
+  }
+
+  get headerCommands(): ReadonlyArray<HeaderCommand> {
+    return [
+      ...this.visibleWorkNavItems,
+      ...this.visibleAdminNavItems,
+      ...(this.auth.isInternalTools ? this.internalToolsNavItems : [])
+    ];
+  }
+
+  get filteredHeaderCommands(): ReadonlyArray<HeaderCommand> {
+    const query = this.headerQuery.trim().toLowerCase();
+    const commands = query
+      ? this.headerCommands.filter(command =>
+          `${command.label} ${command.description}`.toLowerCase().includes(query))
+      : this.headerCommands.filter(command =>
+          ['/dashboard', '/uploads', '/business-trace', '/maintenance'].includes(command.route));
+
+    return commands.slice(0, this.headerQuery ? 5 : 4);
+  }
+
+  get canUploadDataset(): boolean {
+    return this.auth.hasCapability('imports.upload') && this.auth.hasCapability('imports.submit');
+  }
+
+  get canCreateMaintenance(): boolean {
+    return this.auth.hasCapability('imports.upload')
+      && this.auth.hasCapability('imports.correct_own')
+      && this.auth.hasCapability('imports.submit');
+  }
+
+  get canCreateAnything(): boolean {
+    return this.canUploadDataset || this.canCreateMaintenance || this.auth.hasCapability('imports.view');
   }
 
   get showSidebarLabels(): boolean {
@@ -988,6 +1362,65 @@ export class AppComponent implements OnInit, OnDestroy {
     this.routeSub?.unsubscribe();
   }
 
+  @HostListener('document:click')
+  closeHeaderCommand(): void {
+    this.headerCommandOpen = false;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onGlobalShortcut(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && this.auth.isAuthenticated) {
+      event.preventDefault();
+      this.headerCommandOpen = true;
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLInputElement>('.header-command__field input')?.focus();
+      });
+    }
+  }
+
+  setHeaderQuery(value: string): void {
+    this.headerQuery = value;
+    this.headerCommandOpen = true;
+  }
+
+  clearHeaderQuery(): void {
+    this.headerQuery = '';
+    this.headerCommandOpen = true;
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLInputElement>('.header-command__field input')?.focus();
+    });
+  }
+
+  runPrimaryHeaderCommand(): void {
+    if (this.headerQuery.trim()) {
+      this.traceHeaderQuery();
+      return;
+    }
+
+    this.headerCommandOpen = true;
+  }
+
+  traceHeaderQuery(): void {
+    const identifier = this.headerQuery.trim();
+    if (!identifier) return;
+
+    this.closeAndResetHeader();
+    void this.router.navigate(['/business-trace'], { queryParams: { identifier } });
+  }
+
+  searchUploadsFromHeader(): void {
+    const query = this.headerQuery.trim();
+    if (!query) return;
+
+    this.closeAndResetHeader();
+    void this.router.navigate(['/uploads'], { queryParams: { q: query } });
+  }
+
+  navigateHeaderCommand(route: string): void {
+    this.closeAndResetHeader();
+    void this.router.navigateByUrl(route);
+  }
+
   toggleTheme(): void {
     this.themeService.toggleTheme();
   }
@@ -1009,6 +1442,11 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.isMobile) {
       this.isMobileSidebarOpen = false;
     }
+  }
+
+  private closeAndResetHeader(): void {
+    this.headerCommandOpen = false;
+    this.headerQuery = '';
   }
 
   private syncThemeForRoute(): void {
