@@ -73,8 +73,8 @@ app-import-preview {
   .draft-workbar .filter-clear { min-width:74px; min-height:40px; padding-inline:10px; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:999px; background:#eff6ff; font-weight:800; }
   .draft-workbar .filter-clear mat-icon { width:17px; height:17px; margin-right:4px; font-size:17px; }
   .filters-card { margin-top:8px; }
-  .focus-session-dock { position:fixed; z-index:60; right:18px; bottom:76px; display:flex; align-items:center; gap:12px; max-width:min(660px,calc(100vw - 380px)); min-height:48px; padding:7px 8px 7px 12px; border:1px solid color-mix(in srgb,#0f8f87 32%,var(--app-border)); border-radius:16px; background:color-mix(in srgb,var(--app-surface-elevated) 92%,transparent); box-shadow:0 16px 42px rgba(15,23,42,.17); backdrop-filter:blur(18px); animation:focus-dock-enter .22s cubic-bezier(.22,1,.36,1) both; }
-  .focus-session-dock__identity { display:grid; grid-template-columns:9px minmax(0,1fr); align-items:center; min-width:0; gap:9px; }
+  .focus-session-dock { position:fixed; z-index:60; right:18px; bottom:76px; display:flex; align-items:center; gap:11px; max-width:min(820px,calc(100vw - 340px)); min-height:48px; padding:7px 8px 7px 12px; border:1px solid color-mix(in srgb,#0f8f87 32%,var(--app-border)); border-radius:16px; background:color-mix(in srgb,var(--app-surface-elevated) 92%,transparent); box-shadow:0 16px 42px rgba(15,23,42,.17); backdrop-filter:blur(18px); animation:focus-dock-enter .22s cubic-bezier(.22,1,.36,1) both; }
+  .focus-session-dock__identity { display:grid; flex:1 1 170px; grid-template-columns:9px minmax(0,1fr); align-items:center; min-width:120px; gap:9px; }
   .focus-session-dock__identity > i { width:8px; height:8px; border-radius:50%; background:#ef4444; box-shadow:0 0 0 4px color-mix(in srgb,#ef4444 14%,transparent); }
   .focus-session-dock__identity > i.focus-session-dock__ready { background:#22c55e; box-shadow:0 0 0 4px color-mix(in srgb,#22c55e 15%,transparent); }
   .focus-session-dock--active .focus-session-dock__identity > i { animation:active-baseline-breathe 4s ease-in-out infinite; }
@@ -85,6 +85,19 @@ app-import-preview {
   .focus-active-badge { position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:5px; min-height:27px; padding:0 8px; color:#047857; border:1px solid color-mix(in srgb,#10b981 38%,var(--app-border)); border-radius:999px; background:color-mix(in srgb,#ecfdf5 88%,var(--app-surface)); font-size:8px; font-weight:900; white-space:nowrap; }
   .focus-active-badge::after { content:''; position:absolute; inset:0; background:linear-gradient(105deg,transparent 20%,rgba(255,255,255,.7) 48%,transparent 74%); transform:translateX(-130%); animation:active-baseline-sweep 1.2s .25s ease-out forwards; pointer-events:none; }
   .focus-active-badge mat-icon { width:14px; height:14px; font-size:14px; }
+  .focus-live-health { display:grid; flex:0 0 155px; gap:3px; min-width:0; padding:2px 2px 1px; }
+  .focus-live-health__head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .focus-live-health__head span { color:var(--app-text-muted); font-size:7px; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }
+  .focus-live-health__head strong { color:var(--app-text); font-size:9px; }
+  .focus-live-health__bar { height:3px; overflow:hidden; border-radius:999px; background:color-mix(in srgb,#94a3b8 18%,transparent); }
+  .focus-live-health__bar i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#0f8f87,#22c55e); transition:width .28s ease; }
+  .focus-live-health__signals { display:flex; align-items:center; gap:8px; }
+  .focus-live-health__signals button { display:inline-flex; align-items:baseline; gap:2px; min-width:0; padding:0; color:var(--app-text); border:0; background:transparent; font:inherit; cursor:pointer; }
+  .focus-live-health__signals strong { font-size:9px; }
+  .focus-live-health__signals span { color:var(--app-text-muted); font-size:6px; }
+  .focus-live-health__signals .signal-alert strong { color:#dc2626; }
+  .focus-live-health__signals .signal-warning strong { color:#d97706; }
+  .focus-live-health__signals .signal-change strong { color:#2563eb; }
   .focus-session-dock__actions { display:flex; align-items:center; flex:0 0 auto; gap:4px; }
   .focus-dock-action { display:inline-grid; place-items:center; width:34px; min-width:34px; height:34px; padding:0; border:1px solid var(--app-border); border-radius:10px; color:var(--app-text-muted); background:var(--app-surface); }
   .focus-dock-action:hover:not(:disabled) { color:var(--app-accent); border-color:color-mix(in srgb,var(--app-accent) 35%,var(--app-border)); background:color-mix(in srgb,var(--app-accent) 7%,var(--app-surface)); }
@@ -105,6 +118,9 @@ html.theme-dark app-import-preview {
   .focus-session-dock { border-color:rgba(45,212,191,.3); background:rgba(9,18,36,.88); box-shadow:0 18px 48px rgba(0,0,0,.34); }
   .focus-session-dock__identity small { color:#5eead4; }
   .focus-dock-action { border-color:rgba(148,163,184,.22); background:rgba(15,23,42,.78); }
+  .focus-live-health__signals .signal-alert strong { color:#fca5a5; }
+  .focus-live-health__signals .signal-warning strong { color:#fcd34d; }
+  .focus-live-health__signals .signal-change strong { color:#93c5fd; }
   .focus-active-badge { color:#6ee7b7; border-color:rgba(52,211,153,.36); background:rgba(6,78,59,.42); }
   .focus-active-badge::after { background:linear-gradient(105deg,transparent 20%,rgba(110,231,183,.18) 48%,transparent 74%); }
   .active-baseline-signal { color:#6ee7b7; border-color:rgba(52,211,153,.38); background:rgba(6,78,59,.38); box-shadow:0 8px 22px rgba(0,0,0,.22); }

@@ -82,7 +82,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
             </div>
           </label>
 
-          <button mat-flat-button type="button" class="search-button" (click)="search()" [disabled]="isLoading || !query.trim()">
+          <button mat-flat-button type="button" class="search-button" [class.search-button--loading]="isLoading" (click)="search()" [disabled]="isLoading || !query.trim()" [attr.aria-busy]="isLoading">
             <mat-icon>{{ isLoading ? 'autorenew' : 'manage_search' }}</mat-icon> {{ isLoading ? 'Tracing...' : 'Search trace' }}
           </button>
         </div>
@@ -94,15 +94,24 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
           </button>
           <small *ngIf="!suggestions.length">No recent {{ objectType.toLowerCase() }} searches yet.</small>
         </div>
-      </section>
 
-      <section class="trace-loading" *ngIf="isLoading">
-        <span><mat-icon>manage_search</mat-icon></span>
-        <div><strong>Following the publication chain</strong><small>Reading current values and preserved approval evidence...</small></div>
+        <div class="history-scan" *ngIf="isLoading" role="status" aria-live="polite">
+          <div class="history-scan__copy">
+            <span class="history-scan__radar"><mat-icon>manage_search</mat-icon></span>
+            <span><strong>Reconstructing the publication chain</strong><small>Following retained evidence from origin to current truth</small></span>
+          </div>
+          <div class="scan-route" aria-hidden="true">
+            <span class="scan-track"><i></i></span>
+            <span class="scan-node scan-node--source"><mat-icon>inventory_2</mat-icon><small>Introduced</small></span>
+            <span class="scan-node scan-node--review"><mat-icon>fact_check</mat-icon><small>Reviewed</small></span>
+            <span class="scan-node scan-node--approval"><mat-icon>verified</mat-icon><small>Approved</small></span>
+            <span class="scan-node scan-node--truth"><mat-icon>published_with_changes</mat-icon><small>Current truth</small></span>
+          </div>
+        </div>
       </section>
 
       <ng-container *ngIf="trace as result">
-        <section class="result-heading">
+        <section class="result-heading result-heading--resolved">
           <div class="result-identity">
             <span class="result-icon"><mat-icon>{{ resultIcon }}</mat-icon></span>
             <div>
@@ -111,7 +120,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
               <p>{{ result.displayName || resultDescription }}</p>
             </div>
           </div>
-          <div class="result-status" [class.result-status--inactive]="!result.isActive"><i></i><span><strong>{{ result.statusLabel }}</strong><small *ngIf="result.lastPublishedAt">Last published {{ formatDate(result.lastPublishedAt) }}</small></span></div>
+          <div class="result-status result-status--resolved" [class.result-status--inactive]="!result.isActive"><i></i><span><strong>{{ result.statusLabel }}</strong><small *ngIf="result.lastPublishedAt">Last published {{ formatDate(result.lastPublishedAt) }}</small></span></div>
         </section>
 
         <section class="current-layout">
@@ -244,7 +253,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
     .search-button { height: 48px; padding: 0 20px; border-radius: 12px; color: #fff !important; background: linear-gradient(135deg, #0f8f87, #08776f) !important; font-weight: 800; box-shadow: 0 8px 18px rgba(15, 143, 135, .22); }
     .search-button[disabled] { opacity: .58; box-shadow: none; }
     .search-button mat-icon { animation: none; }
-    .search-button[disabled] mat-icon { animation: trace-spin 1.1s linear infinite; }
+    .search-button--loading mat-icon { animation: trace-spin 1.1s linear infinite; }
     .recent-searches { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .recent-searches > span { margin-right: 3px; color: var(--app-text-muted); font-size: 11px; font-weight: 750; }
     .recent-searches button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: transparent; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
@@ -252,20 +261,35 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
     .recent-searches mat-icon { width: 14px; height: 14px; font-size: 14px; }
     .recent-searches > small { color: var(--app-text-muted); font-size: 11px; }
 
-    .trace-loading { display: flex; align-items: center; justify-content: center; gap: 13px; min-height: 112px; padding: 22px; border: 1px dashed color-mix(in srgb, var(--app-accent) 42%, var(--app-border)); border-radius: 18px; background: color-mix(in srgb, var(--app-surface) 92%, var(--app-accent)); }
-    .trace-loading > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: #0f8f87; background: color-mix(in srgb, var(--app-surface) 78%, #ccfbf1); }
-    .trace-loading mat-icon { animation: trace-pulse 1.2s ease-in-out infinite; }
-    .trace-loading div { display: grid; }
-    .trace-loading strong { font-size: 13px; }
-    .trace-loading small { color: var(--app-text-muted); font-size: 11px; }
+    .history-scan { display: grid; grid-template-columns: minmax(250px, .7fr) minmax(420px, 1.3fr); align-items: center; gap: 24px; margin-top: 16px; padding: 15px 17px 10px; overflow: hidden; border-top: 1px solid var(--app-border); background: linear-gradient(90deg, color-mix(in srgb, #0f8f87 5%, transparent), transparent 35%); }
+    .history-scan__copy { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .history-scan__copy > span:last-child { display: grid; gap: 2px; min-width: 0; }
+    .history-scan__copy strong { font-size: 12px; }
+    .history-scan__copy small { overflow: hidden; color: var(--app-text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .history-scan__radar { position: relative; display: grid; place-items: center; flex: 0 0 auto; width: 36px; height: 36px; color: #0f8f87; border: 1px solid color-mix(in srgb, #14b8a6 35%, var(--app-border)); border-radius: 50%; background: color-mix(in srgb, #14b8a6 9%, var(--app-surface)); }
+    .history-scan__radar::before, .history-scan__radar::after { content: ''; position: absolute; inset: 5px; border: 1px solid color-mix(in srgb, #14b8a6 35%, transparent); border-radius: 50%; animation: radar-ring 1.6s ease-out infinite; }
+    .history-scan__radar::after { animation-delay: .8s; }
+    .history-scan__radar mat-icon { width: 18px; height: 18px; font-size: 18px; animation: radar-sweep 1.35s ease-in-out infinite; }
+    .scan-route { position: relative; display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); align-items: start; min-height: 48px; }
+    .scan-track { position: absolute; top: 13px; right: 12.5%; left: 12.5%; height: 2px; overflow: hidden; background: color-mix(in srgb, #0f8f87 22%, var(--app-border)); }
+    .scan-track i { position: absolute; inset: 0 auto 0 0; width: 28%; background: linear-gradient(90deg, transparent, #2dd4bf 48%, #2563eb 82%, transparent); filter: drop-shadow(0 0 5px rgba(45, 212, 191, .65)); animation: history-beam 1.8s cubic-bezier(.45,0,.3,1) infinite; }
+    .scan-node { position: relative; z-index: 1; display: grid; justify-items: center; gap: 4px; color: var(--app-text-muted); }
+    .scan-node mat-icon { display: grid; place-items: center; width: 27px; height: 27px; box-sizing: border-box; padding: 5px; border: 1px solid var(--app-border); border-radius: 50%; background: var(--app-surface); font-size: 15px; animation: evidence-node 1.8s ease-out infinite; }
+    .scan-node small { font-size: 8px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; animation: evidence-label 1.8s ease-out infinite; }
+    .scan-node--review mat-icon, .scan-node--review small { animation-delay: .38s; }
+    .scan-node--approval mat-icon, .scan-node--approval small { animation-delay: .76s; }
+    .scan-node--truth mat-icon, .scan-node--truth small { animation-delay: 1.14s; }
 
     .result-heading { padding: 4px 5px; }
+    .result-heading--resolved { animation: result-arrival .46s cubic-bezier(.2,.8,.2,1) both; }
     .result-identity { display: flex; align-items: center; gap: 14px; }
     .result-icon { width: 50px; height: 50px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 15px; color: #0f766e; background: linear-gradient(145deg, #ccfbf1, #f0fdfa); border: 1px solid #99f6e4; }
     .result-heading h2 { font-size: 25px; }
     .result-heading p { margin: 3px 0 0; color: var(--app-text-muted); font-size: 13px; }
     .result-status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid rgba(22, 163, 74, .22); border-radius: 14px; background: color-mix(in srgb, var(--app-surface) 88%, #dcfce7); }
     .result-status i { width: 10px; height: 10px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 5px rgba(22, 163, 74, .12); }
+    .result-status--resolved { animation: truth-lock .7s .18s ease-out both; }
+    .result-status--resolved i { animation: truth-pulse 1.05s .28s ease-out; }
     .result-status span { display: grid; }
     .result-status strong { color: #15803d; font-size: 12px; }
     .result-status small { color: var(--app-text-muted); font-size: 10px; }
@@ -371,7 +395,14 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
     .empty-result p { max-width: 570px; margin: 8px auto 0; color: var(--app-text-muted); }
 
     @keyframes trace-spin { to { transform: rotate(360deg); } }
-    @keyframes trace-pulse { 0%, 100% { transform: scale(.92); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
+    @keyframes radar-ring { 0% { transform: scale(.55); opacity: 0; } 35% { opacity: .8; } 100% { transform: scale(1.45); opacity: 0; } }
+    @keyframes radar-sweep { 0%, 100% { transform: rotate(-12deg) scale(.94); opacity: .7; } 50% { transform: rotate(12deg) scale(1.06); opacity: 1; } }
+    @keyframes history-beam { 0% { left: -28%; opacity: 0; } 12% { opacity: 1; } 82% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+    @keyframes evidence-node { 0%, 18%, 100% { color: var(--app-text-muted); border-color: var(--app-border); box-shadow: none; transform: scale(.92); } 30%, 58% { color: #0f8f87; border-color: #2dd4bf; box-shadow: 0 0 0 5px color-mix(in srgb, #2dd4bf 13%, transparent), 0 0 14px color-mix(in srgb, #2dd4bf 28%, transparent); transform: scale(1); } 72% { color: var(--app-text); transform: scale(.96); } }
+    @keyframes evidence-label { 0%, 18%, 100% { color: var(--app-text-muted); opacity: .62; } 30%, 65% { color: #0f8f87; opacity: 1; } }
+    @keyframes result-arrival { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes truth-lock { from { border-color: color-mix(in srgb, #14b8a6 70%, var(--app-border)); box-shadow: 0 0 0 8px color-mix(in srgb, #14b8a6 12%, transparent); transform: translateX(5px); } to { box-shadow: none; transform: none; } }
+    @keyframes truth-pulse { 0% { box-shadow: 0 0 0 0 rgba(22,163,74,.4); } 65% { box-shadow: 0 0 0 11px rgba(22,163,74,0); } 100% { box-shadow: 0 0 0 5px rgba(22,163,74,.12); } }
 
     :host-context(.theme-dark) .eyebrow, :host-context(.theme-dark) .section-kicker, :host-context(.theme-dark) h1 span { color: #5eead4; }
     :host-context(.theme-dark) .scope-card__signal, :host-context(.theme-dark) .scope-card small { color: #5eead4; }
@@ -379,10 +410,13 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
     :host-context(.theme-dark) .result-status strong, :host-context(.theme-dark) .truth-value--price strong, :host-context(.theme-dark) .change-set strong { color: #86efac; }
     :host-context(.theme-dark) .change-set del { color: #fca5a5; }
     :host-context(.theme-dark) .scope-card { background: rgba(15, 118, 110, .13); }
+    :host-context(.theme-dark) .history-scan__radar, :host-context(.theme-dark) .scan-node mat-icon { background: color-mix(in srgb, var(--app-surface-elevated) 92%, #0f766e); }
+    :host-context(.theme-dark) .scan-track { background: color-mix(in srgb, #5eead4 18%, var(--app-border)); }
 
     @media (max-width: 1080px) {
       .search-grid { grid-template-columns: 1fr 1fr; }
       .search-button { width: 100%; }
+      .history-scan { grid-template-columns: 1fr; gap: 12px; }
       .current-layout { grid-template-columns: 1fr; }
       .proof-card { display: grid; grid-template-columns: 1fr 1.4fr; column-gap: 24px; }
       .proof-chain { grid-column: 2; grid-row: 1 / 4; margin: 0; }
@@ -401,7 +435,11 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
       .search-grid { grid-template-columns: 1fr; }
       .field--scope { order: -1; }
       .recent-searches > span { width: 100%; }
-      .result-heading { align-items: flex-start; }
+      .history-scan { margin-inline: -3px; padding: 14px 10px 8px; }
+      .history-scan__copy { justify-content: center; text-align: left; }
+      .scan-route { grid-template-columns: repeat(4, 1fr); }
+      .scan-node small { font-size: 7px; }
+      .result-heading { align-items: flex-start; flex-wrap: wrap; }
       .result-icon { width: 43px; height: 43px; border-radius: 13px; }
       .result-heading h2 { font-size: 20px; word-break: break-word; }
       .result-status { padding: 8px 10px; }
@@ -443,6 +481,14 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
       .event-card > header { padding-inline: 13px; }
       .event-card > p { padding-inline: 13px; }
       .change-set, blockquote { margin-inline: 13px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .search-button mat-icon, .history-scan__radar::before, .history-scan__radar::after, .history-scan__radar mat-icon,
+      .scan-track i, .scan-node mat-icon, .scan-node small, .result-heading--resolved, .result-status--resolved,
+      .result-status--resolved i { animation: none !important; }
+      .scan-track i { left: 0; width: 100%; opacity: .75; }
+      .scan-node mat-icon { color: #0f8f87; border-color: color-mix(in srgb, #14b8a6 42%, var(--app-border)); transform: none; }
     }
   `]
 })

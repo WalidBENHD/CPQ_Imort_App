@@ -828,11 +828,12 @@ public class ImportService(
     }
 
     public async Task<ReleasePackageSummary> GetReleasePackageAsync(
-        Guid packageId, string userId, bool canReview, CancellationToken ct = default)
+        Guid packageId, string userId, CancellationToken ct = default)
     {
         var package = await repository.GetReleasePackageSummaryAsync(packageId, ct)
             ?? throw new KeyNotFoundException($"Release package '{packageId}' not found.");
-        if (!canReview && !string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
+        if (package.Status == ReleasePackageStatus.Draft
+            && !string.Equals(package.CreatedBy, userId, StringComparison.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("You cannot view this release package.");
         return ToReleaseSummary(package);
     }

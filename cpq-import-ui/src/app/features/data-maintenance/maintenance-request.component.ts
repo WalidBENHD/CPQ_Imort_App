@@ -8,6 +8,7 @@ import { Observable, forkJoin, finalize } from 'rxjs';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { ImportComparison, ImportJob, ReleasePackage, StagingRow } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
+import { MaintenanceWithdrawalService } from '../../core/services/maintenance-withdrawal.service';
 import { ToastService } from '../../core/services/toast.service';
 
 interface MaintenanceRequestItem {
@@ -162,6 +163,7 @@ export class MaintenanceRequestComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly imports = inject(ImportService);
+  private readonly maintenanceWithdrawal = inject(MaintenanceWithdrawalService);
   private readonly toast = inject(ToastService);
 
   package: ReleasePackage | null = null;
@@ -186,6 +188,7 @@ export class MaintenanceRequestComponent implements OnInit {
   get correctionReason(): string | null { return this.package?.rejectionReason ?? this.items[0]?.job.rejectionReason ?? null; }
   get correctionActor(): string { return this.package?.rejectedByDisplayName ?? this.items[0]?.job.rejectedBy ?? 'Reviewer'; }
   get statusLabel(): string {
+    if (!this.package && !this.items.length) return this.loading ? 'Loading request' : 'Unavailable';
     if (this.package) {
       if (this.package.status === 0 && this.correctionReason) return 'Correction requested';
       return ['Private draft', 'Awaiting approval', 'Approved', 'Publishing', 'Published', 'Publication failed', 'Rejected'][this.package.status] ?? 'Unknown';
@@ -263,7 +266,22 @@ export class MaintenanceRequestComponent implements OnInit {
     });
   }
 
-  withdraw(): void { this.run(this.package ? this.imports.withdrawReleasePackage(this.id) : this.imports.withdrawFromReview(this.id), 'Change set returned to your private workspace.'); }
+  withdraw(): void {
+    if (this.acting || !this.items.length) return;
+    this.acting = true;
+    this.maintenanceWithdrawal.withdrawToPrivateBasket({
+      id: this.id,
+      kind: this.kind,
+      name: this.requestName,
+      jobs: this.items.map(item => item.job)
+    }).pipe(finalize(() => this.acting = false)).subscribe({
+      next: () => {
+        this.toast.success('Change set withdrawn with every change restored to your private basket.');
+        void this.router.navigate(['/maintenance/new']);
+      },
+      error: error => this.toast.error(error?.error?.error ?? error?.message ?? 'The maintenance request could not be withdrawn.')
+    });
+  }
   approve(): void { this.run(this.package ? this.imports.approveReleasePackage(this.id) : this.imports.approve(this.id), 'Maintenance request approved.'); }
   publish(): void { this.run(this.package ? this.imports.publishReleasePackage(this.id) : this.imports.publish(this.id), 'Maintenance changes published.'); }
   returnForCorrection(): void {

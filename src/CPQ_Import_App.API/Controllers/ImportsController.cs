@@ -480,8 +480,7 @@ public class ImportsController(
     {
         try
         {
-            var canReview = User.Claims.Any(claim => claim.Value is Capabilities.ImportsApprove or Capabilities.ImportsReject or Capabilities.ImportsPublish);
-            return Ok((await importService.GetReleasePackageAsync(packageId, UserId, canReview, ct)).ToDto());
+            return Ok((await importService.GetReleasePackageAsync(packageId, UserId, ct)).ToDto());
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message }); }

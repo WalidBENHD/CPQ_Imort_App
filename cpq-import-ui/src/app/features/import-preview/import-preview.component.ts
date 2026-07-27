@@ -177,6 +177,27 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
             Active in CPQ
           </span>
 
+          <div *ngIf="isPrivateWorkspace" class="focus-live-health" aria-label="Live validation status">
+            <div class="focus-live-health__head">
+              <span>Validation</span>
+              <strong>{{ job.validRows }}/{{ job.totalRows }}</strong>
+            </div>
+            <div class="focus-live-health__bar">
+              <i [style.width.%]="validationReadinessPercent"></i>
+            </div>
+            <div class="focus-live-health__signals">
+              <button type="button" [class.signal-alert]="job.errorRows > 0" (click)="focusRows('Error')" matTooltip="Show errors">
+                <strong>{{ job.errorRows }}</strong><span>Errors</span>
+              </button>
+              <button type="button" [class.signal-warning]="job.warningRows > 0" (click)="focusRows('Warning')" matTooltip="Show warnings">
+                <strong>{{ job.warningRows }}</strong><span>Warnings</span>
+              </button>
+              <button *ngIf="comparison as cmp" type="button" class="signal-change" (click)="openEvidence()" matTooltip="Open change evidence">
+                <strong>{{ cmp.newRows + cmp.modifiedRows + cmp.missingBaselineRows }}</strong><span>Changes</span>
+              </button>
+            </div>
+          </div>
+
           <div class="focus-session-dock__actions">
             <button
               *ngIf="job.hasOriginalFile"

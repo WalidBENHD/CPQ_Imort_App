@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { Observable, concatMap, finalize, forkJoin, from, map, switchMap, throwError, toArray } from 'rxjs';
+import { Observable, concatMap, finalize, from, map, switchMap, throwError, toArray } from 'rxjs';
 import { AuthFacade } from '../../core/auth/auth.facade';
-import { ComparisonRow, ImportJob, MaintenanceDraft, StagingRow } from '../../core/models/import.models';
+import { ImportJob, MaintenanceDraft } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
-import { LocalMaintenanceChange, LocalMaintenanceDraft, MaintenanceDraftDatasetKey, MaintenanceLocalDraftService } from '../../core/services/maintenance-local-draft.service';
+import { LocalMaintenanceDraft, MaintenanceLocalDraftService } from '../../core/services/maintenance-local-draft.service';
+import { MaintenanceWithdrawalService } from '../../core/services/maintenance-withdrawal.service';
 import { ToastService } from '../../core/services/toast.service';
 
 type RequestSpace = 'mine' | 'approval' | 'approved' | 'history';
@@ -154,6 +155,7 @@ export class MaintenanceRequestsComponent implements OnInit {
   readonly auth = inject(AuthFacade);
   private readonly imports = inject(ImportService);
   private readonly localDrafts = inject(MaintenanceLocalDraftService);
+  private readonly maintenanceWithdrawal = inject(MaintenanceWithdrawalService);
   private readonly toast = inject(ToastService);
 
   readonly spaces = [
@@ -257,24 +259,11 @@ export class MaintenanceRequestsComponent implements OnInit {
     event.stopPropagation();
     if (this.actingRequestId) return;
     this.actingRequestId = request.id;
-    const action: Observable<unknown> = request.kind === 'package'
-      ? this.imports.withdrawReleasePackage(request.id)
-      : this.imports.withdrawFromReview(request.id);
-    action.pipe(
-      switchMap(() => this.restoreWithdrawnChanges(request)),
-      switchMap(changes => {
-        const draft = this.localDrafts.save({
-          name: request.name,
-          selectedDataset: changes[0].dataset,
-          changes
-        });
-        if (!draft) return throwError(() => new Error('The withdrawn changes could not be saved in the private workspace.'));
-        this.localDraft = draft;
-        return this.discardServerDraft(request);
-      }),
+    this.maintenanceWithdrawal.withdrawToPrivateBasket(request).pipe(
       finalize(() => this.actingRequestId = null)
     ).subscribe({
-      next: () => {
+      next: draft => {
+        this.localDraft = draft;
         this.activeSpace = 'mine';
         this.search = '';
         this.toast.success('Maintenance request withdrawn with its changes restored to your private workspace.');
@@ -390,92 +379,6 @@ export class MaintenanceRequestsComponent implements OnInit {
         this.toast.error(error?.error?.error ?? 'Maintenance requests could not be loaded.');
       }
     });
-  }
-
-  private restoreWithdrawnChanges(request: MaintenanceRequestCard): Observable<LocalMaintenanceChange[]> {
-    return forkJoin(request.jobs.map(job => forkJoin({
-      active: this.loadAllRows(job.id),
-      removed: this.imports.getRemovedRows(job.id),
-      comparison: this.imports.getComparison(job.id)
-    }).pipe(map(rows => this.toLocalChanges(job, rows.active, rows.removed, rows.comparison.rows))))).pipe(
-      map(groups => groups.flat()),
-      switchMap(changes => changes.length
-        ? from([changes])
-        : throwError(() => new Error('The withdrawn request did not contain any staged changes to restore.')))
-    );
-  }
-
-  private loadAllRows(jobId: string): Observable<StagingRow[]> {
-    const pageSize = 200;
-    return this.imports.getRows(jobId, 1, pageSize).pipe(
-      switchMap(firstPage => {
-        const pageCount = Math.ceil(firstPage.total / firstPage.pageSize);
-        if (pageCount <= 1) return from([firstPage.items]);
-        const remainingPages = Array.from({ length: pageCount - 1 }, (_, index) => index + 2);
-        return forkJoin(remainingPages.map(page => this.imports.getRows(jobId, page, firstPage.pageSize))).pipe(
-          map(pages => [firstPage.items, ...pages.map(result => result.items)].flat())
-        );
-      })
-    );
-  }
-
-  private toLocalChanges(job: ImportJob, activeRows: StagingRow[], removedRows: StagingRow[], comparisonRows: ComparisonRow[]): LocalMaintenanceChange[] {
-    const dataset = this.datasetKey(job.entityType);
-    const activeChanges = activeRows
-      .filter(row => row.isUserAdded || row.isUserModified)
-      .map(row => this.toLocalChange(job, dataset, row, row.isUserAdded ? 'Add' : 'Modify', comparisonRows.find(item => item.rowId === row.id)));
-    const removedChanges = removedRows
-      .filter(row => !row.isUserAdded)
-      .map(row => this.toLocalChange(job, dataset, row, 'Deactivate'));
-    return [...activeChanges, ...removedChanges];
-  }
-
-  private toLocalChange(
-    job: ImportJob,
-    dataset: MaintenanceDraftDatasetKey,
-    row: StagingRow,
-    action: LocalMaintenanceChange['action'],
-    comparison?: ComparisonRow
-  ): LocalMaintenanceChange {
-    const values = Object.fromEntries(Object.entries(row.fields).map(([key, value]) => [key, value ?? '']));
-    const originalValues = action === 'Modify'
-      ? comparison?.changes.reduce<Record<string, string>>((result, field) => {
-          result[field.field] = field.baselineValue ?? '';
-          return result;
-        }, { ...values })
-      : undefined;
-    const identity = this.localIdentity(dataset, values);
-    const recordKey = dataset === 'CurrencyRate'
-      ? `${values['FromCurrency'] ?? ''}/${values['ToCurrency'] ?? ''}`
-      : dataset === 'Description'
-        ? `${values['ArticleNumber'] ?? ''} / ${values['LanguageCode'] ?? ''}`
-        : values['ArticleNumber'] ?? '';
-    const label = action === 'Add' ? 'New governed record' : action === 'Modify' ? 'Field values updated' : 'Removed from projected release';
-    return {
-      id: `withdrawn-${job.id}-${row.id}-${action}`,
-      dataset,
-      datasetName: job.entityTypeLabel,
-      recordKey,
-      identity,
-      label,
-      action,
-      values,
-      originalValues,
-      valid: true
-    };
-  }
-
-  private datasetKey(entityType: number): MaintenanceDraftDatasetKey {
-    if (entityType === 1) return 'Article';
-    if (entityType === 2) return 'PriceList';
-    if (entityType === 3) return 'Description';
-    return 'CurrencyRate';
-  }
-
-  private discardServerDraft(request: MaintenanceRequestCard): Observable<unknown> {
-    return request.kind === 'package'
-      ? this.imports.discardReleasePackage(request.id)
-      : this.imports.deletePrivateDraft(request.id);
   }
 
   private runRequestAction(request: MaintenanceRequestCard, action: Observable<unknown>, success: string, destination?: RequestSpace): void {
