@@ -53,7 +53,7 @@ h1 span { color: #0f8f87; }
 .dataset-node--price { border-color: color-mix(in srgb, #2563eb 28%, var(--app-border)); background: color-mix(in srgb, #2563eb 5%, var(--app-surface)); }
 .dataset-node--price .dataset-node__icon { color: #2563eb; background: color-mix(in srgb, #2563eb 12%, transparent); }
 .dataset-node--price .dataset-node__copy small { color: #2563eb; }
-.dataset-connector { position: relative; display: grid; justify-items: center; gap: 5px; color: #15803d; }
+.dataset-connector { position: relative; z-index: 2; display: grid; justify-items: center; gap: 5px; color: #15803d; pointer-events: none; }
 .dataset-connector i { position: relative; width: 100%; height: 2px; background: linear-gradient(90deg, #14b8a6, #22c55e, #2563eb); }
 .dataset-connector i::before, .dataset-connector i::after { content: ''; position: absolute; top: 50%; width: 9px; height: 9px; transform: translateY(-50%); border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 5px color-mix(in srgb, #16a34a 14%, transparent); }
 .dataset-connector i::before { left: -4px; }
