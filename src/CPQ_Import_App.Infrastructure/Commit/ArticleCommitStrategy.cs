@@ -104,6 +104,25 @@ public class ArticleCommitStrategy(IConfiguration config) : ICpqCommitStrategy
                 "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
                 "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW()
             );
+            CREATE TABLE IF NOT EXISTS dbo."CpqArticleDescriptions" (
+                "ArticleNumber" text NOT NULL,
+                "LanguageCode" text NOT NULL,
+                "ShortDescription" text,
+                "LongDescription" text,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                CONSTRAINT "PK_CpqArticleDescriptions" PRIMARY KEY ("ArticleNumber", "LanguageCode")
+            );
+            CREATE TABLE IF NOT EXISTS dbo."CpqArticlePrices" (
+                "ArticleNumber" text NOT NULL,
+                "Price" numeric(18,4) NOT NULL,
+                "Currency" text NOT NULL,
+                "ValidFrom" timestamp with time zone NOT NULL,
+                "ValidTo" timestamp with time zone NULL,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                CONSTRAINT "PK_CpqArticlePrices" PRIMARY KEY ("ArticleNumber", "Currency", "ValidFrom")
+            );
             """;
 
         const string upsertSql = """
