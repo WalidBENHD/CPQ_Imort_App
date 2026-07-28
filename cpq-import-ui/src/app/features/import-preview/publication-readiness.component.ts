@@ -2,6 +2,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { PublicationProgressComponent } from '../../shared/publication-progress/publication-progress.component';
 
 export interface PublicationApprovalDraft {
   approvedAt: string;
@@ -14,7 +15,7 @@ export interface PublicationApprovalDraft {
 @Component({
   selector: 'app-publication-readiness',
   standalone: true,
-  imports: [CommonModule, DatePipe, MatButtonModule, MatIconModule],
+  imports: [CommonModule, DatePipe, MatButtonModule, MatIconModule, PublicationProgressComponent],
   template: `
     <section class="publication-shell" aria-labelledby="publication-title">
       <div class="workflow" aria-label="Controlled publication workflow">
@@ -65,9 +66,9 @@ export interface PublicationApprovalDraft {
         <button *ngIf="canReturnToReview" mat-button type="button" (click)="returnToReview.emit()" [disabled]="publishing">
           <mat-icon>undo</mat-icon> Return to review
         </button>
-        <button *ngIf="canPublish" mat-raised-button type="button" class="publish-button" (click)="publish.emit()" [disabled]="publishing">
-          <mat-icon>{{ publishing ? 'hourglass_top' : 'publish' }}</mat-icon>
-          {{ publishing ? 'Publishing...' : 'Publish to CPQ' }}
+        <button *ngIf="canPublish" mat-raised-button type="button" class="publish-button" [class.publish-button--running]="publishing" (click)="publish.emit()" [disabled]="publishing" [attr.aria-busy]="publishing">
+          <app-publication-progress *ngIf="publishing; else publishLabel" label="Publishing to CPQ" />
+          <ng-template #publishLabel><mat-icon>publish</mat-icon> Publish to CPQ</ng-template>
         </button>
       </div>
     </section>
@@ -107,7 +108,8 @@ export interface PublicationApprovalDraft {
     .publication-warning span { font-size: 13px; line-height: 1.45; }
     .publication-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 22px 22px; }
     .publication-actions button { border-radius: 999px; font-weight: 800; }
-    .publish-button { color: #fff !important; background: linear-gradient(135deg,#4338ca,#2563eb) !important; box-shadow: 0 7px 16px rgba(37,99,235,.28); }
+    .publish-button { min-width: 190px; overflow: hidden; color: #fff !important; background: linear-gradient(135deg,#4338ca,#2563eb) !important; box-shadow: 0 7px 16px rgba(37,99,235,.28); }
+    .publish-button--running,.publish-button--running:disabled { opacity:1!important; color:#fff!important; background:linear-gradient(110deg,#2446b8,#3156cb 48%,#0f8f87)!important; box-shadow:0 8px 22px rgba(37,73,167,.3)!important; }
     :host-context(html.theme-dark) .publication-shell { border-color: rgba(129,140,248,.35); background: linear-gradient(145deg,#111a31,#0b1224); box-shadow: 0 14px 32px rgba(0,0,0,.3); }
     :host-context(html.theme-dark) .workflow { border-bottom-color: rgba(129,140,248,.22); background: rgba(30,41,75,.52); }
     :host-context(html.theme-dark) .workflow-step strong { color: #cbd5e1; }
