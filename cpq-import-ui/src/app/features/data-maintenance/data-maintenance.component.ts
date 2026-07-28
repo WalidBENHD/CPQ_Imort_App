@@ -9,6 +9,7 @@ import { ActiveDatasetRecord, ImportJob, MaintenanceDraft, StagingRow } from '..
 import { ImportService } from '../../core/services/import.service';
 import { MaintenanceLocalDraftService } from '../../core/services/maintenance-local-draft.service';
 import { ToastService } from '../../core/services/toast.service';
+import { PublicationProgressComponent } from '../../shared/publication-progress/publication-progress.component';
 
 type DatasetKey = 'Article' | 'PriceList' | 'Description' | 'CurrencyRate';
 type ChangeAction = 'Add' | 'Modify' | 'Deactivate';
@@ -127,7 +128,7 @@ const DATASETS: DatasetDefinition[] = [
 @Component({
   selector: 'app-data-maintenance',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, RouterLink, MatButtonModule, MatIconModule, PublicationProgressComponent],
   template: `
     <section class="maintenance-page">
       <header class="maintenance-hero">
@@ -317,7 +318,7 @@ const DATASETS: DatasetDefinition[] = [
           <article *ngFor="let issue of serverValidationIssues"><strong>{{ issue.dataset }} · {{ issue.record }}</strong><span><b>{{ issue.field || 'Record' }}:</b> {{ issue.message }}</span></article>
         </section>
         <div class="review-callout" [class.review-callout--ready]="validationPassed"><mat-icon>{{ validationPassed ? 'verified_user' : 'shield' }}</mat-icon><span><strong>{{ validationPassed ? 'All authoritative checks passed.' : 'Validation stays inside this maintenance form.' }}</strong><small>{{ validationPassed ? 'The request can now be pushed to approvers. No private correction workspace has been created.' : 'Dataset and dependency rules run before the approval action becomes available. Errors return here for correction.' }}</small></span></div>
-        <footer><button mat-stroked-button type="button" [disabled]="savingDraft || submittingRequest" (click)="closeReview()">Back to changes</button><button *ngIf="!validationPassed" mat-flat-button type="button" class="primary-action" [disabled]="savingDraft || !draftName.trim()" (click)="validateMaintenanceRequest()"><mat-icon>fact_check</mat-icon> {{ savingDraft ? 'Validating…' : serverValidationIssues.length ? 'Validate again' : 'Validate request' }}</button><button *ngIf="validationPassed" mat-flat-button type="button" class="primary-action" [disabled]="submittingRequest" (click)="pushForApproval()"><mat-icon>send</mat-icon> {{ submittingRequest ? 'Pushing for approval…' : 'Push for approval' }}</button></footer>
+        <footer><button mat-stroked-button type="button" [disabled]="savingDraft || submittingRequest" (click)="closeReview()">Back to changes</button><button *ngIf="!validationPassed" mat-flat-button type="button" class="primary-action review-action" [class.review-action--running]="savingDraft" [disabled]="savingDraft || !draftName.trim()" [attr.aria-busy]="savingDraft" (click)="validateMaintenanceRequest()"><app-publication-progress *ngIf="savingDraft; else validateRequestLabel" label="Validating request" /><ng-template #validateRequestLabel><mat-icon>fact_check</mat-icon> {{ serverValidationIssues.length ? 'Validate again' : 'Validate request' }}</ng-template></button><button *ngIf="validationPassed" mat-flat-button type="button" class="primary-action review-action" [class.review-action--running]="submittingRequest" [disabled]="submittingRequest" [attr.aria-busy]="submittingRequest" (click)="pushForApproval()"><app-publication-progress *ngIf="submittingRequest; else pushApprovalLabel" label="Sending for approval" /><ng-template #pushApprovalLabel><mat-icon>send</mat-icon> Push for approval</ng-template></button></footer>
       </section>
     </div>
   `,
@@ -372,6 +373,8 @@ const DATASETS: DatasetDefinition[] = [
     .record-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 22px 16px; border-bottom:1px solid var(--app-border); }
     .record-title { display:flex; align-items:center; gap:12px; } .record-icon { display:grid; place-items:center; width:46px; height:46px; border-radius:14px; color:#0f766e; background:#ccfbf1; }
     .primary-action { min-height:42px; color:#fff !important; background:linear-gradient(135deg,#0f8f87,#08776f) !important; border-radius:12px !important; font-weight:800; box-shadow:0 8px 18px rgba(15,143,135,.2); }
+    .review-action { min-width:176px; overflow:hidden; }
+    .review-action--running,.review-action--running:disabled { opacity:1 !important; color:#fff !important; }
     .search-row { display:flex; align-items:center; gap:12px; padding:13px 18px; border-bottom:1px solid var(--app-border); background:var(--app-soft-surface); }
     .search-box { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; flex:1; min-height:42px; padding:0 12px; border:1px solid var(--app-border); border-radius:12px; background:var(--app-surface); }
     .search-box:focus-within { border-color:#2dd4bf; box-shadow:0 0 0 3px rgba(45,212,191,.12); } .search-box > mat-icon { color:#64748b; }

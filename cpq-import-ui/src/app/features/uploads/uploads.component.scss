@@ -125,6 +125,11 @@ button, input { font: inherit; }
 .item-note--release { color: #0f766e; }
 .item-actions { display: flex; max-width: 560px; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 .item-actions button { min-height: 38px; border-radius: 10px; font-size: 11px; font-weight: 850; }
+.item-actions .list-workflow-action { min-width: 158px; overflow: hidden; }
+.item-actions .list-workflow-action--running,
+.item-actions .list-workflow-action--running:disabled { opacity: 1; }
+.item-actions button[mat-raised-button].list-workflow-action--running { color: #fff; }
+.item-actions button[mat-stroked-button].list-workflow-action--running { color: var(--app-accent); }
 .item-actions .copy-to-workspace { color: var(--app-accent); border-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-border)); }
 .item-actions .discard { color: #b91c1c; }
 

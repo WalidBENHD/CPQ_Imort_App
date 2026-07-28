@@ -20,10 +20,12 @@ import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.com
 import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/rename-upload-dialog.component';
 import { ReleaseWithdrawDialogComponent } from '../../shared/release-withdraw-dialog/release-withdraw-dialog.component';
 import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
+import { PublicationProgressComponent } from '../../shared/publication-progress/publication-progress.component';
 
 type UploadSpace = 'workspace' | 'review' | 'history';
 type UploadViewMode = 'detailed' | 'compact';
 type UploadSort = 'latest' | 'oldest' | 'name' | 'status';
+type ListWorkflowAction = 'submit' | 'withdraw';
 
 interface UploadSpaceDefinition {
   key: UploadSpace;
@@ -59,7 +61,8 @@ interface UploadDisplayGroup {
     MatSnackBarModule,
     MatTooltipModule,
     StatusBadgeComponent,
-    DownloadActionComponent
+    DownloadActionComponent,
+    PublicationProgressComponent
   ],
   templateUrl: './uploads.component.html',
   styleUrl: './uploads.component.scss'
@@ -116,6 +119,7 @@ export class UploadsComponent implements OnInit {
   loadError = false;
   searchFocused = false;
   actionJobId: string | null = null;
+  workflowAction: { jobId: string; action: ListWorkflowAction } | null = null;
   copySource: ImportJob | null = null;
   workingCopyName = '';
   viewMode: UploadViewMode = this.readViewPreference();
@@ -387,14 +391,18 @@ export class UploadsComponent implements OnInit {
     event.stopPropagation();
     if (!this.canSubmit(job)) return;
     this.actionJobId = job.id;
+    this.workflowAction = { jobId: job.id, action: 'submit' };
     this.importService.submitForReview(job.id).subscribe({
       next: updated => {
         this.replaceJob(updated);
         this.actionJobId = null;
+        this.workflowAction = null;
+        this.closeCompactMenu();
         this.snackBar.open('Submission shared with the review team.', 'Close', { duration: 4000 });
       },
       error: error => {
         this.actionJobId = null;
+        this.workflowAction = null;
         this.snackBar.open(error?.error?.error ?? 'The upload could not be submitted.', 'Close', { duration: 6000 });
       }
     });
@@ -410,14 +418,18 @@ export class UploadsComponent implements OnInit {
     }
 
     this.actionJobId = job.id;
+    this.workflowAction = { jobId: job.id, action: 'withdraw' };
     this.importService.withdrawFromReview(job.id).subscribe({
       next: updated => {
         this.replaceJob(updated);
         this.actionJobId = null;
+        this.workflowAction = null;
+        this.closeCompactMenu();
         this.snackBar.open('Submission returned to your private workspace.', 'Close', { duration: 4000 });
       },
       error: error => {
         this.actionJobId = null;
+        this.workflowAction = null;
         this.snackBar.open(error?.error?.error ?? 'The submission could not be withdrawn.', 'Close', { duration: 6000 });
       }
     });
@@ -428,9 +440,11 @@ export class UploadsComponent implements OnInit {
     if (!packageId) return;
 
     this.actionJobId = job.id;
+    this.workflowAction = { jobId: job.id, action: 'withdraw' };
     this.importService.getReleasePackage(packageId).subscribe({
       next: release => {
         this.actionJobId = null;
+        this.workflowAction = null;
         this.dialog.open(ReleaseWithdrawDialogComponent, {
           data: release,
           autoFocus: false,
@@ -442,14 +456,18 @@ export class UploadsComponent implements OnInit {
         }).afterClosed().subscribe(confirmed => {
           if (!confirmed) return;
           this.actionJobId = job.id;
+          this.workflowAction = { jobId: job.id, action: 'withdraw' };
           this.importService.withdrawReleasePackage(packageId).subscribe({
             next: () => {
               this.actionJobId = null;
+              this.workflowAction = null;
+              this.closeCompactMenu();
               this.load();
               this.snackBar.open('The entire release returned to your private workspace.', 'Close', { duration: 5000 });
             },
             error: error => {
               this.actionJobId = null;
+              this.workflowAction = null;
               this.snackBar.open(error?.error?.error ?? 'The release could not be withdrawn.', 'Close', { duration: 7000 });
             }
           });
@@ -457,6 +475,7 @@ export class UploadsComponent implements OnInit {
       },
       error: error => {
         this.actionJobId = null;
+        this.workflowAction = null;
         this.snackBar.open(error?.error?.error ?? 'The release details could not be loaded.', 'Close', { duration: 7000 });
       }
     });

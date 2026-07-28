@@ -34,6 +34,9 @@ import { RenameUploadDialogComponent } from '../../shared/rename-upload-dialog/r
 import { PortfolioReadinessComponent } from './portfolio-readiness.component';
 import { ArticleReleaseBuilderComponent } from './article-release-builder.component';
 import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
+import { PublicationProgressComponent } from '../../shared/publication-progress/publication-progress.component';
+
+type UploadWorkflowAction = 'submit' | 'withdraw' | null;
 
 @Component({
   selector: 'app-import-preview',
@@ -46,7 +49,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     StatusBadgeComponent, AnnualCommitConfirmDialogComponent, ApprovalRecordComponent,
     PublicationReadinessComponent, PublicationConfirmDialogComponent, DraftRowEditorComponent,
     DependencyContextPrototypeComponent, PortfolioReadinessComponent, ArticleReleaseBuilderComponent,
-    DownloadActionComponent],
+    DownloadActionComponent, PublicationProgressComponent],
   template: `
     <div class="page-header" [class.page-header--active]="job?.isActiveBaseline">
       <div>
@@ -299,13 +302,13 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
           <section class="impact-action">
             <ng-container *ngIf="isPrivateWorkspace">
               <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="focusRows('Error')"><mat-icon>build</mat-icon> Fix {{ job.errorRows }} blocking rows</button>
-              <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId && canSubmitProjectedState" mat-raised-button color="primary" [disabled]="workflowActionRunning" (click)="submitForReview()"><mat-icon>send</mat-icon>Submit for review</button>
+              <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId && canSubmitProjectedState" mat-raised-button color="primary" class="workflow-action-button" [class.workflow-action-button--running]="workflowAction === 'submit'" [disabled]="workflowActionRunning" [attr.aria-busy]="workflowAction === 'submit'" (click)="submitForReview()"><app-publication-progress *ngIf="workflowAction === 'submit'; else impactSubmitLabel" label="Submitting for review" /><ng-template #impactSubmitLabel><mat-icon>send</mat-icon>Submit for review</ng-template></button>
               <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0 && !job.releasePackageId && !canSubmitProjectedState" mat-raised-button color="primary" (click)="focusReleaseWorkflow()"><mat-icon>account_tree</mat-icon>Prepare coordinated release</button>
               <button *ngIf="job.releasePackageId" mat-raised-button color="primary" (click)="openEvidence('dependency-workflow')"><mat-icon>account_tree</mat-icon> Open release controls</button>
             </ng-container>
-            <button *ngIf="isSubmittedOwner && !job.releasePackageId" mat-stroked-button [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> Withdraw submission</button>
+            <button *ngIf="isSubmittedOwner && !job.releasePackageId" mat-stroked-button class="workflow-action-button" [class.workflow-action-button--running]="workflowAction === 'withdraw'" [disabled]="workflowActionRunning" [attr.aria-busy]="workflowAction === 'withdraw'" (click)="withdrawFromReview()"><app-publication-progress *ngIf="workflowAction === 'withdraw'; else impactWithdrawLabel" label="Restoring workspace" /><ng-template #impactWithdrawLabel><mat-icon>undo</mat-icon> Withdraw submission</ng-template></button>
             <ng-container *ngIf="canShowApprovalGate">
-              <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" [disabled]="approving" (click)="approveForPublication()"><mat-icon>verified</mat-icon> Approve for publication</button>
+              <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" class="workflow-action-button" [class.workflow-action-button--running]="approving" [disabled]="approving" [attr.aria-busy]="approving" (click)="approveForPublication()"><app-publication-progress *ngIf="approving; else impactApproveLabel" label="Approving version" /><ng-template #impactApproveLabel><mat-icon>verified</mat-icon> Approve for publication</ng-template></button>
               <button *ngIf="auth.hasCapability('imports.reject')" mat-stroked-button color="warn" (click)="openDecisionPanel()"><mat-icon>close</mat-icon> Return for correction</button>
             </ng-container>
             <button mat-button type="button" class="impact-evidence-link" (click)="toggleContext()"><mat-icon>{{ contextExpanded ? 'close' : 'fact_check' }}</mat-icon> {{ contextExpanded ? 'Close details' : 'Details & evidence' }}</button>
@@ -627,7 +630,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
 
           <div class="workspace-gate__actions">
             <button *ngIf="job.errorRows > 0" mat-raised-button color="primary" (click)="showErrorRows()"><mat-icon>build</mat-icon> Review and fix errors</button>
-            <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0" mat-raised-button color="primary" class="submit-review-btn" [disabled]="workflowActionRunning || !canSubmitProjectedState" (click)="submitForReview()"><mat-icon>send</mat-icon> {{ workflowActionRunning ? 'Submitting...' : (canSubmitProjectedState ? 'Submit for review' : 'Release required') }}</button>
+            <button *ngIf="job.statusLabel === 'AwaitingApproval' && job.errorRows === 0" mat-raised-button color="primary" class="submit-review-btn workflow-action-button" [class.workflow-action-button--running]="workflowAction === 'submit'" [disabled]="workflowActionRunning || !canSubmitProjectedState" [attr.aria-busy]="workflowAction === 'submit'" (click)="submitForReview()"><app-publication-progress *ngIf="workflowAction === 'submit'; else workspaceSubmitLabel" label="Submitting for review" /><ng-template #workspaceSubmitLabel><mat-icon>send</mat-icon> {{ canSubmitProjectedState ? 'Submit for review' : 'Release required' }}</ng-template></button>
             <button *ngIf="canDownloadComparisonReport()" mat-stroked-button [class.action-download--loading]="activeDownload === 'comparison'" [disabled]="activeDownload !== null" [attr.aria-busy]="activeDownload === 'comparison'" (click)="downloadComparisonReport()"><app-download-action [loading]="activeDownload === 'comparison'" label="Comparison report" /></button>
             <button *ngIf="canCancelJob()" mat-button class="discard-draft-btn" (click)="cancelImport()"><mat-icon>delete_outline</mat-icon> Discard private draft</button>
           </div>
@@ -660,7 +663,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
 
           <div class="submitted-lock-note"><mat-icon>lock</mat-icon><span>Editing is paused to protect the version currently being reviewed. Withdraw it if you need to make changes.</span></div>
           <div class="workspace-gate__actions workspace-gate__actions--submitted">
-            <button *ngIf="!job.releasePackageId" mat-stroked-button class="withdraw-review-btn" [disabled]="workflowActionRunning" (click)="withdrawFromReview()"><mat-icon>undo</mat-icon> {{ workflowActionRunning ? 'Withdrawing...' : 'Withdraw submission' }}</button>
+            <button *ngIf="!job.releasePackageId" mat-stroked-button class="withdraw-review-btn workflow-action-button" [class.workflow-action-button--running]="workflowAction === 'withdraw'" [disabled]="workflowActionRunning" [attr.aria-busy]="workflowAction === 'withdraw'" (click)="withdrawFromReview()"><app-publication-progress *ngIf="workflowAction === 'withdraw'; else workspaceWithdrawLabel" label="Restoring workspace" /><ng-template #workspaceWithdrawLabel><mat-icon>undo</mat-icon> Withdraw submission</ng-template></button>
           </div>
         </mat-card-content>
       </mat-card>
@@ -672,6 +675,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
             <app-publication-readiness
               [approval]="publicationApproval"
               [publishing]="committing"
+              [returningToReview]="returningToReview"
               [canPublish]="auth.hasCapability('imports.publish')"
               [canReturnToReview]="auth.hasCapability('imports.return_to_review')"
               (publish)="publishToCpq()"
@@ -705,9 +709,9 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
                 </span>
               </div>
               <div class="action-buttons">
-                <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" class="btn-commit" (click)="approveForPublication()" [disabled]="approving">
-                  <mat-icon>{{ approving ? 'hourglass_top' : 'verified' }}</mat-icon>
-                  {{ approving ? 'Approving...' : 'Approve for publication' }}
+                <button *ngIf="auth.hasCapability('imports.approve')" mat-raised-button color="primary" class="btn-commit workflow-action-button" [class.workflow-action-button--running]="approving" (click)="approveForPublication()" [disabled]="approving" [attr.aria-busy]="approving">
+                  <app-publication-progress *ngIf="approving; else approvalGateLabel" label="Approving version" />
+                  <ng-template #approvalGateLabel><mat-icon>verified</mat-icon> Approve for publication</ng-template>
                 </button>
                 <button *ngIf="auth.hasCapability('imports.reject')" mat-stroked-button color="warn" class="btn-reject ml-8" (click)="showRejectPanel = true">
                   <mat-icon>close</mat-icon> Reject
@@ -730,8 +734,9 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
                     placeholder="Enter reason..."></textarea>
                 </div>
                 <div class="reject-actions">
-                  <button mat-raised-button color="warn" (click)="reject()" [disabled]="!rejectionReason || rejecting">
-                    Confirm Rejection
+                  <button mat-raised-button color="warn" class="workflow-action-button" [class.workflow-action-button--running]="rejecting" (click)="reject()" [disabled]="!rejectionReason || rejecting" [attr.aria-busy]="rejecting">
+                    <app-publication-progress *ngIf="rejecting; else rejectUploadLabel" label="Returning version" />
+                    <ng-template #rejectUploadLabel>Confirm rejection</ng-template>
                   </button>
                   <button mat-button (click)="showRejectPanel = false; rejectionReason = ''" class="ml-8">Cancel</button>
                 </div>
@@ -1422,6 +1427,20 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
     .rows-card .mat-mdc-card-header {
       padding: 12px 16px 8px;
     }
+    .workflow-action-button {
+      min-width: 174px;
+      overflow: hidden;
+    }
+    .workflow-action-button--running,
+    .workflow-action-button--running:disabled {
+      opacity: 1 !important;
+    }
+    button[mat-raised-button].workflow-action-button--running {
+      color: #fff !important;
+    }
+    button[mat-stroked-button].workflow-action-button--running {
+      color: #1d4ed8 !important;
+    }
     .rows-card > .mat-mdc-card-content {
       display: flex;
       flex-direction: column;
@@ -1882,6 +1901,7 @@ export class ImportPreviewComponent implements OnInit {
   showRejectPanel = false;
   rejectionReason = '';
   workflowActionRunning = false;
+  workflowAction: UploadWorkflowAction = null;
   activeDownload: 'original' | 'current' | 'errors' | 'comparison' | null = null;
   publicationApproval: PublicationApprovalDraft | null = null;
   activeDraftEditorMode: DraftEditorMode | null = null;
@@ -2396,14 +2416,17 @@ export class ImportPreviewComponent implements OnInit {
     }
 
     this.workflowActionRunning = true;
+    this.workflowAction = 'submit';
     this.importService.submitForReview(this.job.id).subscribe({
       next: submitted => {
         this.job = submitted;
         this.workflowActionRunning = false;
+        this.workflowAction = null;
         this.snackBar.open('This version is now visible in the Review Queue.', 'Close', { duration: 5000 });
       },
       error: error => {
         this.workflowActionRunning = false;
+        this.workflowAction = null;
         this.snackBar.open(error?.error?.error ?? 'The upload could not be submitted.', 'Close', { duration: 7000 });
       }
     });
@@ -2413,14 +2436,17 @@ export class ImportPreviewComponent implements OnInit {
     if (!this.job || !this.isSubmittedOwner) return;
 
     this.workflowActionRunning = true;
+    this.workflowAction = 'withdraw';
     this.importService.withdrawFromReview(this.job.id).subscribe({
       next: withdrawn => {
         this.job = withdrawn;
         this.workflowActionRunning = false;
+        this.workflowAction = null;
         this.snackBar.open('The upload is private again. You can continue refining it.', 'Close', { duration: 5000 });
       },
       error: error => {
         this.workflowActionRunning = false;
+        this.workflowAction = null;
         this.snackBar.open(error?.error?.error ?? 'The submission could not be withdrawn.', 'Close', { duration: 7000 });
       }
     });

@@ -63,8 +63,9 @@ export interface PublicationApprovalDraft {
       </div>
 
       <div class="publication-actions">
-        <button *ngIf="canReturnToReview" mat-button type="button" (click)="returnToReview.emit()" [disabled]="publishing">
-          <mat-icon>undo</mat-icon> Return to review
+        <button *ngIf="canReturnToReview" mat-button type="button" class="return-button" [class.return-button--running]="returningToReview" (click)="returnToReview.emit()" [disabled]="publishing || returningToReview" [attr.aria-busy]="returningToReview">
+          <app-publication-progress *ngIf="returningToReview; else returnLabel" label="Returning to review" />
+          <ng-template #returnLabel><mat-icon>undo</mat-icon> Return to review</ng-template>
         </button>
         <button *ngIf="canPublish" mat-raised-button type="button" class="publish-button" [class.publish-button--running]="publishing" (click)="publish.emit()" [disabled]="publishing" [attr.aria-busy]="publishing">
           <app-publication-progress *ngIf="publishing; else publishLabel" label="Publishing to CPQ" />
@@ -108,6 +109,8 @@ export interface PublicationApprovalDraft {
     .publication-warning span { font-size: 13px; line-height: 1.45; }
     .publication-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 22px 22px; }
     .publication-actions button { border-radius: 999px; font-weight: 800; }
+    .return-button { min-width: 174px; overflow: hidden; }
+    .return-button--running,.return-button--running:disabled { opacity: 1 !important; color: #1d4ed8 !important; }
     .publish-button { min-width: 190px; overflow: hidden; color: #fff !important; background: linear-gradient(135deg,#4338ca,#2563eb) !important; box-shadow: 0 7px 16px rgba(37,99,235,.28); }
     .publish-button--running,.publish-button--running:disabled { opacity:1!important; color:#fff!important; background:linear-gradient(110deg,#2446b8,#3156cb 48%,#0f8f87)!important; box-shadow:0 8px 22px rgba(37,73,167,.3)!important; }
     :host-context(html.theme-dark) .publication-shell { border-color: rgba(129,140,248,.35); background: linear-gradient(145deg,#111a31,#0b1224); box-shadow: 0 14px 32px rgba(0,0,0,.3); }
@@ -139,6 +142,7 @@ export interface PublicationApprovalDraft {
 export class PublicationReadinessComponent {
   @Input({ required: true }) approval!: PublicationApprovalDraft;
   @Input() publishing = false;
+  @Input() returningToReview = false;
   @Input() canPublish = false;
   @Input() canReturnToReview = false;
   @Output() publish = new EventEmitter<void>();

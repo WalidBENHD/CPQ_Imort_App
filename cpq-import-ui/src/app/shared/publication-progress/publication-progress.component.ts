@@ -42,7 +42,7 @@ import { Component, Input } from '@angular/core';
       right: 4px;
       height: 2px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, .32);
+      background: color-mix(in srgb, currentColor 34%, transparent);
     }
 
     .publication-progress__pipeline i {
@@ -51,10 +51,10 @@ import { Component, Input } from '@angular/core';
       z-index: 1;
       width: 8px;
       height: 8px;
-      border: 2px solid rgba(255, 255, 255, .76);
+      border: 2px solid color-mix(in srgb, currentColor 76%, transparent);
       border-radius: 50%;
       box-sizing: border-box;
-      background: #3156cb;
+      background: color-mix(in srgb, currentColor 18%, transparent);
       animation: publication-node 1.35s ease-in-out infinite;
     }
 
@@ -70,8 +70,9 @@ import { Component, Input } from '@angular/core';
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #99f6e4;
-      box-shadow: 0 0 0 4px rgba(153, 246, 228, .16), 0 0 10px rgba(153, 246, 228, .8);
+      background: currentColor;
+      box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 16%, transparent),
+        0 0 10px color-mix(in srgb, currentColor 72%, transparent);
       animation: publication-transfer 1.35s cubic-bezier(.4, 0, .2, 1) infinite;
     }
 
@@ -84,8 +85,11 @@ import { Component, Input } from '@angular/core';
     }
 
     @keyframes publication-node {
-      0%, 100% { border-color: rgba(255, 255, 255, .62); }
-      42% { border-color: #ccfbf1; box-shadow: 0 0 0 3px rgba(153, 246, 228, .12); }
+      0%, 100% { border-color: color-mix(in srgb, currentColor 62%, transparent); }
+      42% {
+        border-color: currentColor;
+        box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
