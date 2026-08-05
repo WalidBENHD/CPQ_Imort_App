@@ -38,6 +38,7 @@ export class EvolisDecryptorComponent implements OnInit {
   presentation: EvolisPresentation | null = null;
   resultOrigin: 'new' | 'history' | null = null;
   errorMessage = '';
+  successMessage = '';
   activeDownload: DownloadKind | null = null;
   historyDownloadId: string | null = null;
   openingHistoryId: string | null = null;
@@ -53,6 +54,9 @@ export class EvolisDecryptorComponent implements OnInit {
   historyTotal = 0;
   historyLoading = false;
   historyMobileOpen = false;
+  resetDialogOpen = false;
+  resetConfirmation = '';
+  resettingHistory = false;
   private historySearchTimer: number | null = null;
   private readonly expandedTables = new Set<number>();
 
@@ -65,6 +69,14 @@ export class EvolisDecryptorComponent implements OnInit {
 
   get canViewAllHistory(): boolean {
     return this.auth.hasCapability('tools.evolis.audit');
+  }
+
+  get canResetHistory(): boolean {
+    return this.auth.hasCapability('system.maintenance');
+  }
+
+  get resetConfirmed(): boolean {
+    return this.resetConfirmation.trim().toUpperCase() === 'RESET EVOLIS';
   }
 
   get historyPageCount(): number {
@@ -173,6 +185,45 @@ export class EvolisDecryptorComponent implements OnInit {
     this.errorMessage = '';
     this.expandedTables.clear();
     if (this.fileInput?.nativeElement) this.fileInput.nativeElement.value = '';
+  }
+
+  openResetDialog(): void {
+    if (!this.canResetHistory) return;
+    this.resetConfirmation = '';
+    this.resetDialogOpen = true;
+  }
+
+  closeResetDialog(): void {
+    if (this.resettingHistory) return;
+    this.resetDialogOpen = false;
+    this.resetConfirmation = '';
+  }
+
+  resetEvolisHistory(): void {
+    if (!this.resetConfirmed || this.resettingHistory) return;
+    this.resettingHistory = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.decryptorService.resetHistory().subscribe({
+      next: response => {
+        this.resettingHistory = false;
+        this.resetDialogOpen = false;
+        this.resetConfirmation = '';
+        this.reset();
+        this.historyPage = 1;
+        this.historyItems = [];
+        this.historyTotal = 0;
+        this.historyMetrics = { total: 0, thisMonth: 0, successful: 0, failed: 0, failedThisMonth: 0 };
+        this.successMessage = response.deletedRecords
+          ? `${response.deletedRecords} Evolis record${response.deletedRecords === 1 ? '' : 's'} deleted. Other application data was preserved.`
+          : 'Evolis history was already empty. Other application data was preserved.';
+        this.loadHistory();
+      },
+      error: error => {
+        this.resettingHistory = false;
+        this.errorMessage = this.readError(error, 'Unable to reset Evolis history.');
+      }
+    });
   }
 
   setHistoryScope(scope: HistoryScope): void {

@@ -6,6 +6,7 @@ using CPQ_Import_App.API.Services;
 using CPQ_Import_App.Core.Enums;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Core.Security;
+using CPQ_Import_App.Infrastructure.Services;
 using System.Security.Claims;
 using System.Security.Cryptography;
 
@@ -18,6 +19,7 @@ public class EvolisController(
     IEvolisDecryptorService decryptorService,
     IEvolisHistoryService historyService,
     IAuthorizationService authorizationService,
+    IActivityService activityService,
     EvolisWordDocumentBuilder wordDocumentBuilder,
     EvolisPdfDocumentBuilder pdfDocumentBuilder) : ControllerBase
 {
@@ -137,6 +139,24 @@ public class EvolisController(
     {
         var metrics = await historyService.GetMetricsAsync(null, ct);
         return Ok(ToMetricsDto(metrics));
+    }
+
+    [HttpDelete("history")]
+    [Authorize(Policy = Capabilities.SystemMaintenance)]
+    public async Task<ActionResult<EvolisHistoryResetDto>> ResetHistory(CancellationToken ct)
+    {
+        var deletedRecords = await historyService.ResetAsync(ct);
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "ResetEvolisHistory",
+            $"Deleted {deletedRecords} Evolis decryption record(s), including retained source files and results.",
+            TargetType: "EvolisDecryptionHistory",
+            StatusCode: StatusCodes.Status200OK,
+            Metadata: new { DeletedRecords = deletedRecords }), ct);
+
+        return Ok(new EvolisHistoryResetDto(
+            deletedRecords,
+            "Evolis history and retained files were deleted. Other application data was not changed."));
     }
 
     [HttpPost("decrypt-word")]

@@ -87,6 +87,19 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
     public Task<EvolisDecryptionRun?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => db.EvolisDecryptionRuns.AsNoTracking().FirstOrDefaultAsync(run => run.Id == id, ct);
 
+    public async Task<int> ResetAsync(CancellationToken ct = default)
+    {
+        if (db.Database.IsRelational())
+        {
+            return await db.EvolisDecryptionRuns.ExecuteDeleteAsync(ct);
+        }
+
+        var runs = await db.EvolisDecryptionRuns.ToListAsync(ct);
+        db.EvolisDecryptionRuns.RemoveRange(runs);
+        await db.SaveChangesAsync(ct);
+        return runs.Count;
+    }
+
     private async Task FinishAsync(Guid id, EvolisDecryptionStatus status, string? outputFormat,
         string? decryptedContent, string? failureReason, CancellationToken ct)
     {

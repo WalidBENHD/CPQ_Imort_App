@@ -38,4 +38,8 @@ export class EvolisDecryptorService {
   getMetrics(allUsers: boolean): Observable<EvolisDecryptionMetrics> {
     return this.http.get<EvolisDecryptionMetrics>(`${this.base}/${allUsers ? 'metrics' : 'history/metrics'}`);
   }
+
+  resetHistory(): Observable<{ deletedRecords: number; message: string }> {
+    return this.http.delete<{ deletedRecords: number; message: string }>(`${this.base}/history`);
+  }
 }

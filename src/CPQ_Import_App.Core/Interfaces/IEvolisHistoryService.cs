@@ -15,6 +15,7 @@ public interface IEvolisHistoryService
         CancellationToken ct = default);
     Task<EvolisDecryptionMetrics> GetMetricsAsync(string? userId, CancellationToken ct = default);
     Task<EvolisDecryptionRun?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<int> ResetAsync(CancellationToken ct = default);
 }
 
 public record EvolisDecryptionMetrics(int Total, int ThisMonth, int Successful, int Failed, int FailedThisMonth);

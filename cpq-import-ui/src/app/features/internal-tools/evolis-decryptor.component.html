@@ -20,6 +20,11 @@
     <span>{{ errorMessage }}</span>
     <button type="button" (click)="errorMessage = ''" aria-label="Dismiss error"><mat-icon>close</mat-icon></button>
   </div>
+  <div class="success-banner" *ngIf="successMessage">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+    <button type="button" (click)="successMessage = ''" aria-label="Dismiss confirmation"><mat-icon>close</mat-icon></button>
+  </div>
 
   <div class="evolis-layout">
     <main class="workbench">
@@ -183,6 +188,12 @@
         <div class="failed"><strong>{{ historyMetrics.failed }}</strong><small>Failed</small></div>
       </div>
 
+      <div class="history-admin" *ngIf="canResetHistory">
+        <span class="history-admin__icon"><mat-icon>delete_sweep</mat-icon></span>
+        <span><strong>History administration</strong><small>Remove Evolis records and retained files only.</small></span>
+        <button type="button" (click)="openResetDialog()">Reset</button>
+      </div>
+
       <div class="history-controls">
         <label><mat-icon>search</mat-icon><input [(ngModel)]="historySearch" (ngModelChange)="onHistorySearch()" placeholder="Search retained files" /></label>
         <select [(ngModel)]="historyStatus" (ngModelChange)="setHistoryStatus($event)" aria-label="History status">
@@ -222,5 +233,41 @@
         <button type="button" [disabled]="historyPage === historyPageCount || historyLoading" (click)="changeHistoryPage(1)"><mat-icon>chevron_right</mat-icon></button>
       </footer>
     </aside>
+  </div>
+
+  <div class="reset-backdrop" *ngIf="resetDialogOpen" (click)="closeResetDialog()">
+    <section class="reset-dialog" role="dialog" aria-modal="true" aria-labelledby="evolis-reset-title" (click)="$event.stopPropagation()">
+      <header>
+        <span><mat-icon>delete_sweep</mat-icon></span>
+        <div><div class="eyebrow">Evolis administration</div><h2 id="evolis-reset-title">Clear all Evolis history?</h2></div>
+        <button type="button" [disabled]="resettingHistory" (click)="closeResetDialog()" aria-label="Close reset dialog"><mat-icon>close</mat-icon></button>
+      </header>
+
+      <div class="reset-dialog__body">
+        <p>This permanently removes every Evolis decryption record, its retained source file and its reusable result.</p>
+        <div class="reset-boundary">
+          <mat-icon>verified_user</mat-icon>
+          <span><strong>The rest of the platform is preserved.</strong><small>Uploads, CPQ data, users, roles and application activity are not deleted.</small></span>
+        </div>
+        <div class="reset-impact">
+          <span><mat-icon>history</mat-icon><strong>{{ historyMetrics.total }}</strong><small>History records</small></span>
+          <span><mat-icon>draft</mat-icon><strong>All</strong><small>Retained sources</small></span>
+          <span><mat-icon>replay</mat-icon><strong>All</strong><small>Reusable results</small></span>
+        </div>
+        <label class="reset-confirmation">
+          <span>Type <strong>RESET EVOLIS</strong> to confirm</span>
+          <input [(ngModel)]="resetConfirmation" [disabled]="resettingHistory" autocomplete="off" spellcheck="false" />
+        </label>
+      </div>
+
+      <footer>
+        <button class="reset-cancel" type="button" [disabled]="resettingHistory" (click)="closeResetDialog()">Keep history</button>
+        <button class="reset-confirm" type="button" [disabled]="!resetConfirmed || resettingHistory" (click)="resetEvolisHistory()">
+          <span class="action-loader" *ngIf="resettingHistory"><i></i><i></i><i></i></span>
+          <mat-icon *ngIf="!resettingHistory">delete_forever</mat-icon>
+          {{ resettingHistory ? 'Clearing securely' : 'Clear Evolis history' }}
+        </button>
+      </footer>
+    </section>
   </div>
 </section>

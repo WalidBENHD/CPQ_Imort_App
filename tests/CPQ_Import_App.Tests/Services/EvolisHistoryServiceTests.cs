@@ -52,6 +52,20 @@ public class EvolisHistoryServiceTests
         Assert.NotNull(stored.CompletedAtUtc);
     }
 
+    [Fact]
+    public async Task Reset_RemovesOnlyEvolisHistory()
+    {
+        await using var db = CreateDb();
+        var service = new EvolisHistoryService(db);
+        await service.StartAsync("one.txt", 12, new string('A', 64), "text/plain", [1], "user", "User");
+        await service.StartAsync("two.txt", 24, new string('B', 64), "text/plain", [2], "user", "User");
+
+        var deleted = await service.ResetAsync();
+
+        Assert.Equal(2, deleted);
+        Assert.Empty(await db.EvolisDecryptionRuns.ToListAsync());
+    }
+
     private static AppDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

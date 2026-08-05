@@ -31,3 +31,5 @@ public record EvolisDecryptionHistoryDto(
     int PageSize);
 
 public record EvolisDecryptionMetricsDto(int Total, int ThisMonth, int Successful, int Failed, int FailedThisMonth);
+
+public record EvolisHistoryResetDto(int DeletedRecords, string Message);
