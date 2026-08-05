@@ -12,10 +12,10 @@ public class EvolisHistoryServiceTests
     {
         await using var db = CreateDb();
         var service = new EvolisHistoryService(db);
-        var successful = await service.StartAsync("one.txt", 120, new string('A', 64), "user-1", "User One");
-        var failed = await service.StartAsync("two.txt", 240, new string('B', 64), "user-2", "User Two");
+        var successful = await service.StartAsync("one.txt", 120, new string('A', 64), "text/plain", [1, 2], "user-1", "User One");
+        var failed = await service.StartAsync("two.txt", 240, new string('B', 64), "text/plain", [3, 4], "user-2", "User Two");
 
-        await service.CompleteAsync(successful.Id, "PDF");
+        await service.CompleteAsync(successful.Id, "PDF", "decrypted result");
         await service.FailAsync(failed.Id, "Invalid encrypted row.");
 
         var personal = await service.GetPagedAsync("user-1", 1, 20, null, null);
@@ -29,6 +29,12 @@ public class EvolisHistoryServiceTests
         Assert.Equal(1, globalMetrics.Failed);
         Assert.Equal(1, personalMetrics.Total);
         Assert.Equal(0, personalMetrics.Failed);
+        Assert.True(personal.Items[0].HasSourceFile);
+        Assert.True(personal.Items[0].HasResult);
+
+        var retained = await service.GetByIdAsync(successful.Id);
+        Assert.Equal(new byte[] { 1, 2 }, retained!.SourceFileContent);
+        Assert.Equal("decrypted result", retained.DecryptedContent);
     }
 
     [Fact]
@@ -36,7 +42,7 @@ public class EvolisHistoryServiceTests
     {
         await using var db = CreateDb();
         var service = new EvolisHistoryService(db);
-        var run = await service.StartAsync("bad.txt", 12, new string('C', 64), "user", "User");
+        var run = await service.StartAsync("bad.txt", 12, new string('C', 64), "text/plain", [5], "user", "User");
 
         await service.FailAsync(run.Id, new string('x', 1200));
 

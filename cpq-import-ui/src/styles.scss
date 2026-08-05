@@ -2487,6 +2487,38 @@ html.theme-dark .notification-menu-panel .empty-icon {
   color: #93c5fd;
 }
 
+/* Keep every selection control visible on dark surfaces, including sticky tables. */
+html.theme-dark .mat-mdc-checkbox {
+  --mdc-checkbox-selected-icon-color: #14b8a6;
+  --mdc-checkbox-selected-hover-icon-color: #2dd4bf;
+  --mdc-checkbox-selected-focus-icon-color: #2dd4bf;
+  --mdc-checkbox-selected-pressed-icon-color: #0d9488;
+  --mdc-checkbox-selected-checkmark-color: #ffffff;
+  --mdc-checkbox-unselected-icon-color: rgba(203, 213, 225, 0.82);
+  --mdc-checkbox-unselected-hover-icon-color: #e2e8f0;
+  --mdc-checkbox-unselected-focus-icon-color: #e2e8f0;
+  --mdc-checkbox-unselected-pressed-icon-color: #f8fafc;
+  --mdc-checkbox-disabled-selected-icon-color: rgba(45, 212, 191, 0.42);
+  --mdc-checkbox-disabled-unselected-icon-color: rgba(148, 163, 184, 0.42);
+  --mat-checkbox-label-text-color: var(--app-text);
+  --mat-checkbox-disabled-label-color: var(--app-text-muted);
+}
+
+html.theme-dark .mat-mdc-checkbox .mdc-checkbox:not(.mdc-checkbox--selected) .mdc-checkbox__background {
+  border-color: rgba(203, 213, 225, 0.82) !important;
+  background-color: rgba(148, 163, 184, 0.05) !important;
+}
+
+html.theme-dark .mat-mdc-checkbox:hover .mdc-checkbox:not(.mdc-checkbox--selected) .mdc-checkbox__background,
+html.theme-dark .mat-mdc-checkbox:focus-within .mdc-checkbox:not(.mdc-checkbox--selected) .mdc-checkbox__background {
+  border-color: #f1f5f9 !important;
+  background-color: rgba(45, 212, 191, 0.08) !important;
+}
+
+html.theme-dark .mat-mdc-checkbox.mat-mdc-checkbox-disabled .mdc-checkbox:not(.mdc-checkbox--selected) .mdc-checkbox__background {
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
 /* --- Activity monitor chips, status labels, table --- */
 html.theme-dark app-activity-monitor .chip-category {
   background: rgba(59, 130, 246, 0.2);

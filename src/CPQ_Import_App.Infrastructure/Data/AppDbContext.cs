@@ -191,6 +191,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.Property(x => x.FileName).HasMaxLength(512);
             e.Property(x => x.FileHash).HasMaxLength(64);
+            e.Property(x => x.SourceContentType).HasMaxLength(128);
             e.Property(x => x.UserId).HasMaxLength(256);
             e.Property(x => x.UserDisplayName).HasMaxLength(512);
             e.Property(x => x.OutputFormat).HasMaxLength(32);

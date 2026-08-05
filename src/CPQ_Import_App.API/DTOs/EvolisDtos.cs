@@ -20,7 +20,9 @@ public record EvolisDecryptionRunDto(
     EvolisDecryptionStatus Status,
     string StatusLabel,
     string? OutputFormat,
-    string? FailureReason);
+    string? FailureReason,
+    bool HasSourceFile,
+    bool HasResult);
 
 public record EvolisDecryptionHistoryDto(
     IReadOnlyList<EvolisDecryptionRunDto> Items,

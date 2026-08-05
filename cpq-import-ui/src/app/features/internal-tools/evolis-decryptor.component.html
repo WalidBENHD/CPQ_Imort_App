@@ -1,0 +1,226 @@
+<section class="evolis-page">
+  <header class="evolis-hero">
+    <div class="hero-copy">
+      <span class="hero-icon"><mat-icon>enhanced_encryption</mat-icon></span>
+      <div>
+        <div class="eyebrow">Specialist tool · Controlled operation</div>
+        <h1>Evolis secure decryptor</h1>
+        <p>Decrypt, inspect and retrieve Evolis files from one accountable workspace.</p>
+      </div>
+    </div>
+    <div class="hero-assurance">
+      <span><i></i> Restricted access</span>
+      <strong>Original files retained</strong>
+      <small>Reports are generated only when requested</small>
+    </div>
+  </header>
+
+  <div class="error-banner" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button type="button" (click)="errorMessage = ''" aria-label="Dismiss error"><mat-icon>close</mat-icon></button>
+  </div>
+
+  <div class="evolis-layout">
+    <main class="workbench">
+      <section class="workbench-card" [class.workbench-card--result]="result">
+        <header class="section-head">
+          <div>
+            <span class="section-index">01</span>
+            <div>
+              <div class="eyebrow">Active workbench</div>
+              <h2>{{ result ? 'Decrypted result' : 'Process a new file' }}</h2>
+            </div>
+          </div>
+          <span class="privacy-chip"><mat-icon>shield</mat-icon> Personal record</span>
+        </header>
+
+        <ng-container *ngIf="!result">
+          <div class="dropzone" [class.dropzone--active]="dragActive"
+            (dragover)="onDragOver($event)" (dragleave)="dragActive = false" (drop)="onDrop($event)">
+            <input #fileInput type="file" accept=".txt,.dat,.csv" (change)="onFileSelected($event)" />
+            <span class="drop-icon"><mat-icon>{{ selectedFile ? 'draft' : 'upload_file' }}</mat-icon></span>
+            <div class="eyebrow">Encrypted source</div>
+            <h3>{{ selectedFile ? selectedFile.name : 'Drop the Evolis file here' }}</h3>
+            <p *ngIf="!selectedFile">The original file will be retained in your private history after this operation.</p>
+            <p *ngIf="selectedFile">{{ selectedFileSize }} · Ready for controlled decryption</p>
+            <button class="secondary-button" type="button" (click)="fileInput.click()">
+              <mat-icon>folder_open</mat-icon>{{ selectedFile ? 'Choose another file' : 'Browse files' }}
+            </button>
+          </div>
+
+          <div class="process-strip">
+            <div><span>1</span><p><strong>Retain</strong><small>Original source</small></p></div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div><span>2</span><p><strong>Decrypt</strong><small>Controlled service</small></p></div>
+            <mat-icon>arrow_forward</mat-icon>
+            <div><span>3</span><p><strong>Review</strong><small>Reusable result</small></p></div>
+          </div>
+
+          <button class="primary-action" type="button" [disabled]="!selectedFile || processing" (click)="decrypt()">
+            <span class="action-loader" *ngIf="processing"><i></i><i></i><i></i></span>
+            <mat-icon *ngIf="!processing">lock_open</mat-icon>
+            {{ processing ? 'Secure processing' : 'Decrypt file' }}
+          </button>
+        </ng-container>
+
+        <ng-container *ngIf="result">
+          <div class="result-identity">
+            <span class="result-icon"><mat-icon>verified</mat-icon></span>
+            <div>
+              <div class="result-origin">{{ resultOrigin === 'history' ? 'Reopened from retained history' : 'Decryption completed' }}</div>
+              <h3>{{ result.sourceFileName }}</h3>
+              <p>{{ presentation?.tables?.length ?? 0 }} result tables · The report itself is not stored.</p>
+            </div>
+            <span class="success-chip"><i></i> Available</span>
+          </div>
+
+          <div class="output-heading">
+            <div><span>Result</span><h3>Decrypted output</h3></div>
+            <button class="pdf-primary" type="button" [disabled]="!!activeDownload" (click)="downloadReport('pdf')">
+              <app-download-action [loading]="activeDownload === 'pdf'" icon="picture_as_pdf" label="Download PDF" />
+            </button>
+          </div>
+
+          <div class="output-cards">
+            <div class="output-card output-card--source">
+              <span><mat-icon>description</mat-icon></span><small>Source file</small><strong class="file-name" [title]="result.sourceFileName">{{ compactFileName(result.sourceFileName) }}</strong>
+            </div>
+            <div class="output-card output-card--total">
+              <span><mat-icon>attach_money</mat-icon></span><small>Grand total</small><strong>{{ presentation?.grandTotal ?? '0.0000' }}</strong>
+            </div>
+            <div class="output-card output-card--pdf">
+              <span><mat-icon>picture_as_pdf</mat-icon></span><small>PDF report</small><strong class="file-name" [title]="result.downloadFileName">{{ compactFileName(result.downloadFileName) }}</strong>
+            </div>
+            <div class="output-card output-card--tables">
+              <span><mat-icon>table_chart</mat-icon></span><small>Tables</small><strong>{{ presentation?.tables?.length ?? 0 }}</strong>
+            </div>
+          </div>
+
+          <div class="table-overview" *ngIf="presentation?.tables?.length">
+            <header><h4>Table overview</h4><span>{{ presentation!.tables.length }} {{ presentation!.tables.length === 1 ? 'table' : 'tables' }}</span></header>
+            <button type="button" *ngFor="let table of presentation!.tables; let i = index" (click)="toggleTable(i)">
+              <span class="overview-copy"><strong>{{ table.title }}</strong><small>{{ table.idPanier }} · {{ formatTableDate(table.date) }}</small></span>
+              <span class="overview-count overview-count--standard">{{ table.lineRows.length }} standard</span>
+              <span class="overview-count overview-count--configured">{{ table.configuredRows.length }} configured</span>
+              <strong class="overview-total">{{ table.subtotal }}</strong>
+            </button>
+          </div>
+
+          <div class="result-actions result-actions--evidence">
+            <button class="source-action" type="button" [disabled]="!!activeDownload" (click)="downloadSource()">
+              <app-download-action [loading]="activeDownload === 'source'" icon="download" label="Original file" />
+            </button>
+            <span class="result-audit-note"><mat-icon>history</mat-icon>{{ resultOrigin === 'history' ? 'Reopened without creating a new history event' : 'This operation was recorded once' }}</span>
+            <button class="new-file-action" type="button" (click)="reset()"><mat-icon>add</mat-icon> New file</button>
+          </div>
+        </ng-container>
+      </section>
+
+      <section #resultSection class="details-card" *ngIf="presentation">
+        <header class="details-head">
+          <div>
+            <div class="eyebrow">Result inspection</div>
+            <h2>Decrypted business data</h2>
+            <p>Review the structured output before generating a temporary report.</p>
+          </div>
+          <div class="grand-total"><small>Grand total</small><strong>{{ presentation.grandTotal }}</strong></div>
+        </header>
+
+        <article class="result-table-card" *ngFor="let table of presentation.tables; let i = index">
+          <button class="table-summary-row" type="button" (click)="toggleTable(i)" [attr.aria-expanded]="isTableExpanded(i)">
+            <span class="table-number">{{ i + 1 | number:'2.0' }}</span>
+            <span class="table-title"><small>{{ table.title }}</small><strong>{{ table.idPanier }}</strong><em>{{ formatTableDate(table.date) }}</em></span>
+            <span class="table-counts">{{ table.lineRows.length }} standard · {{ table.configuredRows.length }} configured</span>
+            <span class="table-total"><small>Subtotal</small><strong>{{ table.subtotal }}</strong></span>
+            <mat-icon>{{ isTableExpanded(i) ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+
+          <div class="table-details" *ngIf="isTableExpanded(i)">
+            <div class="data-table-wrap" *ngIf="table.lineRows.length">
+              <h4>Standard rows <span>{{ table.lineRows.length }}</span></h4>
+              <table><thead><tr><th>Type</th><th>Generic part number</th><th>Quantity</th></tr></thead>
+                <tbody><tr *ngFor="let row of table.lineRows"><td>{{ row.type }}</td><td>{{ row.genericPartNumber }}</td><td>{{ row.quantity }}</td></tr></tbody>
+              </table>
+            </div>
+            <div class="data-table-wrap" *ngIf="table.configuredRows.length">
+              <h4>Configured rows <span>{{ table.configuredRows.length }}</span></h4>
+              <table class="configured-table"><thead><tr><th>Type</th><th>Part number</th><th>Qty</th><th>Description</th><th>Unit price</th><th>Total</th></tr></thead>
+                <tbody><tr *ngFor="let row of table.configuredRows"><td>{{ row.type }}</td><td>{{ row.genericPartNumber }}</td><td>{{ row.quantity }}</td><td>{{ row.description }}</td><td>{{ row.unitPrice }}</td><td>{{ row.totalPrice }}</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <button class="mobile-history-trigger" type="button" (click)="historyMobileOpen = true" [attr.aria-expanded]="historyMobileOpen">
+      <mat-icon>manage_history</mat-icon>
+      <span><strong>File history</strong><small>Reopen retained results</small></span>
+      <em>{{ historyMetrics.total }}</em>
+    </button>
+    <button class="mobile-history-backdrop" type="button" *ngIf="historyMobileOpen" (click)="historyMobileOpen = false" aria-label="Close file history"></button>
+
+    <aside class="records-panel" [class.records-panel--mobile-open]="historyMobileOpen">
+      <header class="records-head">
+        <div>
+          <div class="eyebrow">Retained operations</div>
+          <h2>File history</h2>
+          <p>Reopen a result without creating another decryption.</p>
+        </div>
+        <span class="record-total">{{ historyMetrics.total }}</span>
+        <button class="mobile-history-close" type="button" (click)="historyMobileOpen = false" aria-label="Close file history"><mat-icon>close</mat-icon></button>
+      </header>
+
+      <div class="scope-switch" *ngIf="canViewAllHistory">
+        <button type="button" [class.active]="historyScope === 'mine'" (click)="setHistoryScope('mine')">My files</button>
+        <button type="button" [class.active]="historyScope === 'all'" (click)="setHistoryScope('all')">All activity</button>
+      </div>
+
+      <div class="record-stats">
+        <div><strong>{{ historyMetrics.thisMonth }}</strong><small>This month</small></div>
+        <div class="success"><strong>{{ historyMetrics.successful }}</strong><small>Successful</small></div>
+        <div class="failed"><strong>{{ historyMetrics.failed }}</strong><small>Failed</small></div>
+      </div>
+
+      <div class="history-controls">
+        <label><mat-icon>search</mat-icon><input [(ngModel)]="historySearch" (ngModelChange)="onHistorySearch()" placeholder="Search retained files" /></label>
+        <select [(ngModel)]="historyStatus" (ngModelChange)="setHistoryStatus($event)" aria-label="History status">
+          <option value="All">All results</option><option value="Successful">Successful</option><option value="Failed">Failed</option>
+        </select>
+      </div>
+
+      <div class="record-list" *ngIf="historyItems.length; else emptyHistory">
+        <article class="record-item" *ngFor="let item of historyItems; trackBy: trackHistory" [class.record-item--failed]="item.statusLabel === 'Failed'" [class.record-item--current]="result?.runId === item.id">
+          <button class="record-open" type="button" [disabled]="!item.hasResult || !!openingHistoryId" (click)="openHistory(item)">
+            <span class="record-file-icon"><mat-icon>{{ item.statusLabel === 'Failed' ? 'warning' : 'description' }}</mat-icon></span>
+            <span class="record-copy">
+              <strong>{{ item.fileName }}</strong>
+              <small>{{ item.startedAtUtc | date:'dd MMM yyyy, HH:mm' }} · {{ formatHistorySize(item.fileSize) }}</small>
+              <em *ngIf="historyScope === 'all'"><i>{{ initials(item.userDisplayName) }}</i>{{ item.userDisplayName }}</em>
+            </span>
+            <span class="record-state" [class.failed]="item.statusLabel === 'Failed'"><i></i>{{ item.statusLabel }}</span>
+            <span class="record-loading" *ngIf="openingHistoryId === item.id"><i></i></span>
+          </button>
+          <div class="record-footer">
+            <span *ngIf="item.hasResult"><mat-icon>replay</mat-icon> Result retained</span>
+            <span *ngIf="!item.hasResult && item.statusLabel === 'Successful'"><mat-icon>history</mat-icon> Legacy record</span>
+            <span *ngIf="item.statusLabel === 'Failed'" [title]="item.failureReason ?? ''"><mat-icon>error_outline</mat-icon> No result</span>
+            <button type="button" [disabled]="!item.hasSourceFile || !!historyDownloadId" (click)="downloadSource(item)">
+              <app-download-action [loading]="historyDownloadId === item.id" icon="download" [label]="item.hasSourceFile ? 'Source' : 'Not retained'" />
+            </button>
+          </div>
+        </article>
+      </div>
+      <ng-template #emptyHistory>
+        <div class="empty-history"><mat-icon>manage_history</mat-icon><strong>{{ historyLoading ? 'Loading records' : 'No matching records' }}</strong><span *ngIf="!historyLoading">Your next decryption will appear here.</span></div>
+      </ng-template>
+
+      <footer class="records-pagination" *ngIf="historyTotal > historyPageSize">
+        <button type="button" [disabled]="historyPage === 1 || historyLoading" (click)="changeHistoryPage(-1)"><mat-icon>chevron_left</mat-icon></button>
+        <span>{{ historyPage }} / {{ historyPageCount }}</span>
+        <button type="button" [disabled]="historyPage === historyPageCount || historyLoading" (click)="changeHistoryPage(1)"><mat-icon>chevron_right</mat-icon></button>
+      </footer>
+    </aside>
+  </div>
+</section>

@@ -9,6 +9,7 @@ namespace CPQ_Import_App.Infrastructure.Services;
 public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryService
 {
     public async Task<EvolisDecryptionRun> StartAsync(string fileName, long fileSize, string fileHash,
+        string? sourceContentType, byte[] sourceFileContent,
         string userId, string userDisplayName, CancellationToken ct = default)
     {
         var run = new EvolisDecryptionRun
@@ -16,6 +17,9 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
             FileName = fileName,
             FileSize = fileSize,
             FileHash = fileHash,
+            SourceContentType = string.IsNullOrWhiteSpace(sourceContentType) ? "application/octet-stream" : sourceContentType,
+            SourceFileContent = sourceFileContent,
+            HasSourceFile = true,
             UserId = userId,
             UserDisplayName = userDisplayName
         };
@@ -24,11 +28,11 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
         return run;
     }
 
-    public Task CompleteAsync(Guid id, string outputFormat, CancellationToken ct = default)
-        => FinishAsync(id, EvolisDecryptionStatus.Successful, outputFormat, null, ct);
+    public Task CompleteAsync(Guid id, string outputFormat, string decryptedContent, CancellationToken ct = default)
+        => FinishAsync(id, EvolisDecryptionStatus.Successful, outputFormat, decryptedContent, null, ct);
 
     public Task FailAsync(Guid id, string reason, CancellationToken ct = default)
-        => FinishAsync(id, EvolisDecryptionStatus.Failed, null, NormalizeFailure(reason), ct);
+        => FinishAsync(id, EvolisDecryptionStatus.Failed, null, null, NormalizeFailure(reason), ct);
 
     public async Task<(IReadOnlyList<EvolisDecryptionRun> Items, int Total)> GetPagedAsync(
         string? userId, int page, int pageSize, string? search, EvolisDecryptionStatus? status,
@@ -46,7 +50,24 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
 
         var total = await query.CountAsync(ct);
         var items = await query.OrderByDescending(run => run.StartedAtUtc)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(run => new EvolisDecryptionRun
+            {
+                Id = run.Id,
+                FileName = run.FileName,
+                FileSize = run.FileSize,
+                FileHash = run.FileHash,
+                UserId = run.UserId,
+                UserDisplayName = run.UserDisplayName,
+                StartedAtUtc = run.StartedAtUtc,
+                CompletedAtUtc = run.CompletedAtUtc,
+                Status = run.Status,
+                OutputFormat = run.OutputFormat,
+                FailureReason = run.FailureReason,
+                HasSourceFile = run.HasSourceFile,
+                HasResult = run.HasResult
+            })
+            .ToListAsync(ct);
         return (items, total);
     }
 
@@ -63,12 +84,18 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
         return new EvolisDecryptionMetrics(total, thisMonth, successful, failed, failedThisMonth);
     }
 
-    private async Task FinishAsync(Guid id, EvolisDecryptionStatus status, string? outputFormat, string? failureReason, CancellationToken ct)
+    public Task<EvolisDecryptionRun?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        => db.EvolisDecryptionRuns.AsNoTracking().FirstOrDefaultAsync(run => run.Id == id, ct);
+
+    private async Task FinishAsync(Guid id, EvolisDecryptionStatus status, string? outputFormat,
+        string? decryptedContent, string? failureReason, CancellationToken ct)
     {
         var run = await db.EvolisDecryptionRuns.FirstOrDefaultAsync(item => item.Id == id, ct)
             ?? throw new KeyNotFoundException($"Evolis decryption run '{id}' was not found.");
         run.Status = status;
         run.OutputFormat = outputFormat;
+        run.DecryptedContent = decryptedContent;
+        run.HasResult = !string.IsNullOrEmpty(decryptedContent);
         run.FailureReason = failureReason;
         run.CompletedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);

@@ -805,7 +805,7 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
               <div class="draft-change-counts">
                 <span class="change-added"><strong>{{ job.draftAddedRows }}</strong> added</span>
                 <span class="change-modified"><strong>{{ job.draftModifiedRows }}</strong> modified</span>
-                <button type="button" class="change-removed" (click)="showRemovedRows = !showRemovedRows">
+                <button type="button" class="change-removed" [disabled]="job.draftRemovedRows === 0" [attr.aria-expanded]="job.draftRemovedRows > 0 ? showRemovedRows : false" (click)="showRemovedRows = !showRemovedRows">
                   <strong>{{ job.draftRemovedRows }}</strong> removed
                   <mat-icon>{{ showRemovedRows ? 'expand_less' : 'expand_more' }}</mat-icon>
                 </button>
@@ -1486,6 +1486,7 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
     .draft-change-counts > span, .draft-change-counts > button { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 8px; border: 1px solid var(--app-border); border-radius: 999px; color: var(--app-text-muted); background: var(--app-surface); font: inherit; font-size: 9px; }
     .draft-change-counts strong { color: var(--app-text); font-size: 11px; }
     .draft-change-counts button { cursor: pointer; }
+    .draft-change-counts button:disabled { border-color: var(--app-border) !important; color: var(--app-text-muted); background: var(--app-soft-surface); cursor: default; opacity: .68; }
     .draft-change-counts mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .change-added { border-color: color-mix(in srgb, #22c55e 35%, var(--app-border)) !important; }
     .change-modified { border-color: color-mix(in srgb, #3b82f6 35%, var(--app-border)) !important; }
@@ -1497,7 +1498,7 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
     .draft-actions .mat-mdc-icon-button { width:40px; min-width:40px; padding:0; }
     .draft-actions .mat-mdc-icon-button mat-icon { margin:0; }
     .delete-selection:not(:disabled) { border-color: color-mix(in srgb, #ef4444 40%, var(--app-border)); color: #dc2626; }
-    .removed-rows-tray { position:absolute; z-index:12; top:calc(100% + 6px); right:0; left:0; overflow:hidden; border:1px solid color-mix(in srgb,#ef4444 25%,var(--app-border)); border-radius:14px; background:var(--app-surface-elevated); box-shadow:0 20px 50px rgba(2,6,23,.2); }
+    .removed-rows-tray { position:relative; overflow:hidden; margin-top:6px; border:1px solid color-mix(in srgb,#ef4444 25%,var(--app-border)); border-radius:14px; background:var(--app-surface-elevated); box-shadow:0 12px 30px rgba(2,6,23,.12); }
     .removed-tray-heading, .removed-tray-heading > div { display: flex; align-items: center; }
     .removed-tray-heading { justify-content: space-between; gap: 14px; padding: 11px 13px; border-bottom: 1px solid var(--app-border); }
     .removed-tray-heading > div { gap: 9px; }

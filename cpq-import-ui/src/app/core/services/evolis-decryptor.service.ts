@@ -16,11 +16,16 @@ export class EvolisDecryptorService {
     return this.http.post<EvolisDecryptResponse>(`${this.base}/decrypt`, form);
   }
 
-  downloadPdf(file: File): Observable<Blob> {
-    const form = new FormData();
-    form.append('file', file);
+  getHistoryResult(id: string): Observable<EvolisDecryptResponse> {
+    return this.http.get<EvolisDecryptResponse>(`${this.base}/history/${id}`);
+  }
 
-    return this.http.post(`${this.base}/decrypt-pdf`, form, { responseType: 'blob' });
+  downloadSource(id: string): Observable<Blob> {
+    return this.http.get(`${this.base}/history/${id}/source`, { responseType: 'blob' });
+  }
+
+  downloadReport(id: string, format: 'pdf' | 'word'): Observable<Blob> {
+    return this.http.get(`${this.base}/history/${id}/report/${format}`, { responseType: 'blob' });
   }
 
   getHistory(allUsers: boolean, page: number, pageSize: number, search: string, status: string): Observable<EvolisDecryptionHistory> {

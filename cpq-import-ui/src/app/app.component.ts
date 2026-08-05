@@ -226,17 +226,8 @@ type HeaderCommand = {
       <div class="shell-body" [class.shell-body--collapsed]="!isSidebarOpen" [class.shell-body--mobile-open]="isMobileSidebarOpen">
         <aside class="side-nav" *ngIf="auth.isAuthenticated" aria-label="Primary navigation">
           <div class="side-nav__content">
-          <div class="side-nav__identity" [class.side-nav__identity--compact]="!showSidebarLabels">
-            <span class="side-nav__identity-mark"><mat-icon>hub</mat-icon></span>
-            <span class="side-nav__identity-copy" *ngIf="showSidebarLabels">
-              <small>Governed workspace</small>
-              <strong>Saint-Marcellin PDU</strong>
-            </span>
-            <span class="side-nav__identity-status" *ngIf="showSidebarLabels"><i></i> Live</span>
-          </div>
-
           <ng-container *ngIf="visibleWorkNavItems.length">
-            <div class="nav-group-label" *ngIf="showSidebarLabels"><span>Workspace</span><i></i></div>
+            <div class="nav-group-label"><span>Workspace</span><i></i></div>
 
             <a
               mat-button
@@ -251,12 +242,12 @@ type HeaderCommand = {
               (click)="onNavItemClick()"
             >
               <span class="side-link__icon"><mat-icon>{{ item.icon }}</mat-icon></span>
-              <span class="side-link__copy" *ngIf="showSidebarLabels"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
+              <span class="side-link__copy"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
             </a>
           </ng-container>
 
           <ng-container *ngIf="auth.isInternalTools">
-            <div class="nav-group-label" *ngIf="showSidebarLabels"><span>Specialist tools</span><i></i></div>
+            <div class="nav-group-label"><span>Specialist tools</span><i></i></div>
 
             <a
               mat-button
@@ -270,12 +261,12 @@ type HeaderCommand = {
               (click)="onNavItemClick()"
             >
               <span class="side-link__icon"><mat-icon>{{ item.icon }}</mat-icon></span>
-              <span class="side-link__copy" *ngIf="showSidebarLabels"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
+              <span class="side-link__copy"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
             </a>
           </ng-container>
 
           <ng-container *ngIf="visibleAdminNavItems.length">
-            <div class="nav-group-label" *ngIf="showSidebarLabels"><span>Administration</span><i></i></div>
+            <div class="nav-group-label"><span>Administration</span><i></i></div>
 
             <a
               mat-button
@@ -289,15 +280,15 @@ type HeaderCommand = {
               (click)="onNavItemClick()"
             >
               <span class="side-link__icon"><mat-icon>{{ item.icon }}</mat-icon></span>
-              <span class="side-link__copy" *ngIf="showSidebarLabels"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
+              <span class="side-link__copy"><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
             </a>
           </ng-container>
           </div>
 
           <div class="side-nav__footer">
           <div class="theme-toggle-row" [class.theme-toggle-row--compact]="!showSidebarLabels">
-            <span class="theme-toggle-row__icon" *ngIf="showSidebarLabels"><mat-icon>{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon></span>
-            <span *ngIf="showSidebarLabels" class="theme-toggle-row__label"><strong>{{ themeLabel }}</strong><small>Interface appearance</small></span>
+            <span class="theme-toggle-row__icon"><mat-icon>{{ isDarkTheme ? 'dark_mode' : 'light_mode' }}</mat-icon></span>
+            <span class="theme-toggle-row__label"><strong>{{ themeLabel }}</strong><small>Interface appearance</small></span>
 
             <button
               class="theme-toggle-row__switch"
@@ -684,13 +675,13 @@ type HeaderCommand = {
 
     .shell-body {
       display: grid;
-      grid-template-columns: 276px minmax(0, 1fr);
+      grid-template-columns: 252px minmax(0, 1fr);
       align-items: start;
       min-height: calc(100vh - 58px);
-      transition: grid-template-columns 180ms ease;
+      transition: grid-template-columns 300ms cubic-bezier(.22, 1, .36, 1);
     }
     .shell-body--collapsed {
-      grid-template-columns: 80px minmax(0, 1fr);
+      grid-template-columns: 74px minmax(0, 1fr);
     }
 
     .side-nav {
@@ -701,13 +692,14 @@ type HeaderCommand = {
       background:
         radial-gradient(circle at 0 0, color-mix(in srgb, var(--app-accent) 9%, transparent), transparent 34%),
         linear-gradient(180deg, var(--app-sidebar-bg), color-mix(in srgb, var(--app-sidebar-bg) 92%, var(--app-background)));
-      padding: 12px 11px 10px;
+      padding: 18px 10px 10px;
       display: flex;
       flex-direction: column;
       align-items: stretch;
       overflow: hidden;
       z-index: 110;
-      box-shadow: 12px 0 34px rgba(15, 23, 42, 0.04);
+      box-shadow: 8px 0 28px rgba(15, 23, 42, 0.025);
+      transition: padding 300ms cubic-bezier(.22, 1, .36, 1), box-shadow 300ms ease;
     }
 
     .side-nav__content {
@@ -732,13 +724,14 @@ type HeaderCommand = {
       background:
         linear-gradient(145deg, color-mix(in srgb, var(--app-accent) 9%, var(--app-surface-elevated)), var(--app-surface-elevated));
       box-shadow: 0 8px 22px rgba(15, 23, 42, 0.055);
+      transition: min-height 260ms cubic-bezier(.22, 1, .36, 1), padding 260ms cubic-bezier(.22, 1, .36, 1), border-color 180ms ease, background 220ms ease, box-shadow 220ms ease;
     }
 
     .side-nav__identity--compact {
-      display: flex;
-      justify-content: center;
       min-height: 52px;
-      padding: 6px 0;
+      grid-template-columns: 40px minmax(0, 0fr) 0;
+      gap: 0;
+      padding: 6px;
       border-color: transparent;
       background: transparent;
       box-shadow: none;
@@ -756,45 +749,52 @@ type HeaderCommand = {
     }
 
     .side-nav__identity-mark mat-icon { width: 20px; height: 20px; font-size: 20px; }
-    .side-nav__identity-copy { min-width: 0; display: grid; gap: 2px; }
+    .side-nav__identity-copy { min-width: 0; display: grid; gap: 2px; overflow: hidden; opacity: 1; transform: translateX(0); transition: opacity 140ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1); }
     .side-nav__identity-copy small { color: var(--app-text-muted); font-size: 9px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
-    .side-nav__identity-copy strong { overflow: hidden; color: var(--app-text); font-size: 12px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
-    .side-nav__identity-status { display: inline-flex; align-items: center; gap: 5px; color: #087e78; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+    .side-nav__identity-copy strong { overflow: hidden; color: color-mix(in srgb, var(--app-text) 80%, #64748b); font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .side-nav__identity-status { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; color: #087e78; font-size: 9px; font-weight: 850; text-transform: uppercase; white-space: nowrap; opacity: 1; transition: opacity 120ms ease; }
+    .side-nav__identity--compact .side-nav__identity-copy,
+    .side-nav__identity--compact .side-nav__identity-status { opacity: 0; transform: translateX(-5px); pointer-events: none; }
     .side-nav__identity-status i { width: 6px; height: 6px; border-radius: 50%; background: #14b8a6; box-shadow: 0 0 0 4px rgba(20, 184, 166, .12); }
 
     .nav-group-label {
       display: flex;
       align-items: center;
-      gap: 9px;
-      font-size: 10px;
-      letter-spacing: 0.11em;
+      gap: 8px;
+      font-size: 8px;
+      letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--app-text-muted);
-      font-weight: 800;
-      margin: 16px 9px 6px;
+      font-weight: 780;
+      margin: 21px 10px 8px;
+      max-height: 18px;
+      overflow: hidden;
+      opacity: 1;
+      transform: translateY(0);
+      transition: max-height 230ms cubic-bezier(.22, 1, .36, 1), margin 260ms cubic-bezier(.22, 1, .36, 1), opacity 130ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1);
     }
 
-    .nav-group-label i { flex: 1; height: 1px; background: linear-gradient(90deg, var(--app-border), transparent); }
+    .nav-group-label i { flex: 1; height: 1px; background: linear-gradient(90deg, color-mix(in srgb, var(--app-text-muted) 16%, transparent), transparent); }
 
     .nav-group-label:first-child { margin-top: 2px; }
 
     .side-link {
       position: relative;
-      min-height: 54px;
+      min-height: 44px;
       justify-content: flex-start;
       align-items: center;
       border: 1px solid transparent;
-      border-radius: 14px;
-      color: var(--app-text);
+      border-radius: 11px;
+      color: #607086;
       display: inline-flex;
-      gap: 10px;
-      padding: 6px 9px;
-      margin: 3px 0;
+      gap: 8px;
+      padding: 5px 9px;
+      margin: 2px 0;
       width: 100%;
-      transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+      transition: min-height 260ms cubic-bezier(.22, 1, .36, 1), padding 260ms cubic-bezier(.22, 1, .36, 1), border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
     }
 
-    .side-link:hover { border-color: color-mix(in srgb, var(--app-accent) 15%, var(--app-border)); background: color-mix(in srgb, var(--app-accent) 6%, var(--app-surface)); transform: translateX(2px); }
+    .side-link:hover { border-color: transparent; background: color-mix(in srgb, var(--app-accent) 4%, var(--app-surface)); color: color-mix(in srgb, var(--app-text) 82%, #64748b); transform: none; }
     .side-link--compact:hover { transform: none; }
 
     :host ::ng-deep .side-link .mdc-button__label {
@@ -805,17 +805,17 @@ type HeaderCommand = {
       gap: 10px;
     }
 
-    :host ::ng-deep .side-link--compact .mdc-button__label { justify-content: center; }
+    :host ::ng-deep .side-link--compact .mdc-button__label { justify-content: center; gap: 0; }
 
     .side-link__icon {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       display: grid;
       place-items: center;
       flex: 0 0 auto;
-      border: 1px solid color-mix(in srgb, var(--app-text-muted) 12%, var(--app-border));
-      border-radius: 11px;
-      background: color-mix(in srgb, var(--app-soft-surface) 82%, transparent);
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
       transition: transform var(--motion-fast) var(--ease-out), border-color var(--motion-fast) ease, background var(--motion-fast) ease;
     }
 
@@ -823,40 +823,66 @@ type HeaderCommand = {
       margin: 0;
       color: var(--app-text-muted);
       flex: 0 0 auto;
-      width: 19px;
-      height: 19px;
-      font-size: 19px;
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
       transition: transform var(--motion-fast) var(--ease-out), color var(--motion-fast) ease;
     }
-    .side-link:hover .side-link__icon { transform: scale(1.04); }
+    .side-link:hover .side-link__icon { transform: none; }
 
-    .side-link__copy { min-width: 0; display: grid; flex: 1; gap: 2px; text-align: left; }
-    .side-link__copy strong { overflow: hidden; font-size: 13px; font-weight: 800; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
-    .side-link__copy small { overflow: hidden; color: var(--app-text-muted); font-size: 9px; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .side-link__copy { min-width: 0; max-width: 180px; display: grid; flex: 1; gap: 2px; overflow: hidden; text-align: left; opacity: 1; transform: translateX(0); transition: max-width 260ms cubic-bezier(.22, 1, .36, 1), opacity 130ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1); }
+    .side-link__copy strong { overflow: hidden; color: inherit; font-size: 12px; font-weight: 580; line-height: 1.2; letter-spacing: .004em; text-overflow: ellipsis; white-space: nowrap; }
+    .side-link__copy small { display: none; overflow: hidden; color: var(--app-text-muted); font-size: 8px; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 
     .side-link--compact {
       justify-content: center;
-      min-height: 50px;
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      margin: 1px 0;
       padding: 6px 0;
+      box-sizing: border-box;
     }
 
-    .side-link--compact .side-link__icon { width: 38px; height: 38px; }
+    :host ::ng-deep .side-link--compact.mat-mdc-button {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+    }
+
+    .side-link--compact .side-link__icon { width: 32px; height: 32px; transform: none; }
+    .side-link--compact .side-link__copy { max-width: 0; flex: 0 1 0; opacity: 0; transform: translateX(-6px); pointer-events: none; }
+    .shell-body--collapsed .nav-group-label { max-height: 0; margin-top: 3px; margin-bottom: 2px; opacity: 0; transform: translateY(-4px); }
+    .shell-body--collapsed .side-nav { padding-inline: 10px; box-shadow: 7px 0 22px rgba(15, 23, 42, .035); }
+
+    .side-link--compact.side-link--active {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      min-height: 44px;
+      margin: 2px 0;
+      padding: 4px;
+      border-radius: 11px;
+    }
+
+    .side-link--compact.side-link--active::before { display: none; }
+    .side-link--compact.side-link--active .side-link__icon { width: 32px; height: 32px; }
 
     .theme-toggle-row {
       display: flex;
       align-items: center;
       justify-content: flex-start;
       gap: 10px;
-      min-height: 54px;
-      padding: 7px 9px;
-      border: 1px solid var(--app-border);
-      border-radius: 14px;
-      background: var(--app-surface-elevated);
+      min-height: 46px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--app-soft-surface) 62%, transparent);
       color: var(--app-text);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, .04);
+      box-shadow: none;
     }
 
-    .theme-toggle-row__icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 9%, var(--app-soft-surface)); }
+    .theme-toggle-row__icon { width: 30px; max-width: 30px; height: 30px; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; border-radius: 9px; color: var(--app-accent); background: color-mix(in srgb, var(--app-accent) 8%, transparent); opacity: 1; transform: translateX(0); transition: max-width 240ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1); }
     .theme-toggle-row__icon mat-icon { width: 18px; height: 18px; font-size: 18px; }
 
     .theme-toggle-row--compact {
@@ -875,10 +901,26 @@ type HeaderCommand = {
       flex: 1;
       gap: 2px;
       white-space: nowrap;
+      max-width: 150px;
+      overflow: hidden;
+      opacity: 1;
+      transform: translateX(0);
+      transition: max-width 250ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1);
     }
 
-    .theme-toggle-row__label strong { font-size: 12px; font-weight: 800; }
-    .theme-toggle-row__label small { color: var(--app-text-muted); font-size: 9px; }
+    .theme-toggle-row--compact .theme-toggle-row__icon,
+    .theme-toggle-row--compact .theme-toggle-row__label { max-width: 0; flex-basis: 0; opacity: 0; transform: translateX(-5px); pointer-events: none; }
+    .theme-toggle-row--compact .theme-toggle-row__switch { margin-inline: auto; }
+
+    .shell-body:not(.shell-body--collapsed) .side-link__copy,
+    .shell-body:not(.shell-body--collapsed) .side-nav__identity-copy,
+    .shell-body:not(.shell-body--collapsed) .side-nav__identity-status,
+    .shell-body:not(.shell-body--collapsed) .nav-group-label,
+    .shell-body:not(.shell-body--collapsed) .theme-toggle-row__icon,
+    .shell-body:not(.shell-body--collapsed) .theme-toggle-row__label { transition-delay: 70ms; }
+
+    .theme-toggle-row__label strong { color: #40516a; font-size: 11px; font-weight: 650; }
+    .theme-toggle-row__label small { display: none; }
 
     .theme-toggle-row__switch {
       margin-left: auto;
@@ -965,10 +1007,11 @@ type HeaderCommand = {
     }
 
     .side-link--active {
-      border-color: color-mix(in srgb, #0f9f96 28%, var(--app-border));
-      background: linear-gradient(100deg, color-mix(in srgb, #0f9f96 13%, var(--app-surface)), color-mix(in srgb, #2563eb 6%, var(--app-surface)));
-      color: color-mix(in srgb, #087e78 88%, var(--app-text));
-      box-shadow: 0 7px 18px rgba(15, 159, 150, .09);
+      min-height: 44px;
+      border-color: transparent;
+      background: linear-gradient(90deg, color-mix(in srgb, #0f9f96 10%, var(--app-surface)), color-mix(in srgb, #2563eb 3%, var(--app-surface)));
+      color: #087e78;
+      box-shadow: none;
     }
 
     .side-link--active .side-link__icon {
@@ -981,15 +1024,11 @@ type HeaderCommand = {
     }
 
     .side-link--active .side-link__copy small { color: color-mix(in srgb, #087e78 58%, var(--app-text-muted)); }
+    .side-link--active .side-link__copy small { display: none; }
+    .side-link--active .side-link__copy strong { color: #087e78; font-weight: 680; }
 
     :host ::ng-deep .side-link--active .mdc-button__label::after {
-      content: '';
-      width: 6px;
-      height: 6px;
-      margin: 0 3px 0 auto;
-      border-right: 2px solid #0f9f96;
-      border-bottom: 2px solid #0f9f96;
-      transform: rotate(-45deg);
+      display: none;
     }
 
     :host ::ng-deep .side-link--active.side-link--compact .mdc-button__label::after { display: none; }
@@ -997,13 +1036,13 @@ type HeaderCommand = {
     .side-link--active::before {
       content: '';
       position: absolute;
-      left: -4px;
-      top: 14px;
-      bottom: 14px;
+      left: 0;
+      top: 10px;
+      bottom: 10px;
       width: 3px;
       border-radius: 4px;
       background: #0f9f96;
-      box-shadow: 0 0 12px rgba(15, 159, 150, 0.3);
+      box-shadow: 0 0 9px rgba(15, 159, 150, 0.22);
     }
 
     .side-nav__footer {
@@ -1017,12 +1056,12 @@ type HeaderCommand = {
     }
 
     .sidebar-credit {
-      min-height: 28px;
+      min-height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--app-text-muted);
-      font-size: 10px;
+      font-size: 9px;
       line-height: 1;
       text-align: center;
       text-decoration: none;
@@ -1048,7 +1087,10 @@ type HeaderCommand = {
       letter-spacing: 0.04em;
     }
 
-    :host-context(.theme-dark) .side-link { color: #e2e8f0; }
+    :host-context(.theme-dark) .side-link { color: #9dabc0; }
+    :host-context(.theme-dark) .side-link__copy strong,
+    :host-context(.theme-dark) .theme-toggle-row__label strong { color: inherit; }
+    :host-context(.theme-dark) .side-link--active .side-link__copy strong { color: #99f6e4; }
     :host-context(.theme-dark) .side-nav__identity {
       border-color: rgba(45, 212, 191, .18);
       background: linear-gradient(145deg, rgba(13, 148, 136, .12), rgba(17, 26, 47, .9));
@@ -1057,12 +1099,12 @@ type HeaderCommand = {
     :host-context(.theme-dark) .side-nav__identity--compact { border-color: transparent; background: transparent; box-shadow: none; }
     :host-context(.theme-dark) .side-nav__identity-status { color: #5eead4; }
     :host-context(.theme-dark) .side-link__icon mat-icon { color: #94a3b8; }
-    :host-context(.theme-dark) .side-link__icon { border-color: rgba(148, 163, 184, .14); background: rgba(15, 23, 42, .48); }
-    :host-context(.theme-dark) .nav-group-label { color: #8fa2bd; }
-    :host-context(.theme-dark) .theme-toggle-row { color: #e2e8f0; }
+    :host-context(.theme-dark) .side-link__icon { border-color: transparent; background: transparent; }
+    :host-context(.theme-dark) .nav-group-label { color: #70829d; }
+    :host-context(.theme-dark) .theme-toggle-row { color: #e2e8f0; background: rgba(15,23,42,.32); }
     :host-context(.theme-dark) .side-link--active {
-      border-color: rgba(45, 212, 191, .25);
-      background: rgba(20, 184, 166, 0.16);
+      border-color: transparent;
+      background: linear-gradient(90deg, rgba(20, 184, 166, .14), rgba(37, 99, 235, .045));
       color: #ccfbf1;
     }
     :host-context(.theme-dark) .side-link--active .side-link__icon { border-color: rgba(45, 212, 191, .28); background: rgba(13, 148, 136, .18); }

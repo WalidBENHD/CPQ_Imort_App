@@ -46,6 +46,8 @@ export interface EvolisDecryptionRun {
   statusLabel: 'Processing' | 'Successful' | 'Failed';
   outputFormat: string | null;
   failureReason: string | null;
+  hasSourceFile: boolean;
+  hasResult: boolean;
 }
 
 export interface EvolisDecryptionHistory {
