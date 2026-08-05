@@ -465,8 +465,25 @@ static async Task EnsurePostgresEvolisDecryptionRunsAsync(AppDbContext db)
             "Status" integer NOT NULL,
             "OutputFormat" character varying(32) NULL,
             "FailureReason" character varying(1000) NULL,
+            "SourceContentType" character varying(128) NULL,
+            "SourceFileContent" bytea NULL,
+            "DecryptedContent" text NULL,
+            "HasSourceFile" boolean NOT NULL DEFAULT FALSE,
+            "HasResult" boolean NOT NULL DEFAULT FALSE,
             CONSTRAINT "PK_EvolisDecryptionRuns" PRIMARY KEY ("Id")
         );
+
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "SourceContentType" character varying(128) NULL;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "SourceFileContent" bytea NULL;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "DecryptedContent" text NULL;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "HasSourceFile" boolean NOT NULL DEFAULT FALSE;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "HasResult" boolean NOT NULL DEFAULT FALSE;
+
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_StartedAtUtc" ON import."EvolisDecryptionRuns" ("StartedAtUtc");
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_UserId_StartedAtUtc" ON import."EvolisDecryptionRuns" ("UserId", "StartedAtUtc");
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_Status_StartedAtUtc" ON import."EvolisDecryptionRuns" ("Status", "StartedAtUtc");
