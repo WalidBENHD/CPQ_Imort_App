@@ -196,9 +196,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.UserDisplayName).HasMaxLength(512);
             e.Property(x => x.OutputFormat).HasMaxLength(32);
             e.Property(x => x.FailureReason).HasMaxLength(1000);
+            e.Property(x => x.DeletedByUserId).HasMaxLength(256);
+            e.Property(x => x.DeletedByDisplayName).HasMaxLength(512);
             e.HasIndex(x => x.StartedAtUtc);
             e.HasIndex(x => new { x.UserId, x.StartedAtUtc });
             e.HasIndex(x => new { x.Status, x.StartedAtUtc });
+            e.HasIndex(x => new { x.IsDeleted, x.StartedAtUtc });
         });
     }
 }

@@ -16,7 +16,7 @@ import { DownloadActionComponent } from '../../shared/download-action/download-a
 import { parseEvolisPresentation } from './evolis-parser';
 
 type HistoryScope = 'mine' | 'all';
-type HistoryStatus = 'All' | 'Successful' | 'Failed';
+type HistoryStatus = 'All' | 'Successful' | 'Failed' | 'Deleted';
 type DownloadKind = 'source' | 'pdf';
 
 @Component({
@@ -48,7 +48,7 @@ export class EvolisDecryptorComponent implements OnInit {
   historySearch = '';
   historyStatus: HistoryStatus = 'All';
   historyItems: EvolisDecryptionRun[] = [];
-  historyMetrics: EvolisDecryptionMetrics = { total: 0, thisMonth: 0, successful: 0, failed: 0, failedThisMonth: 0 };
+  historyMetrics: EvolisDecryptionMetrics = { total: 0, thisMonth: 0, successful: 0, failed: 0, failedThisMonth: 0, deleted: 0 };
   historyPage = 1;
   readonly historyPageSize = 12;
   historyTotal = 0;
@@ -57,6 +57,10 @@ export class EvolisDecryptorComponent implements OnInit {
   resetDialogOpen = false;
   resetConfirmation = '';
   resettingHistory = false;
+  recordDeleteCandidate: EvolisDecryptionRun | null = null;
+  recordDeleteMode: 'remove' | 'permanent' = 'remove';
+  deletingRecordId: string | null = null;
+  permanentDeleteConfirmation = '';
   private historySearchTimer: number | null = null;
   private readonly expandedTables = new Set<number>();
 
@@ -77,6 +81,10 @@ export class EvolisDecryptorComponent implements OnInit {
 
   get resetConfirmed(): boolean {
     return this.resetConfirmation.trim().toUpperCase() === 'RESET EVOLIS';
+  }
+
+  get permanentDeleteConfirmed(): boolean {
+    return this.recordDeleteMode !== 'permanent' || this.permanentDeleteConfirmation.trim().toUpperCase() === 'DELETE';
   }
 
   get historyPageCount(): number {
@@ -213,7 +221,7 @@ export class EvolisDecryptorComponent implements OnInit {
         this.historyPage = 1;
         this.historyItems = [];
         this.historyTotal = 0;
-        this.historyMetrics = { total: 0, thisMonth: 0, successful: 0, failed: 0, failedThisMonth: 0 };
+        this.historyMetrics = { total: 0, thisMonth: 0, successful: 0, failed: 0, failedThisMonth: 0, deleted: 0 };
         this.successMessage = response.deletedRecords
           ? `${response.deletedRecords} Evolis record${response.deletedRecords === 1 ? '' : 's'} deleted. Other application data was preserved.`
           : 'Evolis history was already empty. Other application data was preserved.';
@@ -226,9 +234,51 @@ export class EvolisDecryptorComponent implements OnInit {
     });
   }
 
+  openRecordDelete(item: EvolisDecryptionRun, mode: 'remove' | 'permanent'): void {
+    if (mode === 'permanent' && (!this.canResetHistory || !item.isDeleted || this.historyScope !== 'all')) return;
+    if (mode === 'remove' && this.historyScope !== 'mine') return;
+    this.recordDeleteCandidate = item;
+    this.recordDeleteMode = mode;
+    this.permanentDeleteConfirmation = '';
+  }
+
+  closeRecordDelete(): void {
+    if (this.deletingRecordId) return;
+    this.recordDeleteCandidate = null;
+    this.permanentDeleteConfirmation = '';
+  }
+
+  confirmRecordDelete(): void {
+    const item = this.recordDeleteCandidate;
+    if (!item || this.deletingRecordId || !this.permanentDeleteConfirmed) return;
+    this.deletingRecordId = item.id;
+    this.errorMessage = '';
+    this.successMessage = '';
+    const request = this.recordDeleteMode === 'permanent'
+      ? this.decryptorService.permanentlyDeleteHistory(item.id)
+      : this.decryptorService.removeFromMyHistory(item.id);
+    request.subscribe({
+      next: response => {
+        const wasCurrent = this.result?.runId === item.id;
+        this.deletingRecordId = null;
+        this.recordDeleteCandidate = null;
+        this.permanentDeleteConfirmation = '';
+        if (wasCurrent) this.reset();
+        this.successMessage = response.message;
+        this.historyPage = 1;
+        this.loadHistory();
+      },
+      error: error => {
+        this.deletingRecordId = null;
+        this.errorMessage = this.readError(error, 'Unable to remove this Evolis history record.');
+      }
+    });
+  }
+
   setHistoryScope(scope: HistoryScope): void {
     if (scope === 'all' && !this.canViewAllHistory) return;
     this.historyScope = scope;
+    if (scope === 'mine' && this.historyStatus === 'Deleted') this.historyStatus = 'All';
     this.historyPage = 1;
     this.loadHistory();
   }

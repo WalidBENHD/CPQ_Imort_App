@@ -43,11 +43,14 @@ export interface EvolisDecryptionRun {
   startedAtUtc: string;
   completedAtUtc: string | null;
   status: number;
-  statusLabel: 'Processing' | 'Successful' | 'Failed';
+  statusLabel: 'Processing' | 'Successful' | 'Failed' | 'Deleted';
   outputFormat: string | null;
   failureReason: string | null;
   hasSourceFile: boolean;
   hasResult: boolean;
+  isDeleted: boolean;
+  deletedAtUtc: string | null;
+  deletedByDisplayName: string | null;
 }
 
 export interface EvolisDecryptionHistory {
@@ -63,4 +66,5 @@ export interface EvolisDecryptionMetrics {
   successful: number;
   failed: number;
   failedThisMonth: number;
+  deleted: number;
 }

@@ -97,7 +97,7 @@ public class DashboardController(
         if ((await authorizationService.AuthorizeAsync(User, Capabilities.ToolsEvolisAudit)).Succeeded)
         {
             var metrics = await evolisHistoryService.GetMetricsAsync(null, ct);
-            evolisMetrics = new EvolisDecryptionMetricsDto(metrics.Total, metrics.ThisMonth, metrics.Successful, metrics.Failed, metrics.FailedThisMonth);
+            evolisMetrics = new EvolisDecryptionMetricsDto(metrics.Total, metrics.ThisMonth, metrics.Successful, metrics.Failed, metrics.FailedThisMonth, metrics.Deleted);
         }
 
         return Ok(new DashboardOverviewDto(

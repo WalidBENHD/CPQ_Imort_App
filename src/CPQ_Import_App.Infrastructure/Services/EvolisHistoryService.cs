@@ -36,11 +36,16 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
 
     public async Task<(IReadOnlyList<EvolisDecryptionRun> Items, int Total)> GetPagedAsync(
         string? userId, int page, int pageSize, string? search, EvolisDecryptionStatus? status,
-        CancellationToken ct = default)
+        bool includeDeleted = false, bool deletedOnly = false, CancellationToken ct = default)
     {
         var query = db.EvolisDecryptionRuns.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(userId)) query = query.Where(run => run.UserId == userId);
-        if (status.HasValue) query = query.Where(run => run.Status == status.Value);
+        if (deletedOnly) query = query.Where(run => run.IsDeleted);
+        else
+        {
+            if (!includeDeleted || status.HasValue) query = query.Where(run => !run.IsDeleted);
+            if (status.HasValue) query = query.Where(run => run.Status == status.Value);
+        }
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -65,7 +70,11 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
                 OutputFormat = run.OutputFormat,
                 FailureReason = run.FailureReason,
                 HasSourceFile = run.HasSourceFile,
-                HasResult = run.HasResult
+                HasResult = run.HasResult,
+                IsDeleted = run.IsDeleted,
+                DeletedAtUtc = run.DeletedAtUtc,
+                DeletedByUserId = run.DeletedByUserId,
+                DeletedByDisplayName = run.DeletedByDisplayName
             })
             .ToListAsync(ct);
         return (items, total);
@@ -76,16 +85,44 @@ public sealed class EvolisHistoryService(AppDbContext db) : IEvolisHistoryServic
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var query = db.EvolisDecryptionRuns.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(userId)) query = query.Where(run => run.UserId == userId);
-        var total = await query.CountAsync(ct);
-        var thisMonth = await query.CountAsync(run => run.StartedAtUtc >= monthStart, ct);
-        var successful = await query.CountAsync(run => run.Status == EvolisDecryptionStatus.Successful, ct);
-        var failed = await query.CountAsync(run => run.Status == EvolisDecryptionStatus.Failed, ct);
-        var failedThisMonth = await query.CountAsync(run => run.StartedAtUtc >= monthStart && run.Status == EvolisDecryptionStatus.Failed, ct);
-        return new EvolisDecryptionMetrics(total, thisMonth, successful, failed, failedThisMonth);
+        var visibleQuery = string.IsNullOrWhiteSpace(userId) ? query : query.Where(run => !run.IsDeleted);
+        var total = await visibleQuery.CountAsync(ct);
+        var thisMonth = await visibleQuery.CountAsync(run => run.StartedAtUtc >= monthStart, ct);
+        var successful = await query.CountAsync(run => !run.IsDeleted && run.Status == EvolisDecryptionStatus.Successful, ct);
+        var failed = await query.CountAsync(run => !run.IsDeleted && run.Status == EvolisDecryptionStatus.Failed, ct);
+        var failedThisMonth = await query.CountAsync(run => !run.IsDeleted && run.StartedAtUtc >= monthStart && run.Status == EvolisDecryptionStatus.Failed, ct);
+        var deleted = string.IsNullOrWhiteSpace(userId) ? await query.CountAsync(run => run.IsDeleted, ct) : 0;
+        return new EvolisDecryptionMetrics(total, thisMonth, successful, failed, failedThisMonth, deleted);
     }
 
     public Task<EvolisDecryptionRun?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => db.EvolisDecryptionRuns.AsNoTracking().FirstOrDefaultAsync(run => run.Id == id, ct);
+
+    public async Task<bool> SoftDeleteAsync(Guid id, string ownerUserId, string deletedByDisplayName, CancellationToken ct = default)
+    {
+        var run = await db.EvolisDecryptionRuns.FirstOrDefaultAsync(
+            item => item.Id == id && item.UserId == ownerUserId && !item.IsDeleted, ct);
+        if (run is null) return false;
+
+        run.IsDeleted = true;
+        run.DeletedAtUtc = DateTime.UtcNow;
+        run.DeletedByUserId = ownerUserId;
+        run.DeletedByDisplayName = deletedByDisplayName;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> PermanentlyDeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        if (db.Database.IsRelational())
+            return await db.EvolisDecryptionRuns.Where(run => run.Id == id && run.IsDeleted).ExecuteDeleteAsync(ct) == 1;
+
+        var run = await db.EvolisDecryptionRuns.FirstOrDefaultAsync(item => item.Id == id && item.IsDeleted, ct);
+        if (run is null) return false;
+        db.EvolisDecryptionRuns.Remove(run);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
 
     public async Task<int> ResetAsync(CancellationToken ct = default)
     {

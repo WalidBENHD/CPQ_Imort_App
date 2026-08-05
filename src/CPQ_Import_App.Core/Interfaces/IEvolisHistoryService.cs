@@ -12,10 +12,12 @@ public interface IEvolisHistoryService
     Task FailAsync(Guid id, string reason, CancellationToken ct = default);
     Task<(IReadOnlyList<EvolisDecryptionRun> Items, int Total)> GetPagedAsync(
         string? userId, int page, int pageSize, string? search, EvolisDecryptionStatus? status,
-        CancellationToken ct = default);
+        bool includeDeleted = false, bool deletedOnly = false, CancellationToken ct = default);
     Task<EvolisDecryptionMetrics> GetMetricsAsync(string? userId, CancellationToken ct = default);
     Task<EvolisDecryptionRun?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<bool> SoftDeleteAsync(Guid id, string ownerUserId, string deletedByDisplayName, CancellationToken ct = default);
+    Task<bool> PermanentlyDeleteAsync(Guid id, CancellationToken ct = default);
     Task<int> ResetAsync(CancellationToken ct = default);
 }
 
-public record EvolisDecryptionMetrics(int Total, int ThisMonth, int Successful, int Failed, int FailedThisMonth);
+public record EvolisDecryptionMetrics(int Total, int ThisMonth, int Successful, int Failed, int FailedThisMonth, int Deleted);

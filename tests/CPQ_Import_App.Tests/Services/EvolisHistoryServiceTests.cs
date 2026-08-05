@@ -66,6 +66,33 @@ public class EvolisHistoryServiceTests
         Assert.Empty(await db.EvolisDecryptionRuns.ToListAsync());
     }
 
+    [Fact]
+    public async Task PersonalRemoval_IsHiddenFromOwner_ButRetainedUntilAdminDeletion()
+    {
+        await using var db = CreateDb();
+        var service = new EvolisHistoryService(db);
+        var removedRun = await service.StartAsync("removed.txt", 12, new string('A', 64), "text/plain", [1], "user", "User");
+        var activeRun = await service.StartAsync("active.txt", 24, new string('B', 64), "text/plain", [2], "user", "User");
+        await service.CompleteAsync(removedRun.Id, "PDF", "removed result");
+        await service.CompleteAsync(activeRun.Id, "PDF", "active result");
+
+        Assert.True(await service.SoftDeleteAsync(removedRun.Id, "user", "User"));
+
+        var personal = await service.GetPagedAsync("user", 1, 20, null, null);
+        var admin = await service.GetPagedAsync(null, 1, 20, null, null, includeDeleted: true);
+        var metrics = await service.GetMetricsAsync(null);
+
+        Assert.Single(personal.Items);
+        Assert.Equal(activeRun.Id, personal.Items[0].Id);
+        Assert.Equal(2, admin.Total);
+        Assert.Contains(admin.Items, item => item.Id == removedRun.Id && item.IsDeleted);
+        Assert.Equal(1, metrics.Deleted);
+        Assert.False(await service.PermanentlyDeleteAsync(activeRun.Id));
+        Assert.True(await service.PermanentlyDeleteAsync(removedRun.Id));
+        Assert.Null(await service.GetByIdAsync(removedRun.Id));
+        Assert.NotNull(await service.GetByIdAsync(activeRun.Id));
+    }
+
     private static AppDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

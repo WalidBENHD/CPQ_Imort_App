@@ -186,6 +186,7 @@
         <div><strong>{{ historyMetrics.thisMonth }}</strong><small>This month</small></div>
         <div class="success"><strong>{{ historyMetrics.successful }}</strong><small>Successful</small></div>
         <div class="failed"><strong>{{ historyMetrics.failed }}</strong><small>Failed</small></div>
+        <div class="deleted" *ngIf="historyScope === 'all'"><strong>{{ historyMetrics.deleted }}</strong><small>Deleted</small></div>
       </div>
 
       <div class="history-admin" *ngIf="canResetHistory">
@@ -197,29 +198,32 @@
       <div class="history-controls">
         <label><mat-icon>search</mat-icon><input [(ngModel)]="historySearch" (ngModelChange)="onHistorySearch()" placeholder="Search retained files" /></label>
         <select [(ngModel)]="historyStatus" (ngModelChange)="setHistoryStatus($event)" aria-label="History status">
-          <option value="All">All results</option><option value="Successful">Successful</option><option value="Failed">Failed</option>
+          <option value="All">All results</option><option value="Successful">Successful</option><option value="Failed">Failed</option><option *ngIf="historyScope === 'all'" value="Deleted">Deleted</option>
         </select>
       </div>
 
       <div class="record-list" *ngIf="historyItems.length; else emptyHistory">
-        <article class="record-item" *ngFor="let item of historyItems; trackBy: trackHistory" [class.record-item--failed]="item.statusLabel === 'Failed'" [class.record-item--current]="result?.runId === item.id">
+        <article class="record-item" *ngFor="let item of historyItems; trackBy: trackHistory" [class.record-item--failed]="item.statusLabel === 'Failed'" [class.record-item--deleted]="item.isDeleted" [class.record-item--current]="result?.runId === item.id">
           <button class="record-open" type="button" [disabled]="!item.hasResult || !!openingHistoryId" (click)="openHistory(item)">
-            <span class="record-file-icon"><mat-icon>{{ item.statusLabel === 'Failed' ? 'warning' : 'description' }}</mat-icon></span>
+            <span class="record-file-icon"><mat-icon>{{ item.isDeleted ? 'delete_outline' : item.statusLabel === 'Failed' ? 'warning' : 'description' }}</mat-icon></span>
             <span class="record-copy">
               <strong>{{ item.fileName }}</strong>
               <small>{{ item.startedAtUtc | date:'dd MMM yyyy, HH:mm' }} · {{ formatHistorySize(item.fileSize) }}</small>
               <em *ngIf="historyScope === 'all'"><i>{{ initials(item.userDisplayName) }}</i>{{ item.userDisplayName }}</em>
+              <em class="deleted-detail" *ngIf="item.isDeleted"><mat-icon>history</mat-icon>Removed {{ item.deletedAtUtc | date:'dd MMM yyyy, HH:mm' }}</em>
             </span>
-            <span class="record-state" [class.failed]="item.statusLabel === 'Failed'"><i></i>{{ item.statusLabel }}</span>
+            <span class="record-state" [class.failed]="item.statusLabel === 'Failed'" [class.deleted]="item.isDeleted"><i></i>{{ item.statusLabel }}</span>
             <span class="record-loading" *ngIf="openingHistoryId === item.id"><i></i></span>
           </button>
           <div class="record-footer">
-            <span *ngIf="item.hasResult"><mat-icon>replay</mat-icon> Result retained</span>
+            <span *ngIf="item.hasResult"><mat-icon>replay</mat-icon> {{ item.isDeleted ? 'Evidence retained' : 'Result retained' }}</span>
             <span *ngIf="!item.hasResult && item.statusLabel === 'Successful'"><mat-icon>history</mat-icon> Legacy record</span>
             <span *ngIf="item.statusLabel === 'Failed'" [title]="item.failureReason ?? ''"><mat-icon>error_outline</mat-icon> No result</span>
             <button type="button" [disabled]="!item.hasSourceFile || !!historyDownloadId" (click)="downloadSource(item)">
               <app-download-action [loading]="historyDownloadId === item.id" icon="download" [label]="item.hasSourceFile ? 'Source' : 'Not retained'" />
             </button>
+            <button class="record-remove" *ngIf="historyScope === 'mine'" type="button" (click)="openRecordDelete(item, 'remove')"><mat-icon>delete_outline</mat-icon>Remove</button>
+            <button class="record-purge" *ngIf="historyScope === 'all' && item.isDeleted && canResetHistory" type="button" (click)="openRecordDelete(item, 'permanent')"><mat-icon>delete_forever</mat-icon>Delete permanently</button>
           </div>
         </article>
       </div>
@@ -266,6 +270,40 @@
           <span class="action-loader" *ngIf="resettingHistory"><i></i><i></i><i></i></span>
           <mat-icon *ngIf="!resettingHistory">delete_forever</mat-icon>
           {{ resettingHistory ? 'Clearing securely' : 'Clear Evolis history' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="reset-backdrop" *ngIf="recordDeleteCandidate" (click)="closeRecordDelete()">
+    <section class="reset-dialog record-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="record-delete-title" (click)="$event.stopPropagation()">
+      <header>
+        <span><mat-icon>{{ recordDeleteMode === 'permanent' ? 'delete_forever' : 'history_toggle_off' }}</mat-icon></span>
+        <div>
+          <div class="eyebrow">{{ recordDeleteMode === 'permanent' ? 'Final administration action' : 'Personal history' }}</div>
+          <h2 id="record-delete-title">{{ recordDeleteMode === 'permanent' ? 'Permanently delete this record?' : 'Remove this record from your history?' }}</h2>
+        </div>
+        <button type="button" [disabled]="!!deletingRecordId" (click)="closeRecordDelete()" aria-label="Close"><mat-icon>close</mat-icon></button>
+      </header>
+      <div class="reset-dialog__body">
+        <div class="delete-record-identity"><mat-icon>description</mat-icon><span><strong>{{ recordDeleteCandidate.fileName }}</strong><small>{{ recordDeleteCandidate.startedAtUtc | date:'dd MMM yyyy, HH:mm' }} · {{ formatHistorySize(recordDeleteCandidate.fileSize) }}</small></span></div>
+        <div class="reset-boundary" *ngIf="recordDeleteMode === 'remove'">
+          <mat-icon>admin_panel_settings</mat-icon><span><strong>It disappears only from your personal history.</strong><small>Administrators continue to see it as Deleted in All activity until they permanently erase it.</small></span>
+        </div>
+        <div class="permanent-warning" *ngIf="recordDeleteMode === 'permanent'">
+          <mat-icon>warning</mat-icon><span><strong>This is the final deletion.</strong><small>The history record, original file and reusable result will be erased. This action cannot be undone.</small></span>
+        </div>
+        <label class="reset-confirmation" *ngIf="recordDeleteMode === 'permanent'">
+          <span>Type <strong>DELETE</strong> to confirm</span>
+          <input [(ngModel)]="permanentDeleteConfirmation" [disabled]="!!deletingRecordId" autocomplete="off" spellcheck="false" />
+        </label>
+      </div>
+      <footer>
+        <button class="reset-cancel" type="button" [disabled]="!!deletingRecordId" (click)="closeRecordDelete()">Cancel</button>
+        <button class="reset-confirm" type="button" [disabled]="!permanentDeleteConfirmed || !!deletingRecordId" (click)="confirmRecordDelete()">
+          <span class="action-loader" *ngIf="deletingRecordId"><i></i><i></i><i></i></span>
+          <mat-icon *ngIf="!deletingRecordId">{{ recordDeleteMode === 'permanent' ? 'delete_forever' : 'remove_circle_outline' }}</mat-icon>
+          {{ deletingRecordId ? 'Applying securely' : recordDeleteMode === 'permanent' ? 'Delete permanently' : 'Remove from my history' }}
         </button>
       </footer>
     </section>

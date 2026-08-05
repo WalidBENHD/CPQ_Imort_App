@@ -470,6 +470,10 @@ static async Task EnsurePostgresEvolisDecryptionRunsAsync(AppDbContext db)
             "DecryptedContent" text NULL,
             "HasSourceFile" boolean NOT NULL DEFAULT FALSE,
             "HasResult" boolean NOT NULL DEFAULT FALSE,
+            "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+            "DeletedAtUtc" timestamp with time zone NULL,
+            "DeletedByUserId" character varying(256) NULL,
+            "DeletedByDisplayName" character varying(512) NULL,
             CONSTRAINT "PK_EvolisDecryptionRuns" PRIMARY KEY ("Id")
         );
 
@@ -483,10 +487,19 @@ static async Task EnsurePostgresEvolisDecryptionRunsAsync(AppDbContext db)
             ADD COLUMN IF NOT EXISTS "HasSourceFile" boolean NOT NULL DEFAULT FALSE;
         ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
             ADD COLUMN IF NOT EXISTS "HasResult" boolean NOT NULL DEFAULT FALSE;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "IsDeleted" boolean NOT NULL DEFAULT FALSE;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "DeletedAtUtc" timestamp with time zone NULL;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "DeletedByUserId" character varying(256) NULL;
+        ALTER TABLE IF EXISTS import."EvolisDecryptionRuns"
+            ADD COLUMN IF NOT EXISTS "DeletedByDisplayName" character varying(512) NULL;
 
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_StartedAtUtc" ON import."EvolisDecryptionRuns" ("StartedAtUtc");
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_UserId_StartedAtUtc" ON import."EvolisDecryptionRuns" ("UserId", "StartedAtUtc");
         CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_Status_StartedAtUtc" ON import."EvolisDecryptionRuns" ("Status", "StartedAtUtc");
+        CREATE INDEX IF NOT EXISTS "IX_EvolisDecryptionRuns_IsDeleted_StartedAtUtc" ON import."EvolisDecryptionRuns" ("IsDeleted", "StartedAtUtc");
         """;
 
     await db.Database.ExecuteSqlRawAsync(sql);

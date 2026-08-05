@@ -22,7 +22,10 @@ public record EvolisDecryptionRunDto(
     string? OutputFormat,
     string? FailureReason,
     bool HasSourceFile,
-    bool HasResult);
+    bool HasResult,
+    bool IsDeleted,
+    DateTime? DeletedAtUtc,
+    string? DeletedByDisplayName);
 
 public record EvolisDecryptionHistoryDto(
     IReadOnlyList<EvolisDecryptionRunDto> Items,
@@ -30,6 +33,6 @@ public record EvolisDecryptionHistoryDto(
     int Page,
     int PageSize);
 
-public record EvolisDecryptionMetricsDto(int Total, int ThisMonth, int Successful, int Failed, int FailedThisMonth);
+public record EvolisDecryptionMetricsDto(int Total, int ThisMonth, int Successful, int Failed, int FailedThisMonth, int Deleted);
 
 public record EvolisHistoryResetDto(int DeletedRecords, string Message);

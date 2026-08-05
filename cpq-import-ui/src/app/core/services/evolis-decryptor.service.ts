@@ -42,4 +42,12 @@ export class EvolisDecryptorService {
   resetHistory(): Observable<{ deletedRecords: number; message: string }> {
     return this.http.delete<{ deletedRecords: number; message: string }>(`${this.base}/history`);
   }
+
+  removeFromMyHistory(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.base}/history/${id}`);
+  }
+
+  permanentlyDeleteHistory(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.base}/history/${id}/permanent`);
+  }
 }

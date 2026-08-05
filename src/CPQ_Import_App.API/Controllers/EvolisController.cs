@@ -116,7 +116,7 @@ public class EvolisController(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null, [FromQuery] string? status = null,
         CancellationToken ct = default)
-        => Ok(await GetHistoryAsync(UserId, page, pageSize, search, status, ct));
+        => Ok(await GetHistoryAsync(UserId, page, pageSize, search, status, includeDeleted: false, ct));
 
     [HttpGet("history/all")]
     [Authorize(Policy = Capabilities.ToolsEvolisAudit)]
@@ -124,7 +124,7 @@ public class EvolisController(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null, [FromQuery] string? status = null,
         CancellationToken ct = default)
-        => Ok(await GetHistoryAsync(null, page, pageSize, search, status, ct));
+        => Ok(await GetHistoryAsync(null, page, pageSize, search, status, includeDeleted: true, ct));
 
     [HttpGet("history/metrics")]
     public async Task<ActionResult<EvolisDecryptionMetricsDto>> GetMyMetrics(CancellationToken ct)
@@ -157,6 +157,45 @@ public class EvolisController(
         return Ok(new EvolisHistoryResetDto(
             deletedRecords,
             "Evolis history and retained files were deleted. Other application data was not changed."));
+    }
+
+    [HttpDelete("history/{id:guid}")]
+    public async Task<IActionResult> RemoveFromMyHistory(Guid id, CancellationToken ct)
+    {
+        var removed = await historyService.SoftDeleteAsync(id, UserId, UserDisplayName, ct);
+        if (!removed) return NotFound(new { error = "The Evolis record was not found in your history." });
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.System,
+            "RemoveEvolisHistoryRecord",
+            "Removed an Evolis record from personal history. The governed admin record was retained.",
+            TargetType: "EvolisDecryptionRun",
+            TargetId: id.ToString(),
+            StatusCode: StatusCodes.Status200OK), ct);
+        return Ok(new { message = "The record was removed from your history and retained for administrators." });
+    }
+
+    [HttpDelete("history/{id:guid}/permanent")]
+    [Authorize(Policy = Capabilities.SystemMaintenance)]
+    public async Task<IActionResult> PermanentlyDeleteHistory(Guid id, CancellationToken ct)
+    {
+        var run = await historyService.GetByIdAsync(id, ct);
+        if (run is null) return NotFound(new { error = "The Evolis record was not found." });
+        if (!run.IsDeleted)
+            return Conflict(new { error = "This record still exists in the user's history and cannot be permanently deleted." });
+
+        if (!await historyService.PermanentlyDeleteAsync(id, ct))
+            return Conflict(new { error = "The record changed before it could be permanently deleted. Refresh and try again." });
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "PermanentlyDeleteEvolisHistoryRecord",
+            $"Permanently deleted the user-removed Evolis record '{run.FileName}'.",
+            TargetType: "EvolisDecryptionRun",
+            TargetId: id.ToString(),
+            StatusCode: StatusCodes.Status200OK,
+            Metadata: new { run.FileName, OwnerUserId = run.UserId, run.DeletedAtUtc }), ct);
+        return Ok(new { message = "The deleted Evolis record was permanently erased." });
     }
 
     [HttpPost("decrypt-word")]
@@ -211,30 +250,38 @@ public class EvolisController(
     }
 
     private async Task<EvolisDecryptionHistoryDto> GetHistoryAsync(
-        string? userId, int page, int pageSize, string? search, string? status, CancellationToken ct)
+        string? userId, int page, int pageSize, string? search, string? status, bool includeDeleted, CancellationToken ct)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
         EvolisDecryptionStatus? parsedStatus = null;
-        if (!string.IsNullOrWhiteSpace(status)
+        var deletedOnly = string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase);
+        if (!deletedOnly && !string.IsNullOrWhiteSpace(status)
             && Enum.TryParse<EvolisDecryptionStatus>(status, true, out var value))
             parsedStatus = value;
 
-        var result = await historyService.GetPagedAsync(userId, page, pageSize, search, parsedStatus, ct);
+        var result = await historyService.GetPagedAsync(userId, page, pageSize, search, parsedStatus,
+            includeDeleted, deletedOnly, ct);
         var items = result.Items.Select(run => new EvolisDecryptionRunDto(
             run.Id, run.FileName, run.FileSize, run.UserId, run.UserDisplayName,
-            run.StartedAtUtc, run.CompletedAtUtc, run.Status, run.Status.ToString(),
-            run.OutputFormat, run.FailureReason, run.HasSourceFile, run.HasResult)).ToList();
+            run.StartedAtUtc, run.CompletedAtUtc, run.Status, run.IsDeleted ? "Deleted" : run.Status.ToString(),
+            run.OutputFormat, run.FailureReason, run.HasSourceFile, run.HasResult,
+            run.IsDeleted, run.DeletedAtUtc, run.DeletedByDisplayName)).ToList();
         return new EvolisDecryptionHistoryDto(items, result.Total, page, pageSize);
     }
 
     private static EvolisDecryptionMetricsDto ToMetricsDto(EvolisDecryptionMetrics metrics)
-        => new(metrics.Total, metrics.ThisMonth, metrics.Successful, metrics.Failed, metrics.FailedThisMonth);
+        => new(metrics.Total, metrics.ThisMonth, metrics.Successful, metrics.Failed, metrics.FailedThisMonth, metrics.Deleted);
 
     private async Task<EvolisDecryptionRun?> GetAuthorizedRunAsync(Guid id, CancellationToken ct)
     {
         var run = await historyService.GetByIdAsync(id, ct);
         if (run is null) return null;
+        if (run.IsDeleted)
+        {
+            var deletedAuditAccess = await authorizationService.AuthorizeAsync(User, Capabilities.ToolsEvolisAudit);
+            return deletedAuditAccess.Succeeded ? run : null;
+        }
         if (run.UserId == UserId) return run;
 
         var auditAccess = await authorizationService.AuthorizeAsync(User, Capabilities.ToolsEvolisAudit);

@@ -441,7 +441,7 @@ export interface DashboardOverview {
   datasetHealth: DashboardDatasetHealth[];
   activityFeed: DashboardActivityItem[];
   recentSubmissions: ImportJob[];
-  evolisMetrics: { total: number; thisMonth: number; successful: number; failed: number; failedThisMonth: number } | null;
+  evolisMetrics: { total: number; thisMonth: number; successful: number; failed: number; failedThisMonth: number; deleted: number } | null;
 }
 
 export const PILOT_SCOPE: PilotScope = {

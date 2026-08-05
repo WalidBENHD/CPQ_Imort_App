@@ -20,4 +20,8 @@ public class EvolisDecryptionRun
     public EvolisDecryptionStatus Status { get; set; } = EvolisDecryptionStatus.Processing;
     public string? OutputFormat { get; set; }
     public string? FailureReason { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
+    public string? DeletedByUserId { get; set; }
+    public string? DeletedByDisplayName { get; set; }
 }
