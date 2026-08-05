@@ -72,6 +72,8 @@ public class AccessController(AppDbContext db, IActivityService activityService,
 
         var role = await db.AccessRoles.Include(value => value.RoleCapabilities).Include(value => value.UserRoles).FirstOrDefaultAsync(value => value.Id == id, ct);
         if (role is null) return NotFound(new { error = "Role not found." });
+        if (role.IsSystem && !string.Equals(role.Name, request.Name.Trim(), StringComparison.Ordinal))
+            return Conflict(new { error = "Seeded role names cannot be changed. Duplicate the role if you need a custom name." });
         if (role.Key == "system-administrator" && !Capabilities.All.SetEquals(request.Capabilities))
             return Conflict(new { error = "The System Administrator role must retain every capability to prevent administrative lockout." });
 
@@ -162,6 +164,7 @@ public class AccessController(AppDbContext db, IActivityService activityService,
     private string? ValidateRole(SaveAccessRoleRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Name)) return "Role name is required.";
+        if (request.Name.Trim().Length > 120) return "Role name cannot exceed 120 characters.";
         var unknown = request.Capabilities.Except(Capabilities.All).ToList();
         return unknown.Count == 0 ? null : $"Unknown capabilities: {string.Join(", ", unknown)}";
     }

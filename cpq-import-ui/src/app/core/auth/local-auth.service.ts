@@ -93,7 +93,7 @@ export class LocalAuthService {
   }
 
   updateAccessRole(roleId: string, request: SaveAccessRoleRequest): Observable<AccessRole> {
-    return this.http.put<AccessRole>(`${environment.apiUrl}/access/roles/${roleId}`, request).pipe(tap(() => this.toast.success('Role capabilities saved.')));
+    return this.http.put<AccessRole>(`${environment.apiUrl}/access/roles/${roleId}`, request).pipe(tap(() => this.toast.success('Role saved.')));
   }
 
   deleteAccessRole(roleId: string): Observable<void> {

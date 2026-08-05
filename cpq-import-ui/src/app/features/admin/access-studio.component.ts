@@ -120,7 +120,27 @@ const ROLE_COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#c2410c', '#475569', '#be
           <div class="editor-hero" [style.--role-color]="role.color">
             <div class="editor-title">
               <span class="editor-icon"><mat-icon>{{ role.icon }}</mat-icon></span>
-              <div><span class="section-kicker">Capability profile</span><h2>{{ role.name }}</h2><p>{{ role.description }}</p></div>
+              <div class="editor-title-copy">
+                <span class="section-kicker">Capability profile</span>
+                <div class="role-name-editor" *ngIf="renamingRoleId === role.id; else roleNameDisplay">
+                  <input
+                    #roleNameInput
+                    [(ngModel)]="roleNameDraft"
+                    maxlength="120"
+                    aria-label="Role name"
+                    (keydown.enter)="renameRole(role)"
+                    (keydown.escape)="cancelRenameRole()" />
+                  <button mat-icon-button type="button" aria-label="Save role name" [disabled]="!roleNameDraft.trim()" (click)="renameRole(role)"><mat-icon>check</mat-icon></button>
+                  <button mat-icon-button type="button" aria-label="Cancel role rename" (click)="cancelRenameRole()"><mat-icon>close</mat-icon></button>
+                </div>
+                <ng-template #roleNameDisplay>
+                  <div class="role-name-display">
+                    <h2>{{ role.name }}</h2>
+                    <button mat-icon-button type="button" class="rename-button" *ngIf="!role.system" [attr.aria-label]="'Rename ' + role.name" (click)="beginRenameRole(role)"><mat-icon>edit</mat-icon></button>
+                  </div>
+                </ng-template>
+                <p>{{ role.description }}</p>
+              </div>
             </div>
             <div class="editor-actions">
               <span class="system-pill" *ngIf="role.system"><mat-icon>lock</mat-icon> Seeded role</span>
@@ -190,7 +210,14 @@ const ROLE_COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#c2410c', '#475569', '#be
     .role-editor { overflow:hidden; }
     .editor-hero { --role-color:#2563eb; justify-content:space-between; gap:16px; padding:20px; border-bottom:1px solid var(--app-border); background:linear-gradient(110deg,color-mix(in srgb,var(--role-color) 10%,var(--app-surface)),var(--app-surface)); }
     .editor-title { gap:13px; min-width:0; } .editor-icon { width:48px; height:48px; border-radius:14px; box-shadow:0 8px 18px color-mix(in srgb,var(--role-color) 25%,transparent); }
-    .editor-title h2 { margin:2px 0; color:var(--app-text); font-size:23px; } .editor-title p { margin:0; color:var(--app-text-muted); }
+    .editor-title-copy { min-width:0; } .editor-title h2 { margin:2px 0; color:var(--app-text); font-size:23px; } .editor-title p { margin:0; color:var(--app-text-muted); }
+    .role-name-display,.role-name-editor { display:flex; align-items:center; gap:4px; min-height:36px; }
+    .rename-button { width:32px; height:32px; color:var(--role-color); opacity:.72; }
+    .rename-button:hover { opacity:1; background:color-mix(in srgb,var(--role-color) 10%,transparent); }
+    .rename-button mat-icon { width:17px; height:17px; font-size:17px; }
+    .role-name-editor input { width:min(360px,50vw); min-height:38px; padding:7px 10px; border:1px solid color-mix(in srgb,var(--role-color) 55%,var(--app-border)); border-radius:9px; color:var(--app-text); background:var(--app-surface); font:700 18px/1.2 "Bahnschrift","Trebuchet MS",sans-serif; outline:none; box-shadow:0 0 0 3px color-mix(in srgb,var(--role-color) 9%,transparent); }
+    .role-name-editor button { width:34px; height:34px; }
+    .role-name-editor button:first-of-type { color:#047857; } .role-name-editor button:last-of-type { color:var(--app-text-muted); }
     .editor-actions { gap:7px; } .editor-actions button { border-radius:999px; }
     .workflow-preview { margin:18px 20px 4px; padding:14px; border:1px solid #dbeafe; border-radius:14px; background:linear-gradient(90deg,#f8fbff,#fff); }
     .workflow-title { display:flex; align-items:center; gap:9px; color:#1e3a8a; } .workflow-title > div { display:grid; } .workflow-title span { color:#64748b; font-size:12px; }
@@ -241,6 +268,8 @@ export class AccessStudioComponent implements OnInit {
   showCreateRole = false;
   newRoleName = '';
   newRoleDescription = '';
+  renamingRoleId = '';
+  roleNameDraft = '';
 
   ngOnInit(): void {
     this.loadRoles();
@@ -259,6 +288,7 @@ export class AccessStudioComponent implements OnInit {
   }
 
   selectRole(roleId: string): void {
+    this.cancelRenameRole();
     this.selectedRoleId = roleId;
   }
 
@@ -313,12 +343,46 @@ export class AccessStudioComponent implements OnInit {
       const mapped = this.mapRole(role);
       this.roles = [...this.roles, mapped];
       this.selectedRoleId = mapped.id;
+      this.beginRenameRole(mapped);
+    });
+  }
+
+  beginRenameRole(role: PrototypeRole): void {
+    if (role.system) return;
+    this.renamingRoleId = role.id;
+    this.roleNameDraft = role.name;
+  }
+
+  cancelRenameRole(): void {
+    this.renamingRoleId = '';
+    this.roleNameDraft = '';
+  }
+
+  renameRole(role: PrototypeRole): void {
+    if (role.system || this.renamingRoleId !== role.id) return;
+    const name = this.roleNameDraft.trim();
+    if (!name) return;
+    if (name === role.name) {
+      this.cancelRenameRole();
+      return;
+    }
+
+    this.localAuth.updateAccessRole(role.id, {
+      name,
+      description: role.description,
+      icon: role.icon,
+      color: role.color,
+      capabilities: role.capabilities
+    }).subscribe(saved => {
+      Object.assign(role, this.mapRole(saved));
+      this.cancelRenameRole();
     });
   }
 
   deleteRole(role: PrototypeRole): void {
     if (role.system) return;
     this.localAuth.deleteAccessRole(role.id).subscribe(() => {
+      if (this.renamingRoleId === role.id) this.cancelRenameRole();
       this.roles = this.roles.filter(item => item.id !== role.id);
       this.selectedRoleId = this.roles[0]?.id ?? '';
     });

@@ -265,6 +265,16 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
               <mat-icon *ngIf="!refreshingValidation">refresh</mat-icon>
               <mat-spinner *ngIf="refreshingValidation" diameter="17"></mat-spinner>
             </button>
+            <button
+              mat-icon-button
+              type="button"
+              class="focus-dock-action focus-dock-intelligence"
+              (click)="openIntelligence()"
+              matTooltip="Open recommended path"
+              aria-label="Open CPQ change intelligence">
+              <mat-icon>memory</mat-icon>
+              <i aria-hidden="true"></i>
+            </button>
             <span class="focus-dock-divider"></span>
             <button
               mat-icon-button
@@ -297,6 +307,44 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
               <button type="button" [class.impact-signal--warning]="job.warningRows > 0" (click)="focusRows('Warning')"><strong>{{ job.warningRows }}</strong><span>Warnings</span></button>
               <button type="button" class="impact-signal--change" *ngIf="comparison as cmp" (click)="openEvidence()"><strong>{{ cmp.newRows + cmp.modifiedRows + cmp.missingBaselineRows }}</strong><span>Changes</span></button>
             </div>
+          </section>
+
+          <section class="impact-intelligence" [class.impact-intelligence--active]="intelligenceOpen">
+            <button
+              type="button"
+              class="intelligence-island intelligence-island--impact"
+              [attr.aria-pressed]="intelligenceOpen"
+              (click)="openIntelligence()"
+              aria-label="Open CPQ change intelligence">
+            <svg class="intelligence-venom-frame" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="intelligenceVenomFill" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#071a33" />
+                  <stop offset="0.62" stop-color="#102a52" />
+                  <stop offset="1" stop-color="#083c46" />
+                </linearGradient>
+                <filter id="intelligenceVenomGlow" x="-20%" y="-40%" width="140%" height="180%">
+                  <feGaussianBlur stdDeviation="1.7" result="glow" />
+                  <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+              </defs>
+              <path d="M8 31 C16 18 28 9 43 14 C60 20 71 5 93 8 C116 11 118 20 137 18 C159 15 168 7 190 12 C214 17 229 7 248 14 C269 22 286 14 292 29 C296 43 278 51 259 46 C239 41 225 56 202 50 C179 44 165 58 143 51 C119 44 105 58 81 51 C57 44 43 55 25 48 C10 43 3 38 8 31 Z" filter="url(#intelligenceVenomGlow)">
+                <animate
+                  attributeName="d"
+                  dur="4.2s"
+                  repeatCount="indefinite"
+                  values="M8 31 C16 18 28 9 43 14 C60 20 71 5 93 8 C116 11 118 20 137 18 C159 15 168 7 190 12 C214 17 229 7 248 14 C269 22 286 14 292 29 C296 43 278 51 259 46 C239 41 225 56 202 50 C179 44 165 58 143 51 C119 44 105 58 81 51 C57 44 43 55 25 48 C10 43 3 38 8 31 Z;
+                          M9 29 C18 10 34 18 49 10 C67 1 76 17 96 14 C117 10 127 5 145 13 C163 21 177 4 198 9 C219 14 230 22 250 12 C270 3 292 17 290 32 C288 48 271 44 255 52 C236 61 223 44 201 49 C177 55 168 44 146 55 C125 65 111 48 87 54 C63 60 50 43 31 52 C14 60 1 43 9 29 Z;
+                          M7 33 C12 23 28 3 46 11 C64 19 72 22 91 13 C112 3 122 15 141 10 C163 4 174 22 194 17 C216 11 231 3 251 16 C271 29 285 11 293 27 C300 41 281 58 261 49 C241 40 228 47 206 55 C183 63 169 48 148 48 C125 48 108 62 84 49 C61 36 49 58 28 47 C10 38 2 43 7 33 Z;
+                          M8 31 C16 18 28 9 43 14 C60 20 71 5 93 8 C116 11 118 20 137 18 C159 15 168 7 190 12 C214 17 229 7 248 14 C269 22 286 14 292 29 C296 43 278 51 259 46 C239 41 225 56 202 50 C179 44 165 58 143 51 C119 44 105 58 81 51 C57 44 43 55 25 48 C10 43 3 38 8 31 Z" />
+              </path>
+            </svg>
+              <span class="intelligence-jarvis-panel" aria-hidden="true"></span>
+              <span class="intelligence-jarvis-orbit" aria-hidden="true"><i></i><b></b><em></em></span>
+              <span class="intelligence-island__core" aria-hidden="true"><mat-icon>memory</mat-icon><i></i></span>
+              <span class="intelligence-island__copy"><small>AI decision core</small><strong>{{ intelligenceOpen ? 'Path open' : 'Recommended path' }}</strong></span>
+              <span class="intelligence-island__trace" aria-hidden="true"><i></i><b></b><em></em></span>
+            </button>
           </section>
 
           <section class="impact-action">
@@ -1051,6 +1099,163 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
       </div>
 
       <div class="mobile-impact-backdrop" *ngIf="mobileImpactOpen || contextExpanded" (click)="mobileImpactOpen = false; contextExpanded = false"></div>
+
+      <div class="intelligence-backdrop" *ngIf="intelligenceOpen" (click)="closeIntelligence()"></div>
+      <aside class="intelligence-drawer" *ngIf="intelligenceOpen" aria-label="CPQ change intelligence preview">
+        <header class="intelligence-head">
+          <span class="intelligence-orb"><mat-icon>memory</mat-icon><i></i><b></b></span>
+          <div><small>CPQ Change Intelligence</small><h2>Recommended path</h2><p>One clear route from issue to governed review.</p></div>
+          <span class="prototype-chip">UI preview</span>
+          <button type="button" class="intelligence-close" (click)="closeIntelligence()" aria-label="Close decision intelligence"><mat-icon>close</mat-icon></button>
+        </header>
+
+        <section class="copilot-path">
+          <header>
+            <span><mat-icon>route</mat-icon></span>
+            <div><small>Recommended path · Prototype</small><h3>Pair with <b>Prices_2027</b>, then correct 3 rows</h3><p>One coordinated route resolves 21 of 24 blockers automatically and isolates the only records that still need human judgment.</p></div>
+          </header>
+
+          <div class="copilot-path__flow">
+            <article>
+              <span><mat-icon>account_tree</mat-icon></span>
+              <div><small>Automatic</small><strong>Use Prices_2027</strong><p>21 dependency errors disappear</p></div>
+              <em>21 resolved</em>
+            </article>
+            <i><mat-icon>south</mat-icon></i>
+            <article>
+              <span><mat-icon>date_range</mat-icon></span>
+              <div><small>Focused correction</small><strong>Fix rows #118, #204 and #311</strong><p>Three overlapping validity periods</p></div>
+              <em>3 manual</em>
+            </article>
+            <i><mat-icon>south</mat-icon></i>
+            <article class="copilot-path__result">
+              <span><mat-icon>verified</mat-icon></span>
+              <div><small>Projected outcome</small><strong>Complete portfolio ready for review</strong><p>465/465 priced · 0 blockers · 0 orphan prices</p></div>
+              <em>Ready</em>
+            </article>
+          </div>
+
+          <aside><mat-icon>insights</mat-icon><p><strong>One business check remains:</strong> five removals are 3.2x above the previous annual update and should be confirmed during review.</p></aside>
+
+          <footer>
+            <span><mat-icon>science</mat-icon>Demonstration analysis, not current evidence</span>
+            <button type="button" disabled><mat-icon>play_arrow</mat-icon>Use recommended path</button>
+          </footer>
+        </section>
+
+        <ng-container *ngIf="job as job">
+        <ng-container *ngIf="false">
+        <section class="intelligence-mission" [class.intelligence-mission--clear]="intelligenceRiskCount === 0">
+          <span><mat-icon>{{ intelligenceRiskCount ? 'route' : 'verified' }}</mat-icon></span>
+          <div>
+            <small>Copilot conclusion</small>
+            <h3>{{ intelligenceOutcomeHeadline }}</h3>
+            <p>{{ intelligenceOutcomeDetail }}</p>
+          </div>
+          <em>{{ intelligenceActionCount }} step{{ intelligenceActionCount === 1 ? '' : 's' }}</em>
+        </section>
+
+        <section class="intelligence-plan">
+          <header><div><small>Next-best-action plan</small><strong>The shortest governed path</strong></div><span>Live plan</span></header>
+
+          <article *ngIf="job.errorRows > 0" class="plan-step plan-step--active">
+            <b>1</b><span><mat-icon>build</mat-icon></span>
+            <div><small>Resolve the blocker</small><strong>Correct {{ job.errorRows }} invalid rows</strong><p>Open a filtered workbench containing only the records that prevent progression.</p></div>
+            <button type="button" (click)="closeIntelligence(); focusRows('Error')" aria-label="Open blocking rows"><mat-icon>arrow_forward</mat-icon></button>
+          </article>
+
+          <article *ngIf="portfolioReadiness?.requiresCoordinatedRelease" class="plan-step" [class.plan-step--active]="job.errorRows === 0">
+            <b>{{ job.errorRows > 0 ? 2 : 1 }}</b><span><mat-icon>account_tree</mat-icon></span>
+            <div><small>Protect the portfolio</small><strong>Coordinate the connected datasets</strong><p>Pair this version with its related candidate so the future CPQ state remains complete.</p></div>
+            <button type="button" [disabled]="job.errorRows > 0" (click)="closeIntelligence(); focusReleaseWorkflow()" aria-label="Prepare coordinated release"><mat-icon>{{ job.errorRows > 0 ? 'lock' : 'arrow_forward' }}</mat-icon></button>
+          </article>
+
+          <article *ngIf="job.warningRows > 0" class="plan-step" [class.plan-step--active]="job.errorRows === 0 && !portfolioReadiness?.requiresCoordinatedRelease">
+            <b>{{ (job.errorRows > 0 ? 1 : 0) + (portfolioReadiness?.requiresCoordinatedRelease ? 1 : 0) + 1 }}</b><span><mat-icon>warning_amber</mat-icon></span>
+            <div><small>Remove uncertainty</small><strong>Review {{ job.warningRows }} warning rows</strong><p>Focus only on non-blocking exceptions and confirm whether their business values are intentional.</p></div>
+            <button type="button" (click)="closeIntelligence(); focusRows('Warning')" aria-label="Review warning rows"><mat-icon>arrow_forward</mat-icon></button>
+          </article>
+
+          <article *ngIf="intelligenceChangeCount > 0" class="plan-step" [class.plan-step--active]="job.errorRows === 0 && !portfolioReadiness?.requiresCoordinatedRelease">
+            <b>{{ (job.errorRows > 0 ? 1 : 0) + (portfolioReadiness?.requiresCoordinatedRelease ? 1 : 0) + (job.warningRows > 0 ? 1 : 0) + 1 }}</b><span><mat-icon>difference</mat-icon></span>
+            <div><small>Confirm business intent</small><strong>Review {{ intelligenceChangeCount }} baseline changes</strong><p>Inspect the additions, modifications and removals that the approver will be asked to accept.</p></div>
+            <button type="button" (click)="openEvidence(); closeIntelligence()" aria-label="Review business changes"><mat-icon>arrow_forward</mat-icon></button>
+          </article>
+
+          <article *ngIf="job.errorRows === 0 && !portfolioReadiness?.requiresCoordinatedRelease && job.warningRows === 0 && intelligenceChangeCount === 0" class="plan-step plan-step--active">
+            <b>1</b><span><mat-icon>fact_check</mat-icon></span>
+            <div><small>Final human decision</small><strong>Inspect the governed evidence</strong><p>No remediation is required. Confirm the evidence and continue with the permitted workflow action.</p></div>
+            <button type="button" (click)="openEvidence(); closeIntelligence()" aria-label="Inspect governed evidence"><mat-icon>arrow_forward</mat-icon></button>
+          </article>
+        </section>
+
+        <section class="intelligence-projection">
+          <header><small>Projected outcome</small><span>No data is changed by this preview</span></header>
+          <div class="projection-state projection-state--now"><span><i></i>Now</span><strong>{{ intelligenceCurrentState }}</strong></div>
+          <mat-icon>east</mat-icon>
+          <div class="projection-state projection-state--future"><span><i></i>After this plan</span><strong>{{ intelligenceProjectedState }}</strong></div>
+        </section>
+
+        <section class="intelligence-guardrail">
+          <mat-icon>shield</mat-icon><div><strong>Business guardrail</strong><p>{{ intelligenceGuardrail }}</p></div>
+        </section>
+
+        <footer class="intelligence-actions">
+          <button type="button" class="intelligence-secondary" (click)="openEvidence(); closeIntelligence()"><mat-icon>fact_check</mat-icon>Inspect evidence</button>
+          <button type="button" class="intelligence-primary" (click)="runIntelligenceAction()"><mat-icon>{{ intelligenceActionIcon }}</mat-icon>Start first step</button>
+        </footer>
+        </ng-container>
+        </ng-container>
+
+        <ng-container *ngIf="false">
+          <section class="copilot-discovery">
+            <div class="copilot-discovery__score"><strong>87%</strong><span>auto-resolvable</span><i><b></b></i></div>
+            <div><small>Strongest finding</small><h3>Pairing <b>Prices_2027</b> resolves 21 of 24 blockers</h3><p>The remaining three errors are independent date overlaps and require a focused manual correction.</p></div>
+          </section>
+
+          <section class="cause-map">
+            <header><div><small>Root-cause analysis</small><strong>24 rows, only 2 underlying causes</strong></div><span>Grouped automatically</span></header>
+            <article class="cause-map__item cause-map__item--automatic">
+              <span><mat-icon>account_tree</mat-icon></span><div><small>21 affected rows · Dependency gap</small><strong>Prices are missing from the active context</strong><p>All 21 article numbers exist in the candidate <b>Prices_2027</b>. They are not data-entry errors.</p></div><em>Auto-fix available</em>
+            </article>
+            <article class="cause-map__item">
+              <span><mat-icon>date_range</mat-icon></span><div><small>3 affected rows · Data quality</small><strong>Overlapping validity periods</strong><p>Rows #118, #204 and #311 still conflict after candidate pairing and need manual correction.</p></div><em>Manual action</em>
+            </article>
+          </section>
+
+          <section class="candidate-match">
+            <header><small>Best resolution candidate</small><span>Workspace · analysed without changing data</span></header>
+            <div class="candidate-match__file"><span><mat-icon>price_change</mat-icon></span><div><strong>Prices_2027</strong><small>Uploaded by Hanan · 465 price records</small></div><em>Best match</em></div>
+            <div class="candidate-match__metrics"><span><strong>21</strong><small>blockers resolved</small></span><span><strong>100%</strong><small>article coverage</small></span><span><strong>0</strong><small>orphan prices</small></span></div>
+          </section>
+
+          <section class="what-if">
+            <header><div><small>What-if simulation</small><strong>Projected CPQ state</strong></div><span><mat-icon>visibility</mat-icon>Preview only</span></header>
+            <div class="what-if__states">
+              <article><small>Current submission</small><strong>441 / 465 priced</strong><i><b style="width:94.8%"></b></i><p>24 rows block review</p></article>
+              <mat-icon>east</mat-icon>
+              <article class="what-if__future"><small>After recommended plan</small><strong>465 / 465 priced</strong><i><b></b></i><p>Complete portfolio · 0 blockers</p></article>
+            </div>
+          </section>
+
+          <section class="copilot-plan-preview">
+            <header><small>Recommended sequence</small><strong>Three actions, ordered by dependency</strong></header>
+            <ol>
+              <li><b>1</b><span><strong>Use Prices_2027 as the release candidate</strong><small>Resolves 21 dependency errors automatically</small></span><em>Automatic</em></li>
+              <li><b>2</b><span><strong>Correct three validity overlaps</strong><small>Open only rows #118, #204 and #311</small></span><em>Manual</em></li>
+              <li><b>3</b><span><strong>Review five unusual removals</strong><small>Deletion volume is 3.2x higher than the previous annual update</small></span><em>Business check</em></li>
+            </ol>
+          </section>
+
+          <section class="scenario-notice"><mat-icon>science</mat-icon><p><strong>Prototype scenario</strong>This view demonstrates the analysis the backend intelligence service would produce. It is not evidence about the currently open upload.</p></section>
+
+          <footer class="intelligence-actions intelligence-actions--scenario">
+            <button type="button" class="intelligence-secondary" (click)="intelligenceScenarioPreview = false"><mat-icon>database</mat-icon>Return to current data</button>
+            <button type="button" class="intelligence-primary" disabled><mat-icon>account_tree</mat-icon>Preview coordinated release</button>
+          </footer>
+        </ng-container>
+      </aside>
+
       <nav class="mobile-workbench-dock" aria-label="Dataset workbench shortcuts">
         <button type="button" [class.mobile-dock-alert]="job.errorRows > 0" (click)="focusRows(job.errorRows > 0 ? 'Error' : '')">
           <mat-icon>{{ job.errorRows > 0 ? 'error_outline' : 'check_circle' }}</mat-icon>
@@ -1910,6 +2115,8 @@ export class ImportPreviewComponent implements OnInit {
   showRemovedRows = false;
   contextExpanded = false;
   mobileImpactOpen = false;
+  intelligenceOpen = false;
+  intelligenceScenarioPreview = true;
   draftMutationRunning = false;
   readonly selectedRowIds = new Set<string>();
   removedRows: StagingRow[] = [];
@@ -1920,6 +2127,10 @@ export class ImportPreviewComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   exitFocusMode(): void {
+    if (this.intelligenceOpen) {
+      this.closeIntelligence();
+      return;
+    }
     if (this.focusMode) {
       this.focusMode = false;
     }
@@ -1953,6 +2164,152 @@ export class ImportPreviewComponent implements OnInit {
   get validationReadinessPercent(): number {
     if (!this.job?.totalRows) return 0;
     return Math.round((this.job.validRows / this.job.totalRows) * 100);
+  }
+
+  get intelligenceChangeCount(): number {
+    return this.comparison
+      ? this.comparison.newRows + this.comparison.modifiedRows + this.comparison.missingBaselineRows
+      : (this.job?.draftAddedRows ?? 0) + (this.job?.draftModifiedRows ?? 0) + (this.job?.draftRemovedRows ?? 0);
+  }
+
+  get intelligenceReviewConfidence(): number {
+    if (!this.job) return 0;
+    const warningPenalty = Math.min(18, this.job.warningRows * 2);
+    const changeRatio = this.job.totalRows ? this.intelligenceChangeCount / this.job.totalRows : 0;
+    return Math.max(35, Math.round(100 - warningPenalty - Math.min(20, changeRatio * 20)));
+  }
+
+  get intelligenceScore(): number {
+    if (!this.job) return 0;
+    const errorPenalty = Math.min(55, this.job.errorRows * 8);
+    const warningPenalty = Math.min(12, this.job.warningRows * 2);
+    const dependencyPenalty = this.portfolioReadiness?.requiresCoordinatedRelease ? 22 : 0;
+    return Math.max(18, Math.round(100 - errorPenalty - warningPenalty - dependencyPenalty));
+  }
+
+  get intelligenceRiskCount(): number {
+    if (!this.job) return 0;
+    return Number(this.job.errorRows > 0)
+      + Number(this.job.warningRows > 0)
+      + Number(!!this.portfolioReadiness?.requiresCoordinatedRelease);
+  }
+
+  get intelligenceActionCount(): number {
+    if (!this.job) return 0;
+    const actions = Number(this.job.errorRows > 0)
+      + Number(!!this.portfolioReadiness?.requiresCoordinatedRelease)
+      + Number(this.job.warningRows > 0)
+      + Number(this.intelligenceChangeCount > 0);
+    return Math.max(1, actions);
+  }
+
+  get intelligenceOutcomeHeadline(): string {
+    if (!this.job) return 'Build the next governed action';
+    if (this.job.errorRows > 0 && this.portfolioReadiness?.requiresCoordinatedRelease) return 'Repair the data, then coordinate the release';
+    if (this.job.errorRows > 0) return 'Repair the blocking data first';
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'Move the connected portfolio together';
+    if (this.job.warningRows > 0) return 'Resolve uncertainty before the decision';
+    if (this.intelligenceChangeCount > 0) return 'Confirm the business delta';
+    return 'No remediation is required';
+  }
+
+  get intelligenceOutcomeDetail(): string {
+    if (!this.job) return '';
+    if (this.job.errorRows > 0 && this.portfolioReadiness?.requiresCoordinatedRelease) {
+      return `The shortest safe route has ${this.intelligenceActionCount} ordered steps. Correction comes first because the release cannot be trusted while ${this.job.errorRows} rows remain invalid.`;
+    }
+    if (this.job.errorRows > 0) return `Start with the ${this.job.errorRows} affected rows. The remaining review work can continue as soon as those blockers are cleared.`;
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'The file is valid by itself, but the business outcome is only safe when its connected dataset is reviewed with it.';
+    return 'The copilot found no technical remediation. Continue with the focused human checks below.';
+  }
+
+  get intelligenceCurrentState(): string {
+    if (!this.job) return 'Analysis unavailable';
+    if (this.job.errorRows > 0) return `${this.job.errorRows} rows block progression`;
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'Valid file, incomplete portfolio';
+    if (this.job.warningRows > 0) return `${this.job.warningRows} exceptions need judgment`;
+    return 'Technically ready';
+  }
+
+  get intelligenceProjectedState(): string {
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'Complete portfolio ready for review';
+    if (this.isPrivateWorkspace) return 'Governed version ready to share';
+    if (this.canShowApprovalGate) return 'Decision-ready evidence';
+    return 'Ready for the next permitted gate';
+  }
+
+  get intelligenceGuardrail(): string {
+    if (!this.job) return 'No recommendation is made without governed evidence.';
+    if (this.job.errorRows > 0 && this.portfolioReadiness?.requiresCoordinatedRelease) return 'This sequence prevents invalid rows and an incomplete connected portfolio from entering formal review.';
+    if (this.job.errorRows > 0) return 'Blocking data is isolated before another person is asked to review or approve the version.';
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'The master and dependent data remain synchronized instead of being published as conflicting individual updates.';
+    return 'The recommendation never changes data automatically; the responsible user keeps control of every workflow action.';
+  }
+
+  get intelligenceHeadline(): string {
+    if (this.intelligenceScore >= 90) return 'Ready with high confidence';
+    if (this.intelligenceScore >= 75) return 'Ready after focused review';
+    if (this.intelligenceScore >= 55) return 'Coordination required';
+    return 'Action required before review';
+  }
+
+  get intelligenceSummary(): string {
+    if (!this.job) return '';
+    if (this.job.errorRows > 0) return `${this.job.errorRows} blocking rows prevent a reliable publication decision. The strongest next move is correction, not approval.`;
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'The file is technically valid, but publishing it alone would break the connected CPQ portfolio. Coordinate the related datasets first.';
+    if (this.job.warningRows > 0) return `No blocking errors were found. Review ${this.job.warningRows} warnings and the ${this.intelligenceChangeCount} detected baseline changes before moving forward.`;
+    return `Validation and dependency checks are clear. ${this.intelligenceChangeCount} baseline changes are documented and the version is ready for its next governed step.`;
+  }
+
+  get intelligenceRecommendation(): string {
+    if (!this.job) return 'Review evidence';
+    if (this.job.errorRows > 0) return `Correct ${this.job.errorRows} blocking rows`;
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'Prepare coordinated release';
+    if (this.job.warningRows > 0) return `Review ${this.job.warningRows} warnings`;
+    if (this.isPrivateWorkspace) return 'Prepare review submission';
+    if (this.canShowApprovalGate) return 'Review decision evidence';
+    return 'Inspect governed evidence';
+  }
+
+  get intelligenceRecommendationDetail(): string {
+    if (!this.job) return '';
+    if (this.job.errorRows > 0) return 'Open the filtered workbench and resolve the rows that currently block progression.';
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'Pair the connected master and price candidates, then validate their projected state as one package.';
+    if (this.job.warningRows > 0) return 'Focus only on warning rows, confirm their business intent, then return to the decision brief.';
+    return 'Use the evidence view to perform the final human check before the next workflow action.';
+  }
+
+  get intelligenceActionIcon(): string {
+    if (this.job?.errorRows) return 'build';
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) return 'account_tree';
+    if (this.job?.warningRows) return 'warning_amber';
+    return 'fact_check';
+  }
+
+  openIntelligence(): void {
+    this.mobileImpactOpen = false;
+    this.intelligenceOpen = true;
+  }
+
+  closeIntelligence(): void {
+    this.intelligenceOpen = false;
+  }
+
+  runIntelligenceAction(): void {
+    this.closeIntelligence();
+    if (this.job?.errorRows) {
+      this.focusRows('Error');
+      return;
+    }
+    if (this.portfolioReadiness?.requiresCoordinatedRelease) {
+      this.focusReleaseWorkflow();
+      return;
+    }
+    if (this.job?.warningRows) {
+      this.focusRows('Warning');
+      return;
+    }
+    this.openEvidence();
   }
 
   toggleFocusMode(): void {
