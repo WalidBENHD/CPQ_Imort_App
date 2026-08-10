@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { capabilityGuard, internalToolsGuard } from './core/auth/auth.guard';
+import { authGuard, capabilityGuard, internalToolsGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -9,6 +9,11 @@ export const routes: Routes = [
   {
     path: 'register',
     loadComponent: () => import('./features/auth/register.component').then(m => m.RegisterComponent)
+  },
+  {
+    path: 'account/security',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/auth/account-security.component').then(m => m.AccountSecurityComponent)
   },
   {
     path: '',

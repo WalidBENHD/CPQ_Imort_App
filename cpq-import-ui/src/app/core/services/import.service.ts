@@ -107,6 +107,10 @@ export class ImportService {
     return this.http.get(`${environment.apiUrl}/business-trace/report`, { params, responseType: 'blob' });
   }
 
+  downloadPublicationEvidenceReport(jobId: string): Observable<Blob> {
+    return this.http.get(this.base + '/' + jobId + '/evidence-report', { responseType: 'blob' });
+  }
+
   getDependencyContext(jobId: string): Observable<DependencyContext> {
     return this.http.get<DependencyContext>(`${this.base}/${jobId}/dependency-context`);
   }

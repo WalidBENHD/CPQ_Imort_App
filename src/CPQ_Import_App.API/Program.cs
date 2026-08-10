@@ -89,6 +89,7 @@ builder.Services.AddScoped<IEvolisHistoryService, EvolisHistoryService>();
 builder.Services.AddScoped<EvolisWordDocumentBuilder>();
 builder.Services.AddScoped<EvolisPdfDocumentBuilder>();
 builder.Services.AddScoped<BusinessTracePdfDocumentBuilder>();
+builder.Services.AddScoped<UploadEvidencePdfDocumentBuilder>();
 
 // ── Authentication (JWT Bearer / OIDC) ────────────────────────────────────────
 // Configure your OIDC provider in appsettings.json under "Auth".

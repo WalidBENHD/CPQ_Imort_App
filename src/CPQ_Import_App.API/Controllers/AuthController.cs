@@ -204,6 +204,76 @@ public class AuthController(
         return Ok(await ToDtoAsync(user, ct));
     }
 
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
+    {
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(idValue, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+        {
+            return BadRequest(new { error = "Current password is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        {
+            return BadRequest(new { error = "New password must be at least 8 characters long." });
+        }
+
+        if (request.NewPassword.Length > 128)
+        {
+            return BadRequest(new { error = "New password cannot exceed 128 characters." });
+        }
+
+        var user = await db.TestUsers.FirstOrDefaultAsync(x => x.Id == userId, ct);
+        if (user is null || !user.IsApproved || user.IsSuspended)
+        {
+            return Unauthorized();
+        }
+
+        if (!PasswordHasher.VerifyPassword(request.CurrentPassword, user.PasswordHash, user.PasswordSalt))
+        {
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Authentication,
+                "ChangePasswordFailed",
+                "Password change failed: current password was incorrect.",
+                TargetType: "User",
+                TargetId: user.Id.ToString(),
+                StatusCode: StatusCodes.Status400BadRequest,
+                ExplicitUserId: user.Id.ToString(),
+                ExplicitUserName: user.DisplayName),
+                ct);
+            return BadRequest(new { error = "Current password is incorrect." });
+        }
+
+        if (PasswordHasher.VerifyPassword(request.NewPassword, user.PasswordHash, user.PasswordSalt))
+        {
+            return BadRequest(new { error = "Choose a new password that is different from your current password." });
+        }
+
+        var (hash, salt) = PasswordHasher.HashPassword(request.NewPassword);
+        user.PasswordHash = hash;
+        user.PasswordSalt = salt;
+        await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Authentication,
+            "ChangePassword",
+            "User changed their password.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status204NoContent,
+            ExplicitUserId: user.Id.ToString(),
+            ExplicitUserName: user.DisplayName,
+            ExplicitUserRole: user.Role),
+            ct);
+        return NoContent();
+    }
+
     [HttpGet("pending")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<IReadOnlyList<AuthUserDto>>> Pending(CancellationToken ct)
@@ -462,6 +532,43 @@ public class AuthController(
             TargetId: user.Id.ToString(),
             StatusCode: StatusCodes.Status204NoContent,
             Metadata: new { user.UserName }),
+            ct);
+        return NoContent();
+    }
+
+    [HttpPost("users/{id:guid}/reset-password")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> ResetUserPassword(Guid id, [FromBody] AdminResetPasswordRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        {
+            return BadRequest(new { error = "Password must be at least 8 characters long." });
+        }
+
+        if (request.NewPassword.Length > 128)
+        {
+            return BadRequest(new { error = "Password cannot exceed 128 characters." });
+        }
+
+        var user = await db.TestUsers.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (user is null)
+        {
+            return NotFound(new { error = "User not found." });
+        }
+
+        var (hash, salt) = PasswordHasher.HashPassword(request.NewPassword);
+        user.PasswordHash = hash;
+        user.PasswordSalt = salt;
+        await db.SaveChangesAsync(ct);
+
+        await activityService.LogAsync(new ActivityWriteRequest(
+            ActivityCategory.Admin,
+            "AdminResetUserPassword",
+            $"Admin reset the password for {user.DisplayName}.",
+            TargetType: "User",
+            TargetId: user.Id.ToString(),
+            StatusCode: StatusCodes.Status204NoContent,
+            Metadata: new { user.UserName, ResetBy = CurrentUserName }),
             ct);
         return NoContent();
     }

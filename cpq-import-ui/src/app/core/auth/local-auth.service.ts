@@ -149,6 +149,20 @@ export class LocalAuthService {
     );
   }
 
+  resetUserPassword(userId: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/auth/users/${userId}/reset-password`, { newPassword }).pipe(
+      tap(() => {
+        this.toast.success('Password reset successfully.');
+      })
+    );
+  }
+
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/auth/change-password`, { currentPassword, newPassword }).pipe(
+      tap(() => this.toast.success('Your password has been changed.'))
+    );
+  }
+
   resetDevData(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${environment.apiUrl}/admin/maintenance/reset-dev-data`, {}).pipe(
       tap(() => {

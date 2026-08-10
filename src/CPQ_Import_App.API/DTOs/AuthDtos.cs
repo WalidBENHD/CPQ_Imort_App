@@ -4,6 +4,10 @@ public record RegisterRequest(string UserName, string DisplayName, string Passwo
 
 public record LoginRequest(string UserName, string Password);
 
+public record AdminResetPasswordRequest(string NewPassword);
+
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
 public record ApproveUserRequest(IReadOnlyList<Guid>? RoleIds);
 
 public record UpdateUserRoleRequest(IReadOnlyList<Guid> RoleIds, bool IsSuspended = false);

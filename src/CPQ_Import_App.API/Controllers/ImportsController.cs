@@ -6,6 +6,7 @@ using CPQ_Import_App.Core.Metadata;
 using CPQ_Import_App.Core.Models;
 using CPQ_Import_App.Infrastructure.Services;
 using CPQ_Import_App.API.Security;
+using CPQ_Import_App.API.Services;
 using CPQ_Import_App.Core.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,8 @@ public class ImportsController(
     IImportService importService,
     INotificationService notificationService,
     IActivityService activityService,
-    AccessControlService accessControlService) : ControllerBase
+    AccessControlService accessControlService,
+    UploadEvidencePdfDocumentBuilder uploadEvidenceReportBuilder) : ControllerBase
 {
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
@@ -1054,6 +1056,40 @@ public class ImportsController(
         }
         catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
+
+    /// <summary>Download the immutable publication and approval evidence for a published upload.</summary>
+    [HttpGet("{id:guid}/evidence-report")]
+    public async Task<IActionResult> DownloadEvidenceReport(Guid id, CancellationToken ct)
+    {
+        var job = await importService.GetJobAsync(id, ct);
+        if (job is null || !CanView(job)) return NotFound();
+        if (job.WorkflowStage != ImportWorkflowStage.Published && job.Status != ImportStatus.Committed)
+            return Conflict(new { error = "Publication evidence is available only after the upload has been published." });
+
+        try
+        {
+            var approval = await importService.GetApprovedComparisonSnapshotAsync(id, ct);
+            ReleasePackageSummary? release = null;
+            if (job.ReleasePackageId.HasValue)
+                release = await importService.GetReleasePackageAsync(job.ReleasePackageId.Value, UserId, ct);
+
+            var bytes = uploadEvidenceReportBuilder.Build(job, approval, release, UserDisplayName);
+            await activityService.LogAsync(new ActivityWriteRequest(
+                ActivityCategory.Import,
+                "GeneratePublicationEvidenceReport",
+                $"Generated publication evidence report for {Path.GetFileNameWithoutExtension(job.OriginalFileName)}.",
+                TargetType: "ImportJob",
+                TargetId: job.Id.ToString(),
+                StatusCode: StatusCodes.Status200OK,
+                Metadata: new { job.EntityType, job.ReleasePackageId, HasApprovalSnapshot = approval is not null }), ct);
+
+            var safeName = string.Concat(Path.GetFileNameWithoutExtension(job.OriginalFileName).Select(character =>
+                Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
+            return File(bytes, "application/pdf", $"PDU_Publication_Evidence_{safeName}.pdf");
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidDataException ex) { return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message }); }
     }
 
     private bool CanView(CPQ_Import_App.Core.Models.ImportJob job)

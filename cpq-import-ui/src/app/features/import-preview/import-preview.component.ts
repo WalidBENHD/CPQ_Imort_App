@@ -122,6 +122,17 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
           <app-download-action [loading]="activeDownload === 'comparison'" icon="difference" label="Comparison Report" />
         </button>
         <button
+          mat-flat-button
+          class="header-action-btn action-evidence"
+          [class.action-download--loading]="activeDownload === 'evidence'"
+          [disabled]="activeDownload !== null"
+          [attr.aria-busy]="activeDownload === 'evidence'"
+          *ngIf="canGenerateEvidenceReport()"
+          (click)="downloadEvidenceReport()"
+          matTooltip="Generate the controlled publication evidence PDF">
+          <app-download-action [loading]="activeDownload === 'evidence'" icon="workspace_premium" label="Evidence Report" />
+        </button>
+        <button
           mat-stroked-button
           class="header-action-btn action-refresh"
           *ngIf="canRefreshValidation()"
@@ -252,6 +263,19 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
               matTooltip="Download comparison report"
               aria-label="Download comparison report">
               <app-download-action [loading]="activeDownload === 'comparison'" icon="difference" />
+            </button>
+            <button
+              *ngIf="canGenerateEvidenceReport()"
+              mat-icon-button
+              type="button"
+              class="focus-dock-action action-evidence"
+              [class.action-download--loading]="activeDownload === 'evidence'"
+              [disabled]="activeDownload !== null"
+              [attr.aria-busy]="activeDownload === 'evidence'"
+              (click)="downloadEvidenceReport()"
+              matTooltip="Generate publication evidence report"
+              aria-label="Generate publication evidence report">
+              <app-download-action [loading]="activeDownload === 'evidence'" icon="workspace_premium" />
             </button>
             <button
               *ngIf="canRefreshValidation()"
@@ -1355,6 +1379,16 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
       background: #f0fdf4;
     }
     .action-comparison:hover { background: #dcfce7; }
+    .action-evidence {
+      border-color: #087f78 !important;
+      color: #fff !important;
+      background: linear-gradient(135deg, #10233f, #087f78) !important;
+      box-shadow: 0 7px 18px rgba(16, 35, 63, .16);
+    }
+    .action-evidence:hover:not(:disabled) {
+      background: linear-gradient(135deg, #163052, #0a958b) !important;
+      box-shadow: 0 9px 22px rgba(8, 127, 120, .22);
+    }
     .action-error {
       border-color: #fecaca !important;
       color: #b91c1c !important;
@@ -1778,6 +1812,7 @@ type UploadWorkflowAction = 'submit' | 'withdraw' | null;
 
     :host-context(html.theme-dark) .action-download { color: #5eead4 !important; border-color: rgba(45,212,191,.38) !important; background: rgba(15,118,110,.16); }
     :host-context(html.theme-dark) .action-download:hover:not(:disabled) { background: rgba(15,118,110,.26); }
+    :host-context(html.theme-dark) .action-evidence { color: #ecfeff !important; border-color: rgba(94,234,212,.45) !important; background: linear-gradient(135deg, #172b49, #0b625f) !important; }
     :host-context(html.theme-dark) .editor-eyebrow { color: #5eead4; }
     :host-context(html.theme-dark) .delete-selection:not(:disabled) { color: #fca5a5; }
     :host-context(html.theme-dark) .mobile-row-card { border-color: var(--app-border); background: var(--app-surface); }
@@ -2108,7 +2143,7 @@ export class ImportPreviewComponent implements OnInit {
   rejectionReason = '';
   workflowActionRunning = false;
   workflowAction: UploadWorkflowAction = null;
-  activeDownload: 'original' | 'current' | 'errors' | 'comparison' | null = null;
+  activeDownload: 'original' | 'current' | 'errors' | 'comparison' | 'evidence' | null = null;
   publicationApproval: PublicationApprovalDraft | null = null;
   activeDraftEditorMode: DraftEditorMode | null = null;
   activeDraftEditorRow: StagingRow | null = null;
@@ -3256,6 +3291,35 @@ export class ImportPreviewComponent implements OnInit {
       }
 
       this.snackBar.open(message, 'Close', { duration: 7000 });
+    });
+  }
+
+  canGenerateEvidenceReport(): boolean {
+    return this.job?.workflowStageLabel === 'Published' || this.job?.statusLabel === 'Committed';
+  }
+
+  downloadEvidenceReport(): void {
+    if (!this.job || !this.canGenerateEvidenceReport() || this.activeDownload) return;
+    this.activeDownload = 'evidence';
+    this.importService.downloadPublicationEvidenceReport(this.job.id).subscribe({
+      next: blob => {
+        this.activeDownload = null;
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        const safeName = this.job!.originalFileName.replace(/[^a-zA-Z0-9_-]+/g, '_');
+        link.href = url;
+        link.download = 'PDU_Publication_Evidence_' + safeName + '.pdf';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.snackBar.open('Publication evidence report generated.', 'Close', { duration: 3500 });
+      },
+      error: () => {
+        this.activeDownload = null;
+        this.snackBar.open('The publication evidence report could not be generated.', 'Close', { duration: 7000 });
+      }
     });
   }
 

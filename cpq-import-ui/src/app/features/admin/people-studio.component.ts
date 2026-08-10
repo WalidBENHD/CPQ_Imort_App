@@ -118,6 +118,7 @@ interface AccessRole {
             <div class="capability-cell"><strong>{{ effectiveCapabilities(user.id).length }}</strong><span>capabilities</span></div>
             <div class="person-actions">
               <button mat-stroked-button type="button" (click)="openAccessEditor(user, false)"><mat-icon>manage_accounts</mat-icon> Manage access</button>
+              <button mat-button type="button" class="password-reset-button" (click)="openPasswordReset(user)"><mat-icon>key</mat-icon> Reset password</button>
               <button mat-button type="button" *ngIf="accountStatus(user) === 'Active'" (click)="setAccountStatus(user, 'Suspended')">Suspend</button>
               <button mat-button type="button" *ngIf="accountStatus(user) === 'Suspended'" (click)="setAccountStatus(user, 'Active')">Reactivate</button>
               <button mat-icon-button type="button" class="delete-user-button" *ngIf="canDeleteUser(user)" (click)="openDeleteConfirmation(user)" [attr.aria-label]="'Delete ' + user.displayName" title="Delete user"><mat-icon>delete_outline</mat-icon></button>
@@ -145,6 +146,28 @@ interface AccessRole {
         <label class="field-label">Temporary password<input type="password" [(ngModel)]="newPassword" placeholder="At least 8 characters" /></label>
         <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>Initial roles</mat-label><mat-select multiple [(ngModel)]="newUserRoleIds"><mat-option *ngFor="let role of roles" [value]="role.id">{{ role.name }}</mat-option></mat-select></mat-form-field>
         <div class="drawer-actions"><button mat-button type="button" (click)="closeCreateUser()">Cancel</button><button mat-raised-button class="primary-button" type="button" [disabled]="!newDisplayName.trim() || !newUserName.trim() || newPassword.length < 8" (click)="createUser()">Create account</button></div>
+      </section>
+
+      <div class="modal-backdrop" *ngIf="passwordResetCandidate" (click)="closePasswordReset()"></div>
+      <section class="create-dialog password-reset-dialog" *ngIf="passwordResetCandidate as user" role="dialog" aria-modal="true" aria-labelledby="password-reset-title">
+        <div class="password-reset-dialog__icon"><mat-icon>key</mat-icon></div>
+        <div class="password-reset-dialog__copy">
+          <span class="section-kicker">Account recovery</span>
+          <h2 id="password-reset-title">Reset password for {{ user.displayName }}</h2>
+          <p>Set a new password for <strong>{{ user.userName }}</strong>. Their previous password will stop working immediately.</p>
+        </div>
+        <div class="password-reset-dialog__notice"><mat-icon>privacy_tip</mat-icon><span>The password is never displayed again or written to the audit log. Share it through an approved secure channel.</span></div>
+        <label class="field-label password-field">
+          New password
+          <span>
+            <input [type]="showResetPassword ? 'text' : 'password'" [(ngModel)]="resetPassword" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters" />
+            <button mat-icon-button type="button" [attr.aria-label]="showResetPassword ? 'Hide password' : 'Show password'" (click)="showResetPassword = !showResetPassword"><mat-icon>{{ showResetPassword ? 'visibility_off' : 'visibility' }}</mat-icon></button>
+          </span>
+        </label>
+        <button mat-stroked-button type="button" class="generate-password-button" (click)="generateResetPassword()"><mat-icon>autorenew</mat-icon> Generate strong password</button>
+        <label class="field-label">Confirm new password<input [type]="showResetPassword ? 'text' : 'password'" [(ngModel)]="resetPasswordConfirmation" maxlength="128" autocomplete="new-password" placeholder="Repeat the new password" (keyup.enter)="resetSelectedUserPassword()" /></label>
+        <span class="password-match-error" *ngIf="resetPasswordConfirmation && resetPassword !== resetPasswordConfirmation"><mat-icon>error_outline</mat-icon> Passwords do not match.</span>
+        <div class="delete-dialog__actions"><button mat-button type="button" (click)="closePasswordReset()" [disabled]="resettingPassword">Cancel</button><button mat-raised-button type="button" class="primary-button" [disabled]="!canResetPassword || resettingPassword" (click)="resetSelectedUserPassword()"><mat-icon>{{ resettingPassword ? 'hourglass_top' : 'key' }}</mat-icon>{{ resettingPassword ? 'Resetting...' : 'Reset password' }}</button></div>
       </section>
 
       <div class="modal-backdrop" *ngIf="deleteCandidate" (click)="closeDeleteConfirmation()"></div>
@@ -188,6 +211,7 @@ interface AccessRole {
     .role-chips { display:flex; flex-wrap:wrap; gap:5px; } .role-chips span { --role-color:#2563eb; padding:4px 7px; border:1px solid color-mix(in srgb,var(--role-color) 30%,transparent); border-radius:999px; color:var(--role-color); background:color-mix(in srgb,var(--role-color) 8%,var(--app-surface)); font-size:10px; font-weight:800; }
     .access-warning { display:flex; align-items:center; gap:5px; color:#b45309; font-size:11px; } .access-warning mat-icon { width:16px; height:16px; font-size:16px; }
     .capability-cell { display:grid; text-align:center; } .capability-cell strong { color:var(--app-text); font-size:17px; } .capability-cell span { color:var(--app-text-muted); font-size:10px; } .person-actions { justify-content:flex-end; gap:5px; } .person-actions button { border-radius:999px; }
+    .password-reset-button { color:#1d4ed8; } .password-reset-button mat-icon { width:17px; height:17px; font-size:17px; }
     .delete-user-button { color:#dc2626; }
     .empty-state,.loading-state { display:grid; justify-items:center; gap:5px; padding:35px; color:var(--app-text-muted); } .empty-state mat-icon { width:38px; height:38px; font-size:38px; } .empty-state strong { color:var(--app-text); }
     .modal-backdrop { position:fixed; inset:0; z-index:300; background:rgba(2,6,23,.58); backdrop-filter:blur(3px); }
@@ -200,12 +224,13 @@ interface AccessRole {
     .drawer-empty { display:flex; align-items:center; gap:7px; padding:16px; border:1px dashed var(--app-border); border-radius:11px; color:#b45309; }
     .effective-summary { justify-content:space-between; padding:13px; border-radius:11px; color:#1e3a8a; background:#eff6ff; } .drawer-actions { display:flex; justify-content:flex-end; gap:7px; margin-top:auto; padding-top:15px; border-top:1px solid var(--app-border); }
     .create-dialog { position:fixed; z-index:310; top:50%; left:50%; width:min(540px,92vw); box-sizing:border-box; display:grid; gap:16px; padding:22px; border:1px solid var(--app-border); border-radius:18px; background:var(--app-surface); box-shadow:0 25px 70px rgba(2,6,23,.3); transform:translate(-50%,-50%); } .field-label { display:grid; gap:6px; } .field-label input { box-sizing:border-box; width:100%; padding:11px; border:1px solid var(--app-border); border-radius:10px; color:var(--app-text); background:var(--app-surface-soft); font:inherit; outline:none; }
+    .password-reset-dialog { width:min(570px,92vw); } .password-reset-dialog__icon { width:46px; height:46px; display:grid; place-items:center; border-radius:14px; color:#fff; background:linear-gradient(135deg,#2563eb,#0f766e); box-shadow:0 10px 24px rgba(37,99,235,.2); } .password-reset-dialog__copy h2 { margin:4px 0; color:var(--app-text); } .password-reset-dialog__copy p { margin:0; color:var(--app-text-muted); line-height:1.5; } .password-reset-dialog__copy p strong { color:var(--app-text); } .password-reset-dialog__notice { display:flex; align-items:flex-start; gap:9px; padding:11px 12px; border:1px solid #bfdbfe; border-radius:11px; color:#1e40af; background:#eff6ff; font-size:12px; line-height:1.45; } .password-reset-dialog__notice mat-icon { flex:0 0 auto; width:19px; height:19px; font-size:19px; } .password-field > span { display:grid; grid-template-columns:1fr auto; align-items:center; border:1px solid var(--app-border); border-radius:10px; background:var(--app-surface-soft); } .password-field input { border:0; background:transparent; } .password-field button { margin-right:3px; color:var(--app-text-muted); } .generate-password-button { justify-self:start; border-radius:999px; } .password-match-error { display:flex; align-items:center; gap:6px; margin-top:-8px; color:#b91c1c; font-size:12px; } .password-match-error mat-icon { width:17px; height:17px; font-size:17px; }
     .delete-dialog { width:min(590px,92vw); border-color:#fca5a5; } .delete-dialog__icon { width:44px; height:44px; display:grid; place-items:center; border-radius:13px; color:#fff; background:#dc2626; } .delete-dialog__copy h2 { margin:4px 0; color:var(--app-text); } .delete-dialog__copy p { margin:0; color:var(--app-text-muted); } .delete-dialog__alternative { display:flex; gap:8px; padding:10px; color:#1e40af; font-size:12px; } .delete-confirm-field { display:grid; gap:6px; color:var(--app-text); font-size:12px; } .delete-confirm-field input { padding:11px; border:1px solid var(--app-border); border-radius:10px; color:var(--app-text); background:var(--app-surface-soft); font:800 14px monospace; } .delete-dialog__actions { display:flex; justify-content:flex-end; gap:8px; } .delete-confirm-button { color:#fff !important; background:#dc2626 !important; }
     :host-context(html.theme-dark) .prototype-notice { color:#bfdbfe; border-color:rgba(96,165,250,.35); border-left-color:#60a5fa; background:linear-gradient(90deg,rgba(30,64,175,.22),rgba(15,23,42,.9)); } :host-context(html.theme-dark) .prototype-pill,:host-context(html.theme-dark) .count-pill { color:#bfdbfe; border-color:rgba(96,165,250,.3); background:#111c32; }
     :host-context(html.theme-dark) .request-card { border-color:rgba(245,158,11,.3); background:linear-gradient(90deg,rgba(120,53,15,.18),var(--app-surface)); } :host-context(html.theme-dark) .request-callout { color:#fcd34d; }
     :host-context(html.theme-dark) .status-active { color:#86efac; background:rgba(22,101,52,.3); } :host-context(html.theme-dark) .status-pending { color:#fcd34d; background:rgba(146,64,14,.3); } :host-context(html.theme-dark) .status-suspended { color:#cbd5e1; background:#334155; } :host-context(html.theme-dark) .status-rejected { color:#fca5a5; background:rgba(127,29,29,.3); }
     :host-context(html.theme-dark) .account-principle,:host-context(html.theme-dark) .effective-summary { color:#bfdbfe; border-color:rgba(96,165,250,.3); background:rgba(30,64,175,.2); } :host-context(html.theme-dark) .status-choice button.selected { color:#bfdbfe; border-color:rgba(96,165,250,.5); background:rgba(30,64,175,.2); }
-    :host-context(html.theme-dark) .delete-user-button { color:#f87171; } :host-context(html.theme-dark) .delete-dialog__alternative { color:#bfdbfe; }
+    :host-context(html.theme-dark) .password-reset-button { color:#93c5fd; } :host-context(html.theme-dark) .password-reset-dialog__notice { color:#bfdbfe; border-color:rgba(96,165,250,.3); background:rgba(30,64,175,.2); } :host-context(html.theme-dark) .delete-user-button { color:#f87171; } :host-context(html.theme-dark) .delete-dialog__alternative { color:#bfdbfe; }
     @media (max-width:1100px) { .request-card { grid-template-columns:1fr auto; } .request-callout { grid-column:1; } .request-actions { grid-column:2; grid-row:1 / span 2; max-width:240px; } .person-row { grid-template-columns:minmax(210px,1fr) 120px minmax(180px,1fr) auto; } .capability-cell { display:none; } }
     @media (max-width:820px) { .page-header { align-items:flex-start; flex-direction:column; } .header-actions { width:100%; } .header-actions a,.header-actions button { flex:1; } .summary-grid { grid-template-columns:repeat(2,1fr); } .request-card { grid-template-columns:1fr; } .request-callout,.request-actions { grid-column:auto; grid-row:auto; max-width:none; } .request-actions { justify-content:stretch; } .request-actions button { flex:1; } .filter-bar { grid-template-columns:1fr; } .person-row { grid-template-columns:1fr auto; } .roles-cell { grid-column:1; } .account-cell { grid-column:2; grid-row:1; } .person-actions { grid-column:1 / -1; } }
     @media (max-width:520px) { .prototype-notice { grid-template-columns:auto 1fr; } .prototype-pill { grid-column:2; justify-self:start; } .summary-grid { gap:8px; } .summary-card { display:grid; justify-items:center; padding:11px 7px; text-align:center; } .header-actions { display:grid; } .pending-panel,.directory-panel { padding:14px; } .request-actions { display:grid; } .person-row { grid-template-columns:1fr; } .account-cell,.roles-cell,.person-actions { grid-column:1; grid-row:auto; } .person-actions { display:grid; } .access-drawer { padding:18px; } .drawer-actions { flex-direction:column-reverse; } .drawer-actions button { width:100%; } .delete-dialog__actions { flex-direction:column-reverse; } .delete-dialog__actions button { width:100%; } }
@@ -231,6 +256,11 @@ export class PeopleStudioComponent implements OnInit {
   deleteCandidate: AuthUser | null = null;
   deleteConfirmationText = '';
   deletingUser = false;
+  passwordResetCandidate: AuthUser | null = null;
+  resetPassword = '';
+  resetPasswordConfirmation = '';
+  showResetPassword = false;
+  resettingPassword = false;
 
   ngOnInit(): void {
     this.reload();
@@ -363,6 +393,64 @@ export class PeopleStudioComponent implements OnInit {
     this.localAuth.createUser({ userName, displayName, password: this.newPassword, isApproved: true, roleIds: this.newUserRoleIds }).subscribe(user => {
       this.users = this.dedupeUsers([...this.users, user]);
       this.closeCreateUser();
+    });
+  }
+
+  get canResetPassword(): boolean {
+    return this.resetPassword.length >= 8
+      && this.resetPassword.length <= 128
+      && this.resetPassword === this.resetPasswordConfirmation;
+  }
+
+  openPasswordReset(user: AuthUser): void {
+    this.passwordResetCandidate = user;
+    this.resetPassword = '';
+    this.resetPasswordConfirmation = '';
+    this.showResetPassword = false;
+  }
+
+  closePasswordReset(): void {
+    if (this.resettingPassword) return;
+    this.passwordResetCandidate = null;
+    this.resetPassword = '';
+    this.resetPasswordConfirmation = '';
+    this.showResetPassword = false;
+  }
+
+  generateResetPassword(): void {
+    const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnopqrstuvwxyz', '23456789', '!@#$%'];
+    const alphabet = groups.join('');
+    const randomCharacter = (characters: string): string => {
+      const value = new Uint32Array(1);
+      crypto.getRandomValues(value);
+      return characters[value[0] % characters.length];
+    };
+    const characters = [...groups.map(randomCharacter)];
+    while (characters.length < 16) characters.push(randomCharacter(alphabet));
+    for (let index = characters.length - 1; index > 0; index--) {
+      const value = new Uint32Array(1);
+      crypto.getRandomValues(value);
+      const target = value[0] % (index + 1);
+      [characters[index], characters[target]] = [characters[target], characters[index]];
+    }
+    const generated = characters.join('');
+    this.resetPassword = generated;
+    this.resetPasswordConfirmation = generated;
+    this.showResetPassword = true;
+  }
+
+  resetSelectedUserPassword(): void {
+    const user = this.passwordResetCandidate;
+    if (!user || !this.canResetPassword || this.resettingPassword) return;
+    this.resettingPassword = true;
+    this.localAuth.resetUserPassword(user.id, this.resetPassword).subscribe({
+      next: () => {
+        this.resettingPassword = false;
+        this.closePasswordReset();
+      },
+      error: () => {
+        this.resettingPassword = false;
+      }
     });
   }
 

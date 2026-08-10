@@ -169,6 +169,11 @@ type HeaderCommand = {
               <span><strong>{{ auth.capabilities.length }} capabilities enabled</strong><small>Access is managed through your assigned roles.</small></span>
             </div>
 
+            <a mat-stroked-button class="profile-menu__security" routerLink="/account/security">
+              <mat-icon>password</mat-icon>
+              Change password
+            </a>
+
             <button mat-flat-button type="button" class="profile-menu__logout" (click)="auth.logout()">
               <mat-icon>logout</mat-icon>
               Sign out
@@ -1355,6 +1360,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (path.startsWith('/admin/users')) return 'People';
     if (path.startsWith('/admin/activity')) return 'Activity';
     if (path.startsWith('/admin/maintenance')) return 'System';
+    if (path.startsWith('/account/security')) return 'Account security';
     if (path.startsWith('/internal-tools/evolis-decryptor')) return 'Evolis Decryptor';
     if (path.startsWith('/business-trace')) return 'Business trace';
     if (path.startsWith('/datasets')) return 'Datasets';

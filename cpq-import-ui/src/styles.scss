@@ -676,12 +676,30 @@ html.theme-dark .create-menu__footer { background: rgba(7, 14, 29, 0.66); }
   line-height: 1.35;
 }
 
+.profile-menu__security.mat-mdc-button-base {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 14px;
+  border-color: color-mix(in srgb, var(--app-accent) 35%, var(--app-border));
+  border-radius: 11px;
+  color: var(--app-accent);
+  font-weight: 850;
+}
+
+.profile-menu__security.mat-mdc-button-base:hover {
+  background: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface));
+}
+
+.profile-menu__security.mat-mdc-button-base mat-icon {
+  color: inherit;
+}
+
 .profile-menu__logout.mat-mdc-button-base {
   --mdc-filled-button-container-color: #fff1f2;
   --mdc-filled-button-label-text-color: #b91c1c;
   width: 100%;
   min-height: 42px;
-  margin-top: 14px;
+  margin-top: 8px;
   border: 1px solid #fecdd3;
   border-radius: 11px;
   background: #fff1f2 !important;
