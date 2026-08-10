@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\CPQ_Import_App.API\CPQ_Import_App.API.csproj" />
     <ProjectReference Include="..\..\src\CPQ_Import_App.Core\CPQ_Import_App.Core.csproj" />
     <ProjectReference Include="..\..\src\CPQ_Import_App.Infrastructure\CPQ_Import_App.Infrastructure.csproj" />
   </ItemGroup>

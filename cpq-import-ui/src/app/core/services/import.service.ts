@@ -102,6 +102,11 @@ export class ImportService {
     return this.http.get<BusinessTraceResult>(`${environment.apiUrl}/business-trace/search`, { params });
   }
 
+  generateBusinessTraceReport(scopeKey: string, objectType: 'Article' | 'PriceList', identifier: string): Observable<Blob> {
+    const params = new HttpParams().set('scopeKey', scopeKey).set('objectType', objectType).set('identifier', identifier);
+    return this.http.get(`${environment.apiUrl}/business-trace/report`, { params, responseType: 'blob' });
+  }
+
   getDependencyContext(jobId: string): Observable<DependencyContext> {
     return this.http.get<DependencyContext>(`${this.base}/${jobId}/dependency-context`);
   }

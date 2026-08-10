@@ -9,6 +9,8 @@ import { finalize } from 'rxjs/operators';
 import { AuthFacade } from '../../core/auth/auth.facade';
 import { BusinessTraceActor, BusinessTraceEvent, BusinessTraceField, BusinessTraceResult, BusinessTraceSuggestion, PILOT_SCOPE } from '../../core/models/import.models';
 import { ImportService } from '../../core/services/import.service';
+import { ToastService } from '../../core/services/toast.service';
+import { DownloadActionComponent } from '../../shared/download-action/download-action.component';
 
 type TraceFilter = 'all' | 'changes' | 'decisions';
 type TraceObjectType = 'Article' | 'Basis price';
@@ -21,7 +23,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
 @Component({
   selector: 'app-business-trace',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, RouterLink],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, RouterLink, DownloadActionComponent],
   template: `
     <main class="trace-page">
       <header class="trace-hero">
@@ -120,7 +122,12 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
               <p>{{ result.displayName || resultDescription }}</p>
             </div>
           </div>
-          <div class="result-status result-status--resolved" [class.result-status--inactive]="!result.isActive"><i></i><span><strong>{{ result.statusLabel }}</strong><small *ngIf="result.lastPublishedAt">Last published {{ formatDate(result.lastPublishedAt) }}</small></span></div>
+          <div class="result-actions">
+            <button mat-flat-button type="button" class="report-button" (click)="generateReport()" [disabled]="isGeneratingReport" [attr.aria-busy]="isGeneratingReport">
+              <app-download-action [loading]="isGeneratingReport" icon="picture_as_pdf" label="Generate report"></app-download-action>
+            </button>
+            <div class="result-status result-status--resolved" [class.result-status--inactive]="!result.isActive"><i></i><span><strong>{{ result.statusLabel }}</strong><small *ngIf="result.lastPublishedAt">Last published {{ formatDate(result.lastPublishedAt) }}</small></span></div>
+          </div>
         </section>
 
         <section class="current-layout">
@@ -286,6 +293,10 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
     .result-icon { width: 50px; height: 50px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 15px; color: #0f766e; background: linear-gradient(145deg, #ccfbf1, #f0fdfa); border: 1px solid #99f6e4; }
     .result-heading h2 { font-size: 25px; }
     .result-heading p { margin: 3px 0 0; color: var(--app-text-muted); font-size: 13px; }
+    .result-actions { display: flex; align-items: center; gap: 10px; }
+    .report-button { min-height: 43px; padding-inline: 16px !important; border-radius: 14px !important; color: #fff !important; background: linear-gradient(135deg, #10233f, #087f78) !important; box-shadow: 0 8px 20px rgba(16, 35, 63, .16); font-weight: 800; }
+    .report-button:hover:not(:disabled) { box-shadow: 0 10px 24px rgba(8, 127, 120, .24); transform: translateY(-1px); }
+    .report-button:disabled { opacity: .72; }
     .result-status { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid rgba(22, 163, 74, .22); border-radius: 14px; background: color-mix(in srgb, var(--app-surface) 88%, #dcfce7); }
     .result-status i { width: 10px; height: 10px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 5px rgba(22, 163, 74, .12); }
     .result-status--resolved { animation: truth-lock .7s .18s ease-out both; }
@@ -440,6 +451,7 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
       .scan-route { grid-template-columns: repeat(4, 1fr); }
       .scan-node small { font-size: 7px; }
       .result-heading { align-items: flex-start; flex-wrap: wrap; }
+      .result-actions { width: 100%; justify-content: space-between; padding-left: 57px; }
       .result-icon { width: 43px; height: 43px; border-radius: 13px; }
       .result-heading h2 { font-size: 20px; word-break: break-word; }
       .result-status { padding: 8px 10px; }
@@ -476,6 +488,9 @@ const EMPTY_TRACE_HISTORY: TraceHistory = { Article: [], 'Basis price': [] };
       .truth-value--wide { grid-column: auto; }
       .result-heading { flex-wrap: wrap; }
       .result-status { margin-left: 57px; }
+      .result-actions { padding-left: 57px; flex-wrap: wrap; }
+      .result-actions .result-status { margin-left: 0; }
+      .report-button { flex: 1 1 170px; }
       .history-section { padding-inline: 13px; }
       .event-card > header, .event-card > p { margin-left: 0; margin-right: 0; }
       .event-card > header { padding-inline: 13px; }
@@ -497,6 +512,7 @@ export class BusinessTraceComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthFacade);
+  private readonly toast = inject(ToastService);
 
   readonly pilotScope = PILOT_SCOPE;
   readonly scopeKey = 'saint-marcellin-pdu';
@@ -505,6 +521,7 @@ export class BusinessTraceComponent implements OnInit {
   trace: BusinessTraceResult | null = null;
   suggestions: BusinessTraceSuggestion[] = [];
   isLoading = false;
+  isGeneratingReport = false;
   showEmpty = false;
   searchError = '';
   filter: TraceFilter = 'all';
@@ -572,6 +589,31 @@ export class BusinessTraceComponent implements OnInit {
     }
 
     this.router.navigate(['/import', event.sourceJobId]);
+  }
+
+  generateReport(): void {
+    const result = this.trace;
+    if (!result || this.isGeneratingReport) return;
+
+    this.isGeneratingReport = true;
+    this.importService.generateBusinessTraceReport(this.scopeKey, this.apiObjectType, result.identifier)
+      .pipe(finalize(() => this.isGeneratingReport = false))
+      .subscribe({
+        next: blob => {
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          const safeIdentifier = result.identifier.replace(/[^a-zA-Z0-9_-]+/g, '_');
+          link.href = url;
+          link.download = `PDU_Trace_Evidence_${safeIdentifier}.pdf`;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          this.toast.success('Evidence report generated.');
+        },
+        error: () => this.toast.error('The evidence report could not be generated.')
+      });
   }
 
   search(): void {
