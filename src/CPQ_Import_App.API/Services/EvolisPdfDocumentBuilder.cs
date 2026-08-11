@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -7,178 +9,312 @@ namespace CPQ_Import_App.API.Services;
 
 public sealed class EvolisPdfDocumentBuilder
 {
-    private const string Accent = "#2563EB";
-    private const string AccentSoft = "#DBEAFE";
-    private const string AccentUltraSoft = "#EFF6FF";
-    private const string TextDark = "#0F172A";
-    private const string TextMuted = "#475569";
-    private const string Border = "#CBD5E1";
-    private const string HeaderFill = "#EFF6FF";
-    private const string RowAltFill = "#F8FAFC";
+    private const string Navy = "#10233F";
+    private const string NavySoft = "#EAF0F7";
+    private const string Teal = "#087F78";
+    private const string TealSoft = "#E7F7F4";
+    private const string Blue = "#3158C8";
+    private const string BlueSoft = "#EEF3FF";
+    private const string Green = "#16835B";
+    private const string GreenSoft = "#EAF8F1";
+    private const string Amber = "#9A6700";
+    private const string AmberSoft = "#FFF7E2";
+    private const string Text = "#172033";
+    private const string Muted = "#5C6B82";
+    private const string Border = "#D7E0EA";
+    private const string Surface = "#F7F9FC";
     private const string White = "#FFFFFF";
 
     public byte[] Build(string decryptedContent, string sourceFileName)
     {
         var report = EvolisReport.Parse(decryptedContent, sourceFileName);
+        var fingerprint = CreateFingerprint(decryptedContent, sourceFileName);
+        var reportReference = $"PDU-EVOLIS-{DateTime.UtcNow:yyyyMMdd}-{fingerprint[..10]}";
 
-        return Document.Create(container =>
+        return Document.Create(document =>
         {
-            container.Page(page =>
+            document.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
-                page.Margin(26);
-                page.PageColor(Colors.White);
-                page.DefaultTextStyle(style => style.FontFamily("Aptos").FontSize(10).FontColor(TextDark));
+                page.MarginHorizontal(30);
+                page.MarginVertical(25);
+                page.PageColor(White);
+                page.DefaultTextStyle(style => style.FontFamily("Aptos").FontSize(8.5f).FontColor(Text));
 
-                page.Header().Element(header => ComposeHeader(header, report));
-                page.Content().PaddingTop(14).Element(content => ComposeContent(content, report));
-                page.Footer().PaddingTop(8).AlignRight().Text(text =>
-                {
-                    text.Span("Page ").FontSize(9).FontColor(TextMuted);
-                    text.CurrentPageNumber().FontSize(9).FontColor(TextMuted);
-                    text.Span(" / ").FontSize(9).FontColor(TextMuted);
-                    text.TotalPages().FontSize(9).FontColor(TextMuted);
-                });
+                page.Header().Element(header => ComposePageHeader(header, reportReference));
+                page.Content().PaddingTop(16).Element(content => ComposeContent(content, report, fingerprint, reportReference));
+                page.Footer().PaddingTop(9).Element(footer => ComposeFooter(footer, reportReference));
             });
         }).GeneratePdf();
     }
 
-    private static void ComposeHeader(IContainer container, EvolisReport report)
+    private static void ComposePageHeader(IContainer container, string reportReference)
     {
-        container.Background(Accent).Padding(18).Row(row =>
+        container.Row(row =>
         {
-            row.RelativeItem().Column(column =>
+            row.RelativeItem().AlignMiddle().Text(text =>
             {
-                column.Item().Text("Evolis Decryptor Report").FontSize(24).SemiBold().FontColor(Colors.White);
-                column.Item().PaddingTop(4).Text($"Source file: {report.SourceFileName}").FontSize(10).FontColor(AccentUltraSoft);
-                column.Item().Text($"Generated: {report.GeneratedAt}").FontSize(9).FontColor(AccentUltraSoft);
+                text.Span("PDU").FontSize(13).Bold().FontColor(Navy);
+                text.Span("  |  INTERNAL CONFIGURATION OUTPUT").FontSize(8).SemiBold().FontColor(Teal);
             });
+            row.RelativeItem().AlignRight().AlignMiddle().Text(reportReference).FontSize(7.5f).FontColor(Muted);
+        });
+    }
 
-            row.ConstantItem(210).AlignRight().Background(AccentSoft).Padding(12).Column(column =>
+    private static void ComposeFooter(IContainer container, string reportReference)
+    {
+        container.BorderTop(1).BorderColor(Border).PaddingTop(7).Row(row =>
+        {
+            row.RelativeItem().Text($"Controlled Evolis output  |  {reportReference}").FontSize(7).FontColor(Muted);
+            row.ConstantItem(110).AlignRight().Text(text =>
             {
-                column.Item().Text("Tables").FontSize(10).SemiBold().FontColor(Accent);
-                column.Item().Text(report.Tables.Count.ToString(CultureInfo.InvariantCulture)).FontSize(22).SemiBold().FontColor(TextDark);
-                column.Item().PaddingTop(8).Text("Grand total").FontSize(10).SemiBold().FontColor(Accent);
-                column.Item().Text(report.GrandTotal).FontSize(18).SemiBold().FontColor(TextDark);
+                text.Span("Page ").FontSize(7).FontColor(Muted);
+                text.CurrentPageNumber().FontSize(7).SemiBold().FontColor(Navy);
+                text.Span(" of ").FontSize(7).FontColor(Muted);
+                text.TotalPages().FontSize(7).SemiBold().FontColor(Navy);
             });
         });
     }
 
-    private static void ComposeContent(IContainer container, EvolisReport report)
+    private static void ComposeContent(
+        IContainer container,
+        EvolisReport report,
+        string fingerprint,
+        string reportReference)
     {
         container.Column(column =>
         {
-            column.Spacing(14);
+            column.Spacing(12);
+            column.Item().Element(item => ComposeTitle(item, report, reportReference));
+            column.Item().Element(item => ComposeOverview(item, report));
 
-            foreach (var table in report.Tables)
+            for (var index = 0; index < report.Tables.Count; index++)
             {
-                column.Item().Background(Colors.White).Border(1).BorderColor(Border).Padding(14).Column(section =>
-                {
-                    section.Spacing(10);
-
-                    section.Item().Text(table.Title).FontSize(16).SemiBold().FontColor(Accent);
-                    section.Item().Row(row =>
-                    {
-                        row.RelativeItem().Text($"Basket: {table.IdPanier}").FontSize(10).FontColor(TextMuted);
-                        row.RelativeItem().AlignRight().Text($"Date: {FormatDate(table.Date)}").FontSize(10).FontColor(TextMuted);
-                    });
-
-                    if (table.LineRows.Count > 0)
-                    {
-                        section.Item().PaddingTop(4).Text("Standard rows").FontSize(11).SemiBold().FontColor(TextDark);
-                        section.Item().Table(tableBuilder =>
-                        {
-                            tableBuilder.ColumnsDefinition(columns =>
-                            {
-                                columns.ConstantColumn(42);
-                                columns.RelativeColumn(1.2f);
-                                columns.RelativeColumn(2.2f);
-                            });
-
-                            tableBuilder.Header(header =>
-                            {
-                                header.Cell().Element(TableHeaderCell).Text("Type");
-                                header.Cell().Element(TableHeaderCell).Text("Generic part number");
-                                header.Cell().Element(TableHeaderCell).Text("Quantity");
-                            });
-
-                            var rowIndex = 0;
-                            foreach (var lineRow in table.LineRows)
-                            {
-                                var alternate = rowIndex % 2 == 1;
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate, alignLeft: false)).Text("L").SemiBold();
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate)).Text(lineRow.Quantity);
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate)).Text(lineRow.GenericPartNumber);
-                                rowIndex++;
-                            }
-                        });
-                    }
-
-                    if (table.ConfiguredRows.Count > 0)
-                    {
-                        section.Item().PaddingTop(4).Text("Configured rows").FontSize(11).SemiBold().FontColor(TextDark);
-                        section.Item().Table(tableBuilder =>
-                        {
-                            tableBuilder.ColumnsDefinition(columns =>
-                            {
-                                columns.ConstantColumn(42);
-                                columns.RelativeColumn(1.6f);
-                                columns.RelativeColumn(0.9f);
-                                columns.RelativeColumn(2.8f);
-                                columns.RelativeColumn(1.0f);
-                                columns.RelativeColumn(1.0f);
-                            });
-
-                            tableBuilder.Header(header =>
-                            {
-                                header.Cell().Element(TableHeaderCell).Text("Type");
-                                header.Cell().Element(TableHeaderCell).Text("Generic part number");
-                                header.Cell().Element(TableHeaderCell).Text("Qty");
-                                header.Cell().Element(TableHeaderCell).Text("Description");
-                                header.Cell().Element(TableHeaderCell).Text("Unit price");
-                                header.Cell().Element(TableHeaderCell).Text("Total price");
-                            });
-
-                            var rowIndex = 0;
-                            foreach (var configuredRow in table.ConfiguredRows)
-                            {
-                                var alternate = rowIndex % 2 == 1;
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate, alignLeft: false)).Text("C").SemiBold();
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate)).Text(configuredRow.GenericPartNumber);
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate)).Text(configuredRow.Quantity);
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate)).Text(configuredRow.Description);
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate, alignRight: true)).Text(configuredRow.UnitPrice);
-                                tableBuilder.Cell().Element(cell => TableBodyCell(cell, alternate, alignRight: true)).Text(configuredRow.TotalPrice).SemiBold().FontColor(Accent);
-                                rowIndex++;
-                            }
-                        });
-                    }
-
-                    section.Item().PaddingTop(4).AlignRight().Background(AccentSoft).PaddingVertical(10).PaddingHorizontal(14).Text($"Subtotal: {table.Subtotal}").FontSize(11).SemiBold().FontColor(TextDark);
-                });
+                var sectionNumber = (index + 1).ToString("00", CultureInfo.InvariantCulture);
+                column.Item().Element(item => ComposeConfiguration(item, report.Tables[index], sectionNumber));
             }
 
-            column.Item().Background(Accent).Padding(14).Text($"Grand total: {report.GrandTotal}").FontSize(16).SemiBold().FontColor(Colors.White);
+            column.Item().Element(item => ComposeIntegrityStatement(item, report, fingerprint));
         });
     }
 
-    private static IContainer TableHeaderCell(IContainer container)
+    private static void ComposeTitle(IContainer container, EvolisReport report, string reportReference)
     {
-        return container.BorderBottom(1).BorderColor(Border).Background(HeaderFill).PaddingVertical(8).PaddingHorizontal(8);
+        container.Background(Navy).Padding(16).Row(row =>
+        {
+            row.RelativeItem().Column(column =>
+            {
+                column.Spacing(6);
+                column.Item().Text("CONTROLLED DECRYPTION OUTPUT").FontSize(8).Bold().LetterSpacing(.12f).FontColor("#7DE0D5");
+                column.Item().Text("Evolis Configuration Report").FontSize(22).Bold().FontColor(White);
+                column.Item().Text(Path.GetFileNameWithoutExtension(report.SourceFileName)).FontSize(11).SemiBold().FontColor("#DDE8F7");
+            });
+            row.ConstantItem(245).AlignMiddle().Column(column =>
+            {
+                column.Item().Text("REPORT REFERENCE").FontSize(6.5f).Bold().LetterSpacing(.08f).FontColor("#91A9C5");
+                column.Item().PaddingTop(3).Text(reportReference).FontSize(9).SemiBold().FontColor(White);
+                column.Item().PaddingTop(9).Text("GENERATED").FontSize(6.5f).Bold().LetterSpacing(.08f).FontColor("#91A9C5");
+                column.Item().PaddingTop(3).Text(report.GeneratedAt).FontSize(8).FontColor("#DDE8F7");
+            });
+        });
     }
 
-    private static IContainer TableBodyCell(IContainer container, bool alternate, bool alignLeft = true, bool alignRight = false)
+    private static void ComposeOverview(IContainer container, EvolisReport report)
     {
-        if (alignRight)
+        var standardRows = report.Tables.Sum(table => table.LineRows.Count);
+        var configuredRows = report.Tables.Sum(table => table.ConfiguredRows.Count);
+        container.Column(column =>
         {
-            container = container.AlignRight();
-        }
-        else if (!alignLeft)
-        {
-            container = container.AlignCenter();
-        }
+            column.Item().Row(row =>
+            {
+                MetricCard(row.RelativeItem(), "Configurations", report.Tables.Count.ToString(CultureInfo.InvariantCulture), Teal, TealSoft);
+                row.Spacing(8);
+                MetricCard(row.RelativeItem(), "Standard rows", standardRows.ToString(CultureInfo.InvariantCulture), Blue, BlueSoft);
+                row.Spacing(8);
+                MetricCard(row.RelativeItem(), "Configured rows", configuredRows.ToString(CultureInfo.InvariantCulture), Green, GreenSoft);
+                row.Spacing(8);
+                MetricCard(row.RelativeItem(), "Grand total", report.GrandTotal, Amber, AmberSoft);
+            });
+            column.Item().PaddingTop(7).Border(1).BorderColor(Border).Background(Surface).Padding(8).Row(row =>
+            {
+                row.RelativeItem().Text(text =>
+                {
+                    text.Span("SOURCE FILE  ").FontSize(6.5f).Bold().LetterSpacing(.05f).FontColor(Muted);
+                    text.Span(report.SourceFileName).FontSize(8.5f).SemiBold().FontColor(Navy);
+                });
+                row.RelativeItem().AlignRight().Text("Prices shown are decrypted configuration values; totals equal quantity x unit price.")
+                    .FontSize(7.5f).FontColor(Muted);
+            });
+        });
+    }
 
-        return container.BorderBottom(1).BorderColor(Border).Background(alternate ? RowAltFill : White).PaddingVertical(7).PaddingHorizontal(8);
+    private static void ComposeConfiguration(IContainer container, EvolisTableSection source, string sectionNumber)
+    {
+        container.Column(section =>
+        {
+            section.Item().Element(item => SectionHeading(item, sectionNumber, source.Title, "Basket configuration and decrypted pricing detail"));
+            section.Item().PaddingTop(8).Row(row =>
+            {
+                MetadataCell(row.RelativeItem(), "Basket", source.IdPanier, Teal);
+                row.Spacing(8);
+                MetadataCell(row.RelativeItem(), "Effective date", FormatDate(source.Date), Blue);
+                row.Spacing(8);
+                MetadataCell(row.RelativeItem(), "Rows", (source.LineRows.Count + source.ConfiguredRows.Count).ToString(CultureInfo.InvariantCulture), Green);
+                row.Spacing(8);
+                MetadataCell(row.RelativeItem(), "Subtotal", source.Subtotal, Amber);
+            });
+
+            if (source.LineRows.Count > 0)
+            {
+                section.Item().PaddingTop(10).Text($"STANDARD COMPONENTS  |  {source.LineRows.Count} row(s)")
+                    .FontSize(7).Bold().LetterSpacing(.06f).FontColor(Blue);
+                section.Item().PaddingTop(5).Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.ConstantColumn(38);
+                        columns.RelativeColumn(.75f);
+                        columns.RelativeColumn(3.25f);
+                    });
+                    table.Header(header =>
+                    {
+                        HeaderCell(header, "Type");
+                        HeaderCell(header, "Quantity");
+                        HeaderCell(header, "Generic part number");
+                    });
+                    for (var index = 0; index < source.LineRows.Count; index++)
+                    {
+                        var line = source.LineRows[index];
+                        BodyCell(table, "L", index, semiBold: true, color: Blue, centered: true);
+                        BodyCell(table, line.Quantity, index);
+                        BodyCell(table, line.GenericPartNumber, index, semiBold: true);
+                    }
+                });
+            }
+
+            if (source.ConfiguredRows.Count > 0)
+            {
+                section.Item().PaddingTop(10).Text($"CONFIGURED COMPONENTS  |  {source.ConfiguredRows.Count} row(s)")
+                    .FontSize(7).Bold().LetterSpacing(.06f).FontColor(Teal);
+                section.Item().PaddingTop(5).Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.ConstantColumn(38);
+                        columns.RelativeColumn(1.35f);
+                        columns.RelativeColumn(.55f);
+                        columns.RelativeColumn(2.8f);
+                        columns.RelativeColumn(.9f);
+                        columns.RelativeColumn(.95f);
+                    });
+                    table.Header(header =>
+                    {
+                        HeaderCell(header, "Type");
+                        HeaderCell(header, "Generic part number");
+                        HeaderCell(header, "Qty");
+                        HeaderCell(header, "Description");
+                        HeaderCell(header, "Unit price", true);
+                        HeaderCell(header, "Total price", true);
+                    });
+                    for (var index = 0; index < source.ConfiguredRows.Count; index++)
+                    {
+                        var configured = source.ConfiguredRows[index];
+                        BodyCell(table, "C", index, semiBold: true, color: Teal, centered: true);
+                        BodyCell(table, configured.GenericPartNumber, index, semiBold: true);
+                        BodyCell(table, configured.Quantity, index);
+                        BodyCell(table, configured.Description, index);
+                        BodyCell(table, configured.UnitPrice, index, rightAligned: true);
+                        BodyCell(table, configured.TotalPrice, index, semiBold: true, color: Green, rightAligned: true);
+                    }
+                });
+            }
+        });
+    }
+
+    private static void ComposeIntegrityStatement(IContainer container, EvolisReport report, string fingerprint)
+    {
+        container.Background(NavySoft).Border(1).BorderColor(Border).Padding(13).Column(column =>
+        {
+            column.Spacing(5);
+            column.Item().Text("OUTPUT AND INTEGRITY NOTE").FontSize(8).Bold().LetterSpacing(.08f).FontColor(Navy);
+            column.Item().Text(
+                    "This system-generated report presents the decrypted Evolis configuration content supplied to the CPQ Platform. " +
+                    "Values are rendered from the retained result; configured totals are calculated as quantity multiplied by unit price. " +
+                    "The report supports operational review and does not alter the source configuration.")
+                .FontSize(8).LineHeight(1.35f).FontColor(Text);
+            column.Item().PaddingTop(3).Text(text =>
+            {
+                text.Span("Output fingerprint: ").FontSize(7).SemiBold().FontColor(Muted);
+                text.Span(fingerprint).FontFamily("Consolas").FontSize(6.7f).FontColor(Navy);
+            });
+            column.Item().Text($"Coverage: {report.Tables.Count} configuration(s); source {report.SourceFileName}.").FontSize(7).FontColor(Muted);
+        });
+    }
+
+    private static void SectionHeading(IContainer container, string number, string title, string subtitle)
+    {
+        container.Row(row =>
+        {
+            row.ConstantItem(30).Height(30).AlignCenter().AlignMiddle().Background(Teal).Text(number).FontSize(9).Bold().FontColor(White);
+            row.RelativeItem().PaddingLeft(10).Column(column =>
+            {
+                column.Item().Text(title).FontSize(13).Bold().FontColor(Navy);
+                column.Item().Text(subtitle).FontSize(7.5f).FontColor(Muted);
+            });
+        });
+    }
+
+    private static void MetricCard(IContainer container, string label, string value, string accent, string fill)
+    {
+        container.MinHeight(54).Border(1).BorderColor(Border).Background(fill).Padding(8).Column(column =>
+        {
+            column.Item().Text(label.ToUpperInvariant()).FontSize(6.4f).Bold().LetterSpacing(.05f).FontColor(accent);
+            column.Item().PaddingTop(5).Text(value).FontSize(16).Bold().FontColor(accent);
+        });
+    }
+
+    private static void MetadataCell(IContainer container, string label, string value, string accent)
+    {
+        container.Border(1).BorderColor(Border).Background(White).Padding(7).Column(column =>
+        {
+            column.Item().Text(label.ToUpperInvariant()).FontSize(6.2f).Bold().LetterSpacing(.05f).FontColor(accent);
+            column.Item().PaddingTop(3).Text(string.IsNullOrWhiteSpace(value) ? "Not recorded" : value).FontSize(8.5f).SemiBold().FontColor(Text);
+        });
+    }
+
+    private static void HeaderCell(TableCellDescriptor table, string value, bool rightAligned = false)
+    {
+        var cell = table.Cell().Element(HeaderCellContainer);
+        if (rightAligned) cell = cell.AlignRight();
+        cell.Text(value.ToUpperInvariant()).FontSize(6.2f).Bold().LetterSpacing(.035f).FontColor(Navy);
+    }
+
+    private static void BodyCell(
+        TableDescriptor table,
+        string value,
+        int rowIndex,
+        bool semiBold = false,
+        string color = Text,
+        bool centered = false,
+        bool rightAligned = false)
+    {
+        var cell = table.Cell().Element(item => BodyCellContainer(item, rowIndex));
+        if (centered) cell = cell.AlignCenter();
+        if (rightAligned) cell = cell.AlignRight();
+        var text = cell.Text(string.IsNullOrWhiteSpace(value) ? "-" : value).FontSize(7.2f).FontColor(color);
+        if (semiBold) text.SemiBold();
+    }
+
+    private static IContainer HeaderCellContainer(IContainer container) =>
+        container.BorderBottom(1).BorderColor(Border).Background(NavySoft).PaddingVertical(7).PaddingHorizontal(6);
+
+    private static IContainer BodyCellContainer(IContainer container, int rowIndex) =>
+        container.BorderBottom(1).BorderColor(Border).Background(rowIndex % 2 == 0 ? White : Surface).PaddingVertical(5).PaddingHorizontal(6);
+
+    private static string CreateFingerprint(string content, string sourceFileName)
+    {
+        var canonical = $"{sourceFileName}\n{content.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n')}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
     private static string FormatDate(string value)
