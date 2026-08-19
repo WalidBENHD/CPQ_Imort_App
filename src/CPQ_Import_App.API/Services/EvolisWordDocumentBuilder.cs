@@ -44,7 +44,7 @@ public sealed class EvolisWordDocumentBuilder
                     body.Append(CreateSubHeading("Standard rows"));
                     body.Append(CreateTable(
                         new[] { "L", "Generic part number", "Quantity" },
-                        table.LineRows.Select(row => new[] { "L", row.Quantity, row.GenericPartNumber })));
+                        table.LineRows.Select(row => new[] { "L", row.GenericPartNumber, row.Quantity })));
                 }
 
                 if (table.ConfiguredRows.Count > 0)
@@ -106,7 +106,7 @@ public sealed class EvolisWordDocumentBuilder
         {
             ("SOURCE", sourceFileName),
             ("TABLES", tableCount.ToString(CultureInfo.InvariantCulture)),
-            ("GRAND TOTAL", grandTotal.ToString("0.0000", CultureInfo.InvariantCulture))
+            ("GRAND TOTAL", FormatPrice(grandTotal))
         }, accentFill: AccentUltraSoft, headerTextColor: Accent, valueTextColor: TextDark, compact: true);
     }
 
@@ -139,7 +139,7 @@ public sealed class EvolisWordDocumentBuilder
     {
         var paragraph = new Paragraph();
         paragraph.Append(new ParagraphProperties(new SpacingBetweenLines { Before = "220", After = "120" }));
-        paragraph.Append(CreateRun($"Grand total: {grandTotal:0.0000}", 18, true, Accent));
+        paragraph.Append(CreateRun($"Grand total: {FormatPrice(grandTotal)}", 18, true, Accent));
         return paragraph;
     }
 
@@ -315,7 +315,7 @@ public sealed class EvolisWordDocumentBuilder
                 var parts = line.Split(',', 3);
                 if (parts.Length == 3)
                 {
-                    current.LineRows.Add(new EvolisLineRow(parts[1].Trim(), parts[2].Trim()));
+                    current.LineRows.Add(new EvolisLineRow(parts[1].Trim(), FormatQuantity(parts[2])));
                 }
 
                 continue;
@@ -328,9 +328,9 @@ public sealed class EvolisWordDocumentBuilder
                 {
                     current.ConfiguredRows.Add(new EvolisConfiguredRow(
                         parts[1].Trim(),
-                        parts[2].Trim(),
+                        FormatQuantity(parts[2]),
                         parts[3].Trim(),
-                        parts[5].Trim(),
+                        FormatPrice(parts[5]),
                         MultiplyPrice(parts[5].Trim(), parts[2].Trim())));
                 }
             }
@@ -338,10 +338,9 @@ public sealed class EvolisWordDocumentBuilder
 
         foreach (var table in tables)
         {
-            table.Subtotal = table.ConfiguredRows
+            table.Subtotal = FormatPrice(table.ConfiguredRows
                 .Select(row => decimal.Parse(row.TotalPrice, CultureInfo.InvariantCulture))
-                .Sum()
-                .ToString("0.0000", CultureInfo.InvariantCulture);
+                .Sum());
         }
 
         return tables;
@@ -351,8 +350,25 @@ public sealed class EvolisWordDocumentBuilder
     {
         var price = decimal.Parse(unitPrice, CultureInfo.InvariantCulture);
         var qty = decimal.Parse(quantity, CultureInfo.InvariantCulture);
-        return (price * qty).ToString("0.0000", CultureInfo.InvariantCulture);
+        return FormatPrice(price * qty);
     }
+
+    private static string FormatQuantity(string value)
+    {
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity)
+            ? quantity.ToString("0.#############################", CultureInfo.InvariantCulture)
+            : value.Trim();
+    }
+
+    private static string FormatPrice(string value)
+    {
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var price)
+            ? FormatPrice(price)
+            : value.Trim();
+    }
+
+    private static string FormatPrice(decimal value) =>
+        value.ToString("0.#############################", CultureInfo.InvariantCulture);
 
     private sealed class EvolisTableSection
     {
@@ -364,7 +380,7 @@ public sealed class EvolisWordDocumentBuilder
         public string Subtotal { get; set; } = "0.0000";
     }
 
-    private sealed record EvolisLineRow(string Quantity, string GenericPartNumber);
+    private sealed record EvolisLineRow(string GenericPartNumber, string Quantity);
 
     private sealed record EvolisConfiguredRow(string GenericPartNumber, string Quantity, string Description, string UnitPrice, string TotalPrice);
 }

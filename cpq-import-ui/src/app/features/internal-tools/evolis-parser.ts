@@ -88,8 +88,9 @@ function parseLineRow(line: string): EvolisLineRowView | null {
 
   return {
     type: 'L',
-    quantity: formatQuantity(parts[1]),
-    genericPartNumber: parts[2].trim()
+    // Evolis standard records are stored as L,generic-part-number,quantity.
+    genericPartNumber: parts[1].trim(),
+    quantity: formatQuantity(parts[2])
   };
 }
 

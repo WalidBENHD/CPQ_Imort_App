@@ -179,15 +179,15 @@ public sealed class EvolisPdfDocumentBuilder
                     table.Header(header =>
                     {
                         HeaderCell(header, "Type");
-                        HeaderCell(header, "Quantity");
                         HeaderCell(header, "Generic part number");
+                        HeaderCell(header, "Quantity");
                     });
                     for (var index = 0; index < source.LineRows.Count; index++)
                     {
                         var line = source.LineRows[index];
                         BodyCell(table, "L", index, semiBold: true, color: Blue, centered: true);
-                        BodyCell(table, line.Quantity, index);
                         BodyCell(table, line.GenericPartNumber, index, semiBold: true);
+                        BodyCell(table, line.Quantity, index);
                     }
                 });
             }
@@ -332,7 +332,7 @@ public sealed class EvolisPdfDocumentBuilder
         public static EvolisReport Parse(string content, string sourceFileName)
         {
             var tables = ParseTables(content);
-            var grandTotal = tables.Sum(table => decimal.Parse(table.Subtotal, CultureInfo.InvariantCulture)).ToString("0.0000", CultureInfo.InvariantCulture);
+            var grandTotal = FormatPrice(tables.Sum(table => decimal.Parse(table.Subtotal, CultureInfo.InvariantCulture)));
             var generatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
 
             return new EvolisReport(sourceFileName, generatedAt, tables, grandTotal);
@@ -349,7 +349,7 @@ public sealed class EvolisPdfDocumentBuilder
         public string Subtotal { get; set; } = "0.0000";
     }
 
-    private sealed record EvolisLineRow(string Quantity, string GenericPartNumber);
+    private sealed record EvolisLineRow(string GenericPartNumber, string Quantity);
 
     private sealed record EvolisConfiguredRow(string GenericPartNumber, string Quantity, string Description, string UnitPrice, string TotalPrice);
 
@@ -397,7 +397,7 @@ public sealed class EvolisPdfDocumentBuilder
                 var parts = line.Split(',', 3);
                 if (parts.Length == 3)
                 {
-                    current.LineRows.Add(new EvolisLineRow(parts[1].Trim(), parts[2].Trim()));
+                    current.LineRows.Add(new EvolisLineRow(parts[1].Trim(), FormatQuantity(parts[2])));
                 }
 
                 continue;
@@ -410,9 +410,9 @@ public sealed class EvolisPdfDocumentBuilder
                 {
                     current.ConfiguredRows.Add(new EvolisConfiguredRow(
                         parts[1].Trim(),
-                        parts[2].Trim(),
+                        FormatQuantity(parts[2]),
                         parts[3].Trim(),
-                        parts[5].Trim(),
+                        FormatPrice(parts[5]),
                         MultiplyPrice(parts[5].Trim(), parts[2].Trim())));
                 }
             }
@@ -420,10 +420,9 @@ public sealed class EvolisPdfDocumentBuilder
 
         foreach (var table in tables)
         {
-            table.Subtotal = table.ConfiguredRows
+            table.Subtotal = FormatPrice(table.ConfiguredRows
                 .Select(row => decimal.Parse(row.TotalPrice, CultureInfo.InvariantCulture))
-                .Sum()
-                .ToString("0.0000", CultureInfo.InvariantCulture);
+                .Sum());
         }
 
         return tables;
@@ -433,6 +432,23 @@ public sealed class EvolisPdfDocumentBuilder
     {
         var price = decimal.Parse(unitPrice, CultureInfo.InvariantCulture);
         var qty = decimal.Parse(quantity, CultureInfo.InvariantCulture);
-        return (price * qty).ToString("0.0000", CultureInfo.InvariantCulture);
+        return FormatPrice(price * qty);
     }
+
+    private static string FormatQuantity(string value)
+    {
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var quantity)
+            ? quantity.ToString("0.#############################", CultureInfo.InvariantCulture)
+            : value.Trim();
+    }
+
+    private static string FormatPrice(string value)
+    {
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var price)
+            ? FormatPrice(price)
+            : value.Trim();
+    }
+
+    private static string FormatPrice(decimal value) =>
+        value.ToString("0.#############################", CultureInfo.InvariantCulture);
 }
