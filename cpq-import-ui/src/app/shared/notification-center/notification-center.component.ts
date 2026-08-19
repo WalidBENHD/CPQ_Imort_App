@@ -425,18 +425,20 @@ export class NotificationCenterComponent implements OnInit, OnDestroy {
   }
 
   private resolveNotificationRoute(notification: Notification): string[] | null {
-    if (notification.relatedImportId) {
+    if (notification.relatedImportId && this.auth.hasCapability('imports.view')) {
       return ['/import', notification.relatedImportId];
     }
 
+    const home = [this.auth.homeRoute];
+
     switch (notification.notificationType) {
       case NotificationType.UserPendingApproval:
-        return this.auth.hasCapability('users.manage') && this.auth.hasCapability('users.assign_roles') ? ['/admin/users'] : ['/dashboard'];
+        return this.auth.hasCapability('users.manage') && this.auth.hasCapability('users.assign_roles') ? ['/admin/users'] : home;
 
       case NotificationType.UserApproved:
       case NotificationType.UserRoleChanged:
       case NotificationType.UserDeleted:
-        return ['/dashboard'];
+        return home;
 
       case NotificationType.ImportUploaded:
       case NotificationType.ImportRejected:
@@ -444,10 +446,10 @@ export class NotificationCenterComponent implements OnInit, OnDestroy {
       case NotificationType.ImportCommitted:
       case NotificationType.ImportFailed:
       case NotificationType.ImportNeedsCorrection:
-        return ['/uploads'];
+        return this.auth.hasCapability('imports.view') ? ['/uploads'] : home;
 
       default:
-        return ['/dashboard'];
+        return home;
     }
   }
 

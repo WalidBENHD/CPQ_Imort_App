@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, capabilityGuard, internalToolsGuard } from './core/auth/auth.guard';
+import { authGuard, capabilityGuard, homeRedirectGuard, internalToolsGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -17,8 +17,9 @@ export const routes: Routes = [
   },
   {
     path: '',
-    redirectTo: 'dashboard',
-    pathMatch: 'full'
+    pathMatch: 'full',
+    canActivate: [homeRedirectGuard],
+    children: []
   },
   {
     path: 'dashboard',
@@ -113,5 +114,5 @@ export const routes: Routes = [
     canActivate: [capabilityGuard('system.maintenance')],
     loadComponent: () => import('./features/admin/maintenance.component').then(m => m.MaintenanceComponent)
   },
-  { path: '**', redirectTo: 'dashboard' }
+  { path: '**', redirectTo: '' }
 ];

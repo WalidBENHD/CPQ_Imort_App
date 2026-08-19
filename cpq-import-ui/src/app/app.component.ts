@@ -433,7 +433,7 @@ type HeaderCommand = {
       align-items: center;
     }
     .toolbar-leading { justify-content: flex-start; }
-    .toolbar-actions { justify-content: flex-end; gap: 5px; }
+    .toolbar-actions { grid-column: 3; justify-content: flex-end; gap: 5px; }
     .brand { display: flex; align-items: center; gap: 9px; font-weight: 750; font-size: 16px; letter-spacing: -0.01em; }
     .brand__mark {
       width: 31px;
@@ -1182,6 +1182,7 @@ type HeaderCommand = {
         gap: 6px;
         padding: 0 8px;
       }
+      .toolbar-actions { grid-column: auto; }
       .brand { font-size: 14px; gap: 6px; }
       .brand__mark { width: 28px; height: 28px; border-radius: 9px; }
       .toolbar-context,

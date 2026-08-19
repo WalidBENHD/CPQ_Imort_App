@@ -4,6 +4,7 @@ import { OAuthService } from 'angular-oauth2-oidc';
 import { mergeClaims, readAccessTokenClaims, readCapabilities, readRoles, TokenClaims } from './token-claims';
 import { LocalAuthService } from './local-auth.service';
 import { isLocalAuthMode } from './auth-mode';
+import { resolveHomeRoute } from './home-route';
 
 @Injectable({ providedIn: 'root' })
 export class AuthFacade {
@@ -104,6 +105,10 @@ export class AuthFacade {
 
   get isInternalTools(): boolean {
     return this.hasCapability('tools.evolis');
+  }
+
+  get homeRoute(): string {
+    return resolveHomeRoute(this.capabilities, this.roleNames);
   }
 
   hasCapability(capability: string): boolean {

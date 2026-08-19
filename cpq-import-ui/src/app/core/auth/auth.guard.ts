@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators';
 import { mergeClaims, readAccessTokenClaims, readCapabilities, readRoles, TokenClaims } from './token-claims';
 import { LocalAuthService } from './local-auth.service';
 import { isLocalAuthMode } from './auth-mode';
+import { resolveHomeRoute } from './home-route';
 
 export const authGuard: CanActivateFn = () => {
   if (isLocalAuthMode()) {
@@ -17,6 +18,27 @@ export const authGuard: CanActivateFn = () => {
   if (oauthService.hasValidAccessToken()) return true;
   oauthService.initCodeFlow();
   return false;
+};
+
+export const homeRedirectGuard: CanActivateFn = () => {
+  const router = inject(Router);
+
+  if (isLocalAuthMode()) {
+    const localAuth = inject(LocalAuthService);
+    return localAuth.ensureUserLoaded().pipe(map(user => user
+      ? router.parseUrl(resolveHomeRoute(user.capabilities ?? [], user.roleNames ?? []))
+      : router.parseUrl('/login')));
+  }
+
+  const oauthService = inject(OAuthService);
+  if (!oauthService.hasValidAccessToken()) {
+    oauthService.initCodeFlow();
+    return false;
+  }
+
+  const identityClaims = oauthService.getIdentityClaims() as TokenClaims | null;
+  const claims = mergeClaims(identityClaims, readAccessTokenClaims(oauthService.getAccessToken()));
+  return router.parseUrl(resolveHomeRoute(readCapabilities(claims), readRoles(claims)));
 };
 
 export function capabilityGuard(capability: string): CanActivateFn {

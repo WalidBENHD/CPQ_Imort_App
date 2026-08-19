@@ -8,6 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { LocalAuthService } from '../../core/auth/local-auth.service';
+import { resolveHomeRoute } from '../../core/auth/home-route';
 import { CreatorVisionComponent } from './creator-vision.component';
 
 type LandingSectionId = 'business-case' | 'operating-model' | 'governance' | 'creator-vision';
@@ -705,11 +706,7 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
     this.auth.login(userName.trim(), password).subscribe({
       next: (response) => {
         this.submitting = false;
-        const capabilities = response.user.capabilities ?? [];
-        const destination = capabilities.includes('tools.evolis') && !capabilities.includes('imports.view')
-          ? '/internal-tools/evolis-decryptor'
-          : '/dashboard';
-        this.router.navigateByUrl(destination);
+        this.router.navigateByUrl(resolveHomeRoute(response.user.capabilities ?? [], response.user.roleNames ?? []));
       },
       error: (err) => {
         this.submitting = false;

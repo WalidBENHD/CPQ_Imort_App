@@ -17,7 +17,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
   template: `
     <section class="security-page">
       <header class="security-hero">
-        <a routerLink="/dashboard" class="back-link"><mat-icon>arrow_back</mat-icon> Back to workspace</a>
+        <a [routerLink]="auth.homeRoute" class="back-link"><mat-icon>arrow_back</mat-icon> Back to workspace</a>
         <div class="security-hero__content">
           <span class="security-hero__mark"><mat-icon>shield_lock</mat-icon></span>
           <div>
@@ -73,7 +73,7 @@ import { LocalAuthService } from '../../core/auth/local-auth.service';
           </div>
 
           <footer class="form-actions">
-            <a mat-button routerLink="/dashboard">Cancel</a>
+            <a mat-button [routerLink]="auth.homeRoute">Cancel</a>
             <button mat-flat-button type="submit" [disabled]="form.invalid || passwordMismatch || submitting">
               <mat-icon>{{ submitting ? 'hourglass_top' : 'verified_user' }}</mat-icon>
               {{ submitting ? 'Changing password...' : 'Change password' }}

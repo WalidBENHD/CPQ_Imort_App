@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
+import { AuthFacade } from '../../core/auth/auth.facade';
 
 @Component({
   selector: 'app-forbidden',
@@ -13,8 +14,8 @@ import { MatCardModule } from '@angular/material/card';
       <mat-card class="forbidden-card">
         <mat-icon color="warn" class="icon">lock</mat-icon>
         <h2>Access Denied</h2>
-        <p>You need the <strong>cpq-approver</strong> role to access this page.</p>
-        <a mat-raised-button color="primary" routerLink="/dashboard">Back to Dashboard</a>
+        <p>Your current access does not include this page.</p>
+        <a mat-raised-button color="primary" [routerLink]="auth.homeRoute">Back to my workspace</a>
       </mat-card>
     </div>
   `,
@@ -24,4 +25,6 @@ import { MatCardModule } from '@angular/material/card';
     .icon { font-size: 64px; height: 64px; width: 64px; }
   `]
 })
-export class ForbiddenComponent { }
+export class ForbiddenComponent {
+  readonly auth = inject(AuthFacade);
+}
